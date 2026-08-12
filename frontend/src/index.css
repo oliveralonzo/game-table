@@ -2,9 +2,9 @@
 @import "tailwindcss";
 
 @source "./";
-@source "../node_modules/konsta/react";
-@source "../node_modules/konsta/shared";
-@source "../node_modules/konsta/styles";
+@source "../../../konsta/react";
+@source "../../../konsta/shared";
+@source "../../../konsta/styles";
 
 /* Global page background + text colors */
 html,
