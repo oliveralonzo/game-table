@@ -1,0 +1,1 @@
+"""Table-scoped activity domain."""

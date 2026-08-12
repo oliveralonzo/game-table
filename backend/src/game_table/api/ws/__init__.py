@@ -1,0 +1,1 @@
+"""Multiplayer platform WebSocket adapters."""

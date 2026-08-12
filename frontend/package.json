@@ -1,0 +1,16 @@
+{
+  "name": "game-table",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Frontend infrastructure for pluggable multiplayer table games",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}
+
