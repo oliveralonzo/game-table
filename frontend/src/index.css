@@ -1,0 +1,298 @@
+@import "konsta/theme.css";
+@import "tailwindcss";
+
+@source "./";
+@source "../node_modules/konsta/react";
+@source "../node_modules/konsta/shared";
+@source "../node_modules/konsta/styles";
+
+/* Global page background + text colors */
+html,
+body,
+#root {
+  @apply min-h-[100svh] text-gray-900 dark:text-gray-100;
+}
+
+html {
+  @apply bg-ios-light-surface dark:bg-ios-dark-surface;
+}
+
+body {
+  @apply bg-transparent;
+}
+
+#app-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+  @apply bg-ios-light-surface dark:bg-ios-dark-surface;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.k-app {
+  @apply min-h-[100svh] bg-transparent;
+}
+
+.k-glass {
+  touch-action: auto !important;
+}
+
+.doble6-clerk-auth .cl-footerAction {
+  display: none !important;
+}
+
+.doble6-clerk-auth,
+.doble6-clerk-auth .cl-rootBox,
+.doble6-clerk-auth .cl-cardBox,
+.doble6-clerk-auth .cl-card,
+.doble6-clerk-auth .cl-main,
+.doble6-clerk-auth .cl-form,
+.doble6-clerk-auth .cl-formField,
+.doble6-clerk-auth .cl-formFieldInput,
+.doble6-clerk-auth .cl-socialButtons,
+.doble6-clerk-auth .cl-socialButtonsBlockButton {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.doble6-clerk-auth .cl-rootBox,
+.doble6-clerk-auth .cl-cardBox,
+.doble6-clerk-auth .cl-card {
+  width: 100% !important;
+}
+
+.doble6-clerk-auth .cl-card {
+  margin-inline: 0 !important;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+}
+
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  50% {
+    transform: translateX(60%);
+  }
+
+  100% {
+    transform: translateX(210%);
+  }
+}
+
+/* Keyframes: perfectly smooth spin */
+@keyframes fidgetspin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-scale {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+
+  15% {
+    opacity: 1;
+    transform: scale(2);
+  }
+
+  35% {
+    opacity: 1;
+    transform: scale(2);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.animate-fade-scale {
+  animation: fade-scale var(--reaction-enter-ms, 900ms) ease-in forwards;
+}
+
+.animate-fade-scale-out {
+  animation: fade-scale-out var(--reaction-exit-ms, 900ms) ease-out forwards;
+}
+
+
+/* Base state: no spin */
+.domino {
+  transition: animation 1s ease-in-out;
+  /* smooth start/stop */
+}
+
+/* Applied during press/hold or when spinning={true} */
+.animate-fidgetspin {
+  animation: fidgetspin 0.4s linear infinite;
+}
+
+@keyframes viewer-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(-24px);
+  }
+}
+
+@keyframes viewer-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-viewer-reaction {
+  animation: viewer-float var(--reaction-enter-ms, 900ms) ease-out forwards;
+}
+
+.animate-viewer-reaction-out {
+  animation: viewer-fade-out var(--reaction-exit-ms, 300ms) ease-out forwards;
+}
+
+@keyframes roster-heartbeat {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+
+  35% {
+    opacity: 1;
+    transform: scale(1.018);
+  }
+
+  55% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+
+  72% {
+    opacity: 0.96;
+    transform: scale(1.01);
+  }
+}
+
+.animate-roster-heartbeat {
+  animation: roster-heartbeat 1.35s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes domino-deal-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18%) scale(0.82);
+    filter: blur(3px);
+  }
+
+  70% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes domino-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-3%);
+  }
+
+  40% {
+    transform: translateX(3%);
+  }
+
+  60% {
+    transform: translateX(-2%);
+  }
+
+  80% {
+    transform: translateX(2%);
+  }
+}
+
+.animate-domino-shake {
+  animation: domino-shake 260ms cubic-bezier(0.36, 0, 0.66, -0.56) both;
+}
+
+.animate-hand-deal > * {
+  animation: domino-deal-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--deal-delay, 0ms);
+}
+
+.animate-hand-deal > :nth-child(1) { --deal-delay: 0ms; }
+.animate-hand-deal > :nth-child(2) { --deal-delay: 45ms; }
+.animate-hand-deal > :nth-child(3) { --deal-delay: 90ms; }
+.animate-hand-deal > :nth-child(4) { --deal-delay: 135ms; }
+.animate-hand-deal > :nth-child(5) { --deal-delay: 180ms; }
+.animate-hand-deal > :nth-child(6) { --deal-delay: 225ms; }
+.animate-hand-deal > :nth-child(7) { --deal-delay: 270ms; }
+.animate-hand-deal > :nth-child(8) { --deal-delay: 315ms; }
+.animate-hand-deal > :nth-child(9) { --deal-delay: 360ms; }
+.animate-hand-deal > :nth-child(10) { --deal-delay: 405ms; }
+.animate-hand-deal > :nth-child(11) { --deal-delay: 450ms; }
+.animate-hand-deal > :nth-child(12) { --deal-delay: 495ms; }
+
+.font-lexend {
+  font-family: "Lexend", sans-serif;
+}
+
+.language-popover {
+  --color-ios-hover-highlight: transparent;
+}

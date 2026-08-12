@@ -1,0 +1,2 @@
+export const MAX_CHAT_MESSAGE_LENGTH = 66;
+export const REACTION_DURATION_MS = 3000;

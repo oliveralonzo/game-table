@@ -1,2 +1,11 @@
-// Public frontend exports will be added as the platform is extracted.
-
+export { default as App } from "./App";
+export { default } from "./App";
+export {
+    AnonymousAuthSessionProvider,
+    ClerkAuthSessionProvider,
+} from "./context/AuthSessionContext";
+export type {
+    FrontendGamePlugin,
+    GameScreenProps,
+    PlatformFeatures,
+} from "./gamePlugin";

@@ -4,13 +4,45 @@
   "private": true,
   "description": "Frontend infrastructure for pluggable multiplayer table games",
   "type": "module",
-  "files": [
-    "dist"
-  ],
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/index.css",
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && cp src/index.css dist/index.css",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@clerk/react": "^6.12.5",
+    "i18next": "^26.3.4",
+    "konsta": "^5.2.0",
+    "lucide-react": "^0.544.0",
+    "react-i18next": "^17.0.8",
+    "react-router-dom": "^7.6.3",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.1.11"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "~5.8.3"
   }
 }
-
