@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { PlatformBranding } from "game-table/context/BrandingContext";
 
 export type GameScreenProps = {
     gameId: string;
@@ -13,6 +14,7 @@ export type PlatformFeatures = {
 };
 
 export type FrontendGamePlugin = {
+    branding: PlatformBranding;
     features: PlatformFeatures;
     GameScreen: ComponentType<GameScreenProps>;
     SettingsPanel: ComponentType<Record<string, unknown>>;

@@ -10,6 +10,7 @@ import { useSystemDarkClass } from "game-table/hooks/useSystemDarkClass";
 import { useRestoreViewportAfterInputBlur } from "game-table/hooks/useRestoreViewportAfterInputBlur";
 import { normalizeTableCode } from "game-table/utils/tableRoute";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
+import { BrandingProvider } from "game-table/context/BrandingContext";
 
 function repairMalformedLocationPath() {
   if (typeof window === "undefined") return;
@@ -235,17 +236,19 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
   useRestoreViewportAfterInputBlur();
 
   return (
-    <SessionProvider>
-      <TableProvider>
-        <TableSocketProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
-              <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
-            </Routes>
-          </BrowserRouter>
-        </TableSocketProvider>
-      </TableProvider>
-    </SessionProvider>
+    <BrandingProvider branding={gamePlugin.branding}>
+      <SessionProvider>
+        <TableProvider>
+          <TableSocketProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
+                <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
+              </Routes>
+            </BrowserRouter>
+          </TableSocketProvider>
+        </TableProvider>
+      </SessionProvider>
+    </BrandingProvider>
   );
 }

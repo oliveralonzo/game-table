@@ -9,3 +9,4 @@ export type {
     GameScreenProps,
     PlatformFeatures,
 } from "./gamePlugin";
+export type { PlatformBranding } from "./context/BrandingContext";

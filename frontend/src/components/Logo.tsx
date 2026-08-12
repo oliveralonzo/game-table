@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
+import { useBranding } from "game-table/context/BrandingContext";
 
 type Props = {
     className?: string;
@@ -12,6 +13,7 @@ export default function Logo({ className = "" }: Props) {
     const navigate = useNavigate();
     const { state } = useTable();
     const { leaveTable } = useTableSocket();
+    const { name } = useBranding();
 
     function handleClick() {
         if (!state.tableView) {
@@ -34,7 +36,7 @@ export default function Logo({ className = "" }: Props) {
             onClick={handleClick}
             className={`cursor-pointer text-2xl font-bold font-lexend transition duration-150 hover:opacity-75 active:scale-95 active:opacity-65 ${className}`}
         >
-            doble6
+            {name}
         </button>
     );
 }

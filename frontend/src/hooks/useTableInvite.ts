@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { tableInviteUrl } from "game-table/utils/tableRoute";
+import { useBranding } from "game-table/context/BrandingContext";
 
 type UseTableInviteArgs = {
     tableCode?: string | null;
@@ -8,6 +9,7 @@ type UseTableInviteArgs = {
 };
 
 export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
+    const { name } = useBranding();
     const [inviteCopied, setInviteCopied] = useState(false);
     const [fallbackInviteUrl, setFallbackInviteUrl] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
         setFallbackInviteUrl(null);
         const inviteUrl = tableInviteUrl(window.location.origin, tableCode);
         const shareData: ShareData = {
-            title: "doble6",
+            title: name,
             text: t("table.dialog.inviteShareText"),
             url: inviteUrl,
         };
