@@ -15,13 +15,13 @@ function getOrCreateThemeColorMeta() {
         document.querySelectorAll<HTMLMetaElement>("meta[name='theme-color']")
     );
     let meta = themeColorMetas.find((candidate) => (
-        candidate.dataset.doble6ThemeColor === "true"
+        candidate.dataset.gameTableThemeColor === "true"
     ));
 
     if (!meta) {
         meta = document.createElement("meta");
         meta.name = "theme-color";
-        meta.dataset.doble6ThemeColor = "true";
+        meta.dataset.gameTableThemeColor = "true";
         document.head.appendChild(meta);
     }
 

@@ -11,7 +11,8 @@
  * - Caches in-memory to avoid repeated storage reads.
  */
 
-const STORAGE_KEY = "doble6.clientId";
+const STORAGE_KEY = "game-table.clientId";
+const LEGACY_STORAGE_KEY = "doble6.clientId";
 
 let cachedClientId: string | null = null;
 
@@ -22,7 +23,8 @@ function isBrowser(): boolean {
 function readStored(): string | null {
     if (!isBrowser()) return null;
     try {
-        const v = window.localStorage.getItem(STORAGE_KEY);
+        const v = window.localStorage.getItem(STORAGE_KEY)
+            ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
         return v && v.trim().length > 0 ? v : null;
     } catch {
         return null;

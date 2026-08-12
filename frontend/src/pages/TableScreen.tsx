@@ -25,6 +25,7 @@ import { useMemberNameCache } from "game-table/hooks/useMemberNameCache";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { LogOut } from "lucide-react";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
+import PlatformSettingsPanel from "game-table/components/PlatformSettingsPanel";
 import {
     Button,
     Glass,
@@ -257,20 +258,25 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             onInvite={handleInvite}
             onCloseInviteFallback={closeInviteFallback}
             renderSettings={() => (
-                <SettingsPanel
-                    value={lobbyConfig}
-                    onChange={(next: unknown) => updateGameSettings(next)}
-                    readOnly={!isHost || table.state !== "open"}
-                    isFourPlayer={isFourPlayer}
-                    seatCount={seatCount}
-                    onAddSeat={addSeat}
-                    onRemoveSeat={removeSeat}
-                    title={t("table.tool.settings")}
+                <PlatformSettingsPanel
                     displayName={displayName}
-                    displayInitialLabel={memberInitialLabels[selfId]?.label}
                     onDisplayNameChange={updateName}
-                    flush
-                    collapsible={false}
+                    gameSettings={gamePlugin.features.settings ? (
+                        <SettingsPanel
+                            value={lobbyConfig}
+                            onChange={(next: unknown) => updateGameSettings(next)}
+                            readOnly={!isHost || table.state !== "open"}
+                            isFourPlayer={isFourPlayer}
+                            seatCount={seatCount}
+                            onAddSeat={addSeat}
+                            onRemoveSeat={removeSeat}
+                            title={t("table.tool.settings")}
+                            displayInitialLabel={memberInitialLabels[selfId]?.label}
+                            flush
+                            collapsible={false}
+                            sections={{ profile: false, language: false }}
+                        />
+                    ) : undefined}
                 />
             )}
             messages={messages}
@@ -293,9 +299,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             onEmitReaction={emitReaction}
             onRemoveReaction={removeReaction}
             tableAction={renderTableAction()}
-            enabledTools={gamePlugin.features.settings
-                ? undefined
-                : ["people", "chat"]}
             accountsEnabled={gamePlugin.features.accounts}
         >
             <div className="mb-3 px-1">

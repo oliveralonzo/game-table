@@ -21,7 +21,6 @@ const ENGLISH_NOUNS = [
     "Ace",
     "Bridge",
     "Crown",
-    "Domino",
     "Echo",
     "Harbor",
     "Joker",

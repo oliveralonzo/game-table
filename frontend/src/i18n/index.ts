@@ -6,7 +6,8 @@ import { es } from "game-table/i18n/resources/es";
 export const supportedLanguages = ["en", "es"] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
-const languageStorageKey = "domino:language";
+const languageStorageKey = "game-table:language";
+const legacyLanguageStorageKey = "domino:language";
 
 function normalizeLanguage(language: string | undefined): SupportedLanguage | null {
     const baseLanguage = language?.split("-")[0];
@@ -14,7 +15,11 @@ function normalizeLanguage(language: string | undefined): SupportedLanguage | nu
 }
 
 function getInitialLanguage(): SupportedLanguage {
-    const storedLanguage = normalizeLanguage(localStorage.getItem(languageStorageKey) ?? undefined);
+    const storedLanguage = normalizeLanguage(
+        localStorage.getItem(languageStorageKey)
+        ?? localStorage.getItem(legacyLanguageStorageKey)
+        ?? undefined,
+    );
     const browserLanguage = normalizeLanguage(navigator.language);
 
     return storedLanguage ?? browserLanguage ?? "en";

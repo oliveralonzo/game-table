@@ -21,6 +21,8 @@ import {
 } from "game-table/i18n/backendErrors";
 import { encodeTableCodePath, normalizeTableCode } from "game-table/utils/tableRoute";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
+import PlatformSettingsPanel from "game-table/components/PlatformSettingsPanel";
+import NicknameSettings from "game-table/components/NicknameSettings";
 import { ArrowLeft, ChartNoAxesColumn, Settings, UserRound } from "lucide-react";
 import {
     App as KonstaApp,
@@ -661,7 +663,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             : "[&>span:last-child]:!transition-[opacity,filter] [&>span:last-child]:opacity-0 [&>span:last-child]:blur-sm"
                             }`}
                     >
-                        {gamePlugin.features.settings ? <SegmentedButton
+                        <SegmentedButton
                             ref={settingsButtonRef}
                             type="button"
                             active={activeTopTool === "settings"}
@@ -672,7 +674,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             className="relative h-full aspect-square px-0"
                         >
                             <Settings size={20} strokeWidth={2} />
-                        </SegmentedButton> : null}
+                        </SegmentedButton>
                         {accountsEnabled ? (
                             <>
                                 <SegmentedButton
@@ -700,7 +702,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             </>
                         ) : null}
                     </Segmented>
-                    {gamePlugin.features.settings ? <Popover
+                    <Popover
                         opened={isSettingsOpen}
                         target={settingsButtonRef.current}
                         onBackdropClick={() => setIsSettingsOpen(false)}
@@ -713,28 +715,17 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             }}
                             className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-[28px] p-4"
                         >
-                            <SettingsPanel
-                                value={gamePlugin.defaultSettings}
-                                readOnly
-                                isFourPlayer={false}
-                                title={t("table.tool.settings")}
-                                flush
-                                collapsible={false}
+                            <PlatformSettingsPanel
                                 displayName={inputName}
                                 onDisplayNameDraftChange={handleDraftNameChange}
                                 onDisplayNameChange={(name: string, onSuccess?: () => void) => {
                                     handleDraftNameChange(name);
                                     onSuccess?.();
                                 }}
-                                sections={{
-                                    profile: false,
-                                    display: false,
-                                    game: false,
-                                    language: true,
-                                }}
+                                showProfile={false}
                             />
                         </Glass>
-                    </Popover> : null}
+                    </Popover>
                 </div>
 
                 <Glass
@@ -789,30 +780,18 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                         </div>
                                     </div>
 
-                                    <SettingsPanel
-                                        value={gamePlugin.defaultSettings}
-                                        readOnly
-                                        isFourPlayer={false}
-                                        flush
-                                        collapsible={false}
-                                        showHeading={false}
-                                        displayName={committedName}
-                                        onDisplayNameDraftChange={handleDraftNameChange}
-                                        onDisplayNameChange={(
+                                    <NicknameSettings
+                                        value={committedName}
+                                        onDraftChange={handleDraftNameChange}
+                                        onChange={(
                                             name: string,
                                             onSuccess?: () => void,
                                             onError?: (message: string, code?: string) => void,
                                         ) => {
                                             commitNicknamePreference(name, onSuccess, onError);
                                         }}
-                                        showDisplayNameGenerator={!accountUsername}
-                                        compactProfile
-                                        sections={{
-                                            profile: true,
-                                            display: false,
-                                            game: false,
-                                            language: false,
-                                        }}
+                                        showGenerator={!accountUsername}
+                                        compact
                                     />
                                     {nameErrorKey && (
                                         <span className="px-1 text-xs text-red-500">
@@ -843,7 +822,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
 	                                </Segmented>
                             )}
 
-                            {isUrlMode && (
+                            {isUrlMode && accountsEnabled && (
                                 <div className="px-1 text-sm text-black/55 dark:text-white/55">
                                     {accountUsername
                                         ? t("join.identity.account", { username: accountUsername })

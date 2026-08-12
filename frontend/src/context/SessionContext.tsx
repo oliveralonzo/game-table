@@ -22,8 +22,10 @@ import {
     type ReactNode,
 } from "react";
 
-const SESSION_STORAGE_KEY = "doble6:clientSessionId";
-const DISPLAY_NAME_STORAGE_KEY = "doble6:displayName";
+const SESSION_STORAGE_KEY = "game-table:clientSessionId";
+const DISPLAY_NAME_STORAGE_KEY = "game-table:displayName";
+const LEGACY_SESSION_STORAGE_KEY = "doble6:clientSessionId";
+const LEGACY_DISPLAY_NAME_STORAGE_KEY = "doble6:displayName";
 
 type SessionContextValue = {
     clientSessionId: string;
@@ -36,7 +38,8 @@ const SessionContext = createContext<SessionContextValue | undefined>(
 );
 
 function getOrCreateClientSessionId(): string {
-    const existing = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const existing = sessionStorage.getItem(SESSION_STORAGE_KEY)
+        ?? sessionStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
     if (existing) return existing;
 
     const browserCrypto = globalThis.crypto;
@@ -48,7 +51,9 @@ function getOrCreateClientSessionId(): string {
 }
 
 function getSavedDisplayName(): string {
-    return localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) ?? "";
+    return localStorage.getItem(DISPLAY_NAME_STORAGE_KEY)
+        ?? localStorage.getItem(LEGACY_DISPLAY_NAME_STORAGE_KEY)
+        ?? "";
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {

@@ -718,7 +718,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                         </SegmentedButton>
                     </Segmented>
 
-                    <div className="doble6-clerk-auth min-w-0 overflow-hidden rounded-2xl">
+                    <div className="game-table-clerk-auth min-w-0 overflow-hidden rounded-2xl">
                         {!isLoaded ? (
                             <ClerkAuthSkeleton />
                         ) : authMode === "signIn" ? (
