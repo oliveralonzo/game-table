@@ -179,6 +179,8 @@ export const en = {
             waiting: "Waiting",
             generateName: "Generate Name",
             tableActions: "Table Actions",
+            manageSeats: "Manage Seats",
+            viewSeats: "View Seats",
             showReview: "Show All",
             hideReview: "Hide All",
             memberActions: "Member Actions",
