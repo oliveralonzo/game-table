@@ -180,6 +180,7 @@ export const en = {
             startOver: "Start Over",
             waiting: "Waiting",
             resetDefaults: "Reset Defaults",
+            generateName: "Generate Name",
             tableActions: "Table Actions",
             manageSeats: "Manage Seats",
             viewSeats: "View Seats",

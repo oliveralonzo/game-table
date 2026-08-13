@@ -180,6 +180,7 @@ export const es = {
             startOver: "Reiniciar",
             waiting: "Esperando",
             resetDefaults: "Usar Estandar",
+            generateName: "Generar Nombre",
             tableActions: "Acciones",
             manageSeats: "Administrar Asientos",
             viewSeats: "Ver Asientos",
