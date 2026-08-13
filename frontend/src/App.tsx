@@ -12,6 +12,11 @@ import { normalizeTableCode } from "game-table/utils/tableRoute";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import { BrandingProvider } from "game-table/context/BrandingContext";
 import { registerGameTranslations } from "game-table/i18n";
+import type { PropsWithChildren } from "react";
+
+function PassthroughProvider({ children }: PropsWithChildren) {
+  return <>{children}</>;
+}
 
 function repairMalformedLocationPath() {
   if (typeof window === "undefined") return;
@@ -236,6 +241,7 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
   registerGameTranslations(gamePlugin.translations);
   useSystemDarkClass();
   useRestoreViewportAfterInputBlur();
+  const GameProvider = gamePlugin.Provider ?? PassthroughProvider;
 
   return (
     <BrandingProvider branding={gamePlugin.branding}>
@@ -243,10 +249,12 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
         <TableProvider>
           <TableSocketProvider>
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
-                <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
-              </Routes>
+              <GameProvider>
+                <Routes>
+                  <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
+                  <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
+                </Routes>
+              </GameProvider>
             </BrowserRouter>
           </TableSocketProvider>
         </TableProvider>

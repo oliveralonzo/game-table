@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, PropsWithChildren } from "react";
 import type { PlatformBranding } from "game-table/context/BrandingContext";
 
 export type GameScreenProps = {
@@ -23,4 +23,5 @@ export type FrontendGamePlugin = {
     defaultSettings: unknown;
     resolveSettings: (settings: unknown) => unknown;
     translations?: GameTranslations;
+    Provider?: ComponentType<PropsWithChildren>;
 };
