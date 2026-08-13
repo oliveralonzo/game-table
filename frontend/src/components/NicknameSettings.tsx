@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, List, ListItem } from "konsta/react";
 import { generateNickname } from "game-table/utils/nicknameGenerator";
@@ -29,8 +29,31 @@ export default function NicknameSettings({
     const { t, i18n } = useTranslation();
     const [draft, setDraft] = useState(value);
     const [error, setError] = useState<string | null>(null);
+    const latestDraftRef = useRef(draft);
+    const latestValueRef = useRef(value);
+    const onChangeRef = useRef(onChange);
+    const lastSubmittedRef = useRef<string | null>(null);
 
-    useEffect(() => setDraft(value), [value]);
+    useEffect(() => {
+        setDraft(value);
+        latestDraftRef.current = value;
+        latestValueRef.current = value;
+    }, [value]);
+
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
+
+    useEffect(() => () => {
+        const trimmed = latestDraftRef.current.trim();
+        if (
+            trimmed &&
+            trimmed !== latestValueRef.current &&
+            trimmed !== lastSubmittedRef.current
+        ) {
+            onChangeRef.current(trimmed);
+        }
+    }, []);
 
     const save = (name: string) => {
         const trimmed = name.trim();
@@ -39,6 +62,8 @@ export default function NicknameSettings({
             return;
         }
         if (trimmed === value) return;
+
+        lastSubmittedRef.current = trimmed;
 
         onChange(
             trimmed,
@@ -64,8 +89,10 @@ export default function NicknameSettings({
                         <input
                             value={draft}
                             onChange={(event) => {
-                                setDraft(event.target.value);
-                                onDraftChange?.(event.target.value);
+                                const nextDraft = event.target.value;
+                                setDraft(nextDraft);
+                                latestDraftRef.current = nextDraft;
+                                onDraftChange?.(nextDraft);
                             }}
                             onBlur={() => save(draft)}
                             onKeyDown={(event) => {
@@ -83,6 +110,7 @@ export default function NicknameSettings({
                                 onClick={() => {
                                     const generated = generateNickname(i18n.language);
                                     setDraft(generated);
+                                    latestDraftRef.current = generated;
                                     onDraftChange?.(generated);
                                     save(generated);
                                 }}

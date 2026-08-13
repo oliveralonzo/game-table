@@ -42,7 +42,7 @@ export default function PlatformSettingsPanel({
                         onDraftChange={onDisplayNameDraftChange}
                         onChange={onDisplayNameChange}
                         showGenerator={showDisplayNameGenerator}
-                        compact={compactProfile}
+                        compact
                     />
                 </section>
             ) : null}
@@ -58,4 +58,3 @@ export default function PlatformSettingsPanel({
         </div>
     );
 }
-
