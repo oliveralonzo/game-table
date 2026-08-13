@@ -13,11 +13,15 @@ export default function LanguageSettingsList({
     radioName = "language",
 }: Props) {
     const { i18n, t } = useTranslation();
-    const currentLanguage: SupportedLanguage =
-        i18n.resolvedLanguage?.split("-")[0] === "es" ? "es" : "en";
+    const currentLanguage: SupportedLanguage = i18n.resolvedLanguage
+        ?.toLowerCase()
+        .startsWith("pt")
+        ? "pt-BR"
+        : i18n.resolvedLanguage?.split("-")[0] === "es" ? "es" : "en";
     const languageOptions = [
         { code: "en" as const, label: t("common.language.english") },
         { code: "es" as const, label: t("common.language.spanish") },
+        { code: "pt-BR" as const, label: t("common.language.portuguese") },
     ];
 
     return (

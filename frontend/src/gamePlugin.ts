@@ -13,6 +13,8 @@ export type PlatformFeatures = {
     settings: boolean;
 };
 
+export type GameTranslations = Record<string, Record<string, unknown>>;
+
 export type FrontendGamePlugin = {
     branding: PlatformBranding;
     features: PlatformFeatures;
@@ -20,4 +22,5 @@ export type FrontendGamePlugin = {
     SettingsPanel: ComponentType<Record<string, unknown>>;
     defaultSettings: unknown;
     resolveSettings: (settings: unknown) => unknown;
+    translations?: GameTranslations;
 };

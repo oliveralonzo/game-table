@@ -11,6 +11,7 @@ import { useRestoreViewportAfterInputBlur } from "game-table/hooks/useRestoreVie
 import { normalizeTableCode } from "game-table/utils/tableRoute";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import { BrandingProvider } from "game-table/context/BrandingContext";
+import { registerGameTranslations } from "game-table/i18n";
 
 function repairMalformedLocationPath() {
   if (typeof window === "undefined") return;
@@ -232,6 +233,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
 }
 
 export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
+  registerGameTranslations(gamePlugin.translations);
   useSystemDarkClass();
   useRestoreViewportAfterInputBlur();
 
