@@ -6,9 +6,8 @@
  * Version: 0.4
  */
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
 import SeatsPanel from "game-table/components/SeatsPanel";
@@ -23,15 +22,11 @@ import { useTableInvite } from "game-table/hooks/useTableInvite";
 import { useTableRoomPeople } from "game-table/hooks/useTableRoomPeople";
 import { useMemberNameCache } from "game-table/hooks/useMemberNameCache";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
-import { LogOut } from "lucide-react";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import PlatformSettingsPanel from "game-table/components/PlatformSettingsPanel";
 import {
     Button,
     Glass,
-    List,
-    ListItem,
-    Popover,
 } from "konsta/react";
 
 type Props = {
@@ -41,13 +36,10 @@ type Props = {
 
 export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const { state } = useTable();
     const {
         assignSeat,
-        deleteTable,
         grantHandView,
-        leaveTable,
         removeMember,
         revokeHandView,
         unassignSeat,
@@ -57,8 +49,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         updateGameSettings,
         updateName,
     } = useTableSocket();
-    const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
-    const tableActionButtonRef = useRef<HTMLButtonElement | null>(null);
     const tableCodeForActivity = state.tableView?.table_code;
     const selfMemberIdForActivity = state.selfMemberId;
     const memberNamesById = useMemberNameCache(
@@ -152,92 +142,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         table.state === "open" &&
         table.seats.every((seat) => seat !== null);
 
-    const handleLeaveTable = () => {
-        const shouldLeave = confirm(t("table.dialog.leaveConfirm"));
-        if (!shouldLeave) return;
-
-        setIsTableMenuOpen(false);
-        leaveTable(
-            (message) => alert(message),
-            () => navigate("/", { replace: true })
-        );
-    };
-
-    const handleCloseTable = () => {
-        const shouldClose = confirm(t("table.dialog.closeConfirm"));
-        if (!shouldClose) return;
-
-        setIsTableMenuOpen(false);
-        deleteTable(
-            table.table_code,
-            (message) => alert(message),
-            () => navigate("/", { replace: true })
-        );
-    };
-
-    const renderTableAction = () => (
-        <>
-            <Glass
-                highlight={false}
-                className="h-11 rounded-full [--color-ios-hover-highlight:transparent]"
-            >
-                <Button
-                    ref={tableActionButtonRef}
-                    type="button"
-                    inline
-                    rounded
-                    clear
-                    aria-label={isHost ? t("table.action.tableActions") : t("table.action.leaveTable")}
-                    title={isHost ? t("table.action.tableActions") : t("table.action.leaveTable")}
-                    onClick={() => {
-                        if (isHost) {
-                            setIsTableMenuOpen((open) => !open);
-                            return;
-                        }
-
-                        handleLeaveTable();
-                    }}
-                    className="h-full aspect-square px-0 text-black/65 transition-opacity hover:opacity-70 active:opacity-55 dark:text-white/70 [--color-ios-hover-highlight:transparent]"
-                >
-                    <LogOut size={20} strokeWidth={2} />
-                </Button>
-            </Glass>
-            {isHost && (
-                <Popover
-                    opened={isTableMenuOpen}
-                    target={tableActionButtonRef.current}
-                    onBackdropClick={() => setIsTableMenuOpen(false)}
-                    className="[--color-ios-hover-highlight:transparent]"
-                >
-                    <List nested>
-                        <ListItem
-                            title={t("table.action.leaveTable")}
-                            link
-                            chevron={false}
-                            onClick={handleLeaveTable}
-                            strongTitle={false}
-                            className="transition-opacity hover:opacity-70 active:opacity-55"
-                            colors={{
-                                activeBgIos: "",
-                            }}
-                        />
-                        <ListItem
-                            title={t("table.action.closeTable")}
-                            link
-                            chevron={false}
-                            onClick={handleCloseTable}
-                            strongTitle={false}
-                            className="transition-opacity hover:opacity-70 active:opacity-55"
-                            colors={{
-                                activeBgIos: "",
-                                primaryTextIos: "text-red-600 dark:text-red-400",
-                            }}
-                        />
-                    </List>
-                </Popover>
-            )}
-        </>
-    );
 
     const renderToolContent = (
         tool: TableTool,
@@ -298,7 +202,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             reactions={viewerReactions}
             onEmitReaction={emitReaction}
             onRemoveReaction={removeReaction}
-            tableAction={renderTableAction()}
             accountsEnabled={gamePlugin.features.accounts}
         >
             <div className="mb-3 px-1">

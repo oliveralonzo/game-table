@@ -173,6 +173,7 @@ export const en = {
             invite: "Invite",
             leaveTable: "Leave Table",
             closeTable: "Close Table",
+            endGame: "End Game",
             openGame: "Open Game",
             startGame: "Start Game",
             waiting: "Waiting",
@@ -205,6 +206,7 @@ export const en = {
             inviteShareText: "Join my table",
             leaveConfirm: "Leave this table?",
             closeConfirm: "Close this table?",
+            endGameConfirm: "End this game?",
         },
         roster: {
             title: "People",

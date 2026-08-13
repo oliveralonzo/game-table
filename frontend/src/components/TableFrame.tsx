@@ -14,6 +14,7 @@ import type { ReactionEvent, ViewerReactionView } from "game-table/types/activit
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { refreshSafariThemeColor } from "game-table/hooks/useSystemDarkClass";
 import { MessageCircle, Settings, Users } from "lucide-react";
+import TableLifecycleAction from "game-table/components/TableLifecycleAction";
 import {
     App as KonstaApp,
     Badge,
@@ -67,7 +68,6 @@ type Props = {
     reactions: ViewerReactionView[];
     onEmitReaction: (reaction: string) => void;
     onRemoveReaction: (reaction: ReactionEvent) => void;
-    tableAction?: ReactNode;
     desktopAccessory?: ReactNode;
     mobileAccessory?: ReactNode;
     fullBleed?: boolean;
@@ -88,7 +88,6 @@ export default function TableFrame({
     reactions,
     onEmitReaction,
     onRemoveReaction,
-    tableAction,
     desktopAccessory,
     mobileAccessory,
     fullBleed = false,
@@ -367,9 +366,9 @@ export default function TableFrame({
                     <Logo />
                 </div>
 
-                {isMobileLayout && (tableAction || mobileAccessory) && (
+                {isMobileLayout && (
                     <div className="absolute right-4 top-4 z-10 flex flex-col items-end gap-2">
-                        {tableAction}
+                        <TableLifecycleAction />
                         {mobileAccessory}
                     </div>
                 )}
@@ -383,9 +382,9 @@ export default function TableFrame({
                     </div>
                 )}
 
-                {!isMobileLayout && tableAction && (
+                {!isMobileLayout && (
                     <div ref={desktopActionRef} className={`absolute bottom-4 right-4 z-10 transition-opacity ${overlayChromeVisibilityClass}`}>
-                        {tableAction}
+                        <TableLifecycleAction />
                     </div>
                 )}
 
