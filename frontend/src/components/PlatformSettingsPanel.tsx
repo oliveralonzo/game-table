@@ -33,9 +33,9 @@ export default function PlatformSettingsPanel({
             {showProfile && displayName !== undefined && onDisplayNameChange ? (
                 <section>
                     {!compactProfile ? (
-                        <h3 className="mb-2 px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
+                        <h2 className="mb-3 min-w-0 truncate px-safe-4 text-[22px] font-bold leading-tight tracking-normal text-black dark:text-white">
                             {t("table.label.profile")}
-                        </h3>
+                        </h2>
                     ) : null}
                     <NicknameSettings
                         value={displayName}

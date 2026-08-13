@@ -12,7 +12,7 @@ from game_table.api.ws.session_registry import SessionRegistry
 from game_table.auth.auth_verifier import AuthVerifier
 
 
-DISCONNECTED_MEMBER_GRACE_SECONDS = 90
+DISCONNECTED_MEMBER_GRACE_SECONDS = 10 * 60
 
 
 def register_table_events(
