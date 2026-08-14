@@ -330,9 +330,18 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         const onPageHide = (event: PageTransitionEvent) => {
             if (event.persisted || !preparingForPageUnloadRef.current) return;
 
-            // pagehide runs only after the user confirms leaving. Explicitly
-            // closing the client ensures the server observes the intentional
-            // disconnect before the browser tears down the document.
+            const backendUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+            const leaveUrl = new URL(
+                "/game-table/presence/leave",
+                backendUrl
+            ).toString();
+            navigator.sendBeacon(
+                leaveUrl,
+                JSON.stringify({ client_session_id: clientSessionId })
+            );
+
+            // Retain the socket close as a fallback for hosts that have not yet
+            // adopted the package-owned HTTP application.
             socketRef.current?.disconnect();
         };
 
@@ -347,7 +356,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
             window.removeEventListener("pagehide", onPageHide);
             window.removeEventListener("pageshow", onPageShow);
         };
-    }, []);
+    }, [clientSessionId]);
 
     useEffect(() => {
         setIsSessionReady(false);

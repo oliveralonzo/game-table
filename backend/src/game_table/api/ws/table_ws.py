@@ -15,6 +15,46 @@ from game_table.auth.auth_verifier import AuthVerifier
 DISCONNECTED_MEMBER_GRACE_SECONDS = 10 * 60
 
 
+def _get_serialized_table_view(
+    table_service: TableService,
+    game_settings_provider: GameSettingsProvider,
+    table_code: str,
+) -> dict:
+    table_view = table_service.get_table_view(table_code)
+    rules = table_view.get("pending_rules")
+    if rules is not None:
+        table_view["pending_rules"] = game_settings_provider.serialize_settings(rules)
+    return table_view
+
+
+async def leave_member_and_broadcast(
+    sio: AsyncServer,
+    table_service: TableService,
+    session_registry: SessionRegistry,
+    game_settings_provider: GameSettingsProvider,
+    member_id: str,
+) -> str:
+    """Apply canonical leave semantics for sockets and lifecycle HTTP calls."""
+    table_code = table_service.get_table_code_for_member(member_id)
+    table_service.leave_table(member_id)
+    session_registry.remove_member_sessions(member_id)
+
+    tables = table_service.list_tables()
+    await sio.emit("table:list_updated", {"tables": tables})
+
+    if table_service.table_exists(table_code):
+        table_view = _get_serialized_table_view(
+            table_service,
+            game_settings_provider,
+            table_code,
+        )
+        await sio.emit("table:updated", table_view, room=table_code)
+    else:
+        await emit_table_deleted(sio, table_code)
+
+    return table_code
+
+
 def register_table_events(
     sio: AsyncServer,
     table_service: TableService,
@@ -32,13 +72,11 @@ def register_table_events(
     intentional_unload_sessions: set[str] = set()
 
     def _get_table_view(table_code: str) -> dict:
-        table_view = table_service.get_table_view(table_code)
-        rules = table_view.get("pending_rules")
-        if rules is not None:
-            table_view["pending_rules"] = (
-                game_settings_provider.serialize_settings(rules)
-            )
-        return table_view
+        return _get_serialized_table_view(
+            table_service,
+            game_settings_provider,
+            table_code,
+        )
 
     # ---------------------------- Utilities ---------------------------- #
 
@@ -125,18 +163,15 @@ def register_table_events(
                 return
 
             try:
-                table_code = table_service.get_table_code_for_member(member_id)
+                await leave_member_and_broadcast(
+                    sio,
+                    table_service,
+                    session_registry,
+                    game_settings_provider,
+                    member_id,
+                )
             except ValueError:
                 return
-
-            table_service.leave_table(member_id)
-            session_registry.remove_member_sessions(member_id)
-
-            if table_service.table_exists(table_code):
-                await _broadcast_table_state_update(table_code)
-            else:
-                await emit_table_deleted(sio, table_code)
-                await _broadcast_table_list_update()
         finally:
             if (
                 disconnect_cleanup_tasks.get(client_session_id)
@@ -352,19 +387,15 @@ def register_table_events(
     async def leave_table(sid, data=None):
         try:
             member_id = session_registry.resolve_member_id(sid)
-            table_code = table_service.get_table_code_for_member(member_id)
-
-            table_service.leave_table(member_id)
-
-            session_registry.remove_member_sessions(member_id)
+            table_code = await leave_member_and_broadcast(
+                sio,
+                table_service,
+                session_registry,
+                game_settings_provider,
+                member_id,
+            )
 
             await sio.leave_room(sid, table_code)
-
-            if table_service.table_exists(table_code):
-                await _broadcast_table_state_update(table_code)
-            else:
-                await emit_table_deleted(sio, table_code)
-                await _broadcast_table_list_update()
 
             return {
                 "left": True,
