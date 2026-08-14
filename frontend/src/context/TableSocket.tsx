@@ -327,13 +327,24 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
             }
         };
 
+        const onPageHide = (event: PageTransitionEvent) => {
+            if (event.persisted || !preparingForPageUnloadRef.current) return;
+
+            // pagehide runs only after the user confirms leaving. Explicitly
+            // closing the client ensures the server observes the intentional
+            // disconnect before the browser tears down the document.
+            socketRef.current?.disconnect();
+        };
+
         window.addEventListener("beforeunload", onBeforeUnload);
         window.addEventListener("focus", cancelPreparedPageUnload);
+        window.addEventListener("pagehide", onPageHide);
         window.addEventListener("pageshow", onPageShow);
 
         return () => {
             window.removeEventListener("beforeunload", onBeforeUnload);
             window.removeEventListener("focus", cancelPreparedPageUnload);
+            window.removeEventListener("pagehide", onPageHide);
             window.removeEventListener("pageshow", onPageShow);
         };
     }, []);
