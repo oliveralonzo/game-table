@@ -328,7 +328,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         };
 
         const onPageHide = (event: PageTransitionEvent) => {
-            if (event.persisted || !preparingForPageUnloadRef.current) return;
+            if (event.persisted || !selfMemberIdRef.current) return;
 
             const backendUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
             const leaveUrl = new URL(
