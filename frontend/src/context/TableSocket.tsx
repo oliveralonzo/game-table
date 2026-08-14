@@ -281,6 +281,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     const { state, dispatch } = useTable();
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const selfMemberIdRef = useRef<string | null>(null);
+    const leavingForPageUnloadRef = useRef(false);
     const [isSessionReady, setIsSessionReady] = useState(false);
 
     const { clientSessionId } = useSession();
@@ -289,6 +290,37 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         selfMemberIdRef.current = state.selfMemberId;
     }, [state.selfMemberId]);
+
+    useEffect(() => {
+        const leaveForPageUnload = (event?: PageTransitionEvent) => {
+            // A page kept in the back-forward cache has not actually been closed.
+            if (event?.persisted) return;
+            if (leavingForPageUnloadRef.current) return;
+            if (!selfMemberIdRef.current) return;
+
+            const socket = socketRef.current;
+            if (!socket?.connected) return;
+
+            leavingForPageUnloadRef.current = true;
+            // No acknowledgement is useful while the document is unloading.
+            // The server briefly defers this leave so a refresh can reconnect
+            // without losing the tab-scoped persistent session.
+            socket.emit("table:unload");
+        };
+
+        const onBeforeUnload = () => leaveForPageUnload();
+        const onPageHide = (event: PageTransitionEvent) => {
+            leaveForPageUnload(event);
+        };
+
+        window.addEventListener("beforeunload", onBeforeUnload);
+        window.addEventListener("pagehide", onPageHide);
+
+        return () => {
+            window.removeEventListener("beforeunload", onBeforeUnload);
+            window.removeEventListener("pagehide", onPageHide);
+        };
+    }, []);
 
     useEffect(() => {
         setIsSessionReady(false);

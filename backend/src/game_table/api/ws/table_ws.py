@@ -13,6 +13,7 @@ from game_table.auth.auth_verifier import AuthVerifier
 
 
 DISCONNECTED_MEMBER_GRACE_SECONDS = 10 * 60
+PAGE_UNLOAD_GRACE_SECONDS = 2
 
 
 def register_table_events(
@@ -108,9 +109,10 @@ def register_table_events(
     async def _leave_disconnected_member_after_grace(
         client_session_id: str,
         member_id: str,
+        grace_seconds: float = DISCONNECTED_MEMBER_GRACE_SECONDS,
     ) -> None:
         try:
-            await asyncio.sleep(DISCONNECTED_MEMBER_GRACE_SECONDS)
+            await asyncio.sleep(grace_seconds)
 
             if session_registry.has_connection(client_session_id):
                 return
@@ -190,9 +192,9 @@ def register_table_events(
         if session_registry.has_connection(client_session_id):
             return
 
-        existing_cleanup = disconnect_cleanup_tasks.pop(client_session_id, None)
-        if existing_cleanup is not None:
-            existing_cleanup.cancel()
+        existing_cleanup = disconnect_cleanup_tasks.get(client_session_id)
+        if existing_cleanup is not None and not existing_cleanup.done():
+            return
 
         disconnect_cleanup_tasks[client_session_id] = asyncio.create_task(
             _leave_disconnected_member_after_grace(
@@ -202,6 +204,31 @@ def register_table_events(
         )
 
     # ---------------------------- Table Control ---------------------------- #
+
+    @sio.on("table:unload")
+    async def unload_table(sid, data=None):
+        try:
+            client_session_id = session_registry.resolve_client_session_id(sid)
+            member_id = session_registry.resolve_member_id(sid)
+        except ValueError:
+            return
+
+        # Treat this socket as gone immediately. Its later disconnect event is
+        # then a no-op, while a refreshed page can bind a replacement socket
+        # and cancel the short cleanup below.
+        session_registry.unbind_connection(sid)
+
+        existing_cleanup = disconnect_cleanup_tasks.get(client_session_id)
+        if existing_cleanup is not None and not existing_cleanup.done():
+            return
+
+        disconnect_cleanup_tasks[client_session_id] = asyncio.create_task(
+            _leave_disconnected_member_after_grace(
+                client_session_id,
+                member_id,
+                PAGE_UNLOAD_GRACE_SECONDS,
+            )
+        )
 
     @sio.on("table:create")
     async def create_table(sid, data):
