@@ -13,7 +13,6 @@ from game_table.auth.auth_verifier import AuthVerifier
 
 
 DISCONNECTED_MEMBER_GRACE_SECONDS = 10 * 60
-PAGE_UNLOAD_GRACE_SECONDS = 2
 
 
 def register_table_events(
@@ -30,6 +29,7 @@ def register_table_events(
     Socket.IO adapter for TableService.
     """
     disconnect_cleanup_tasks: dict[str, asyncio.Task] = {}
+    intentional_unload_sessions: set[str] = set()
 
     def _get_table_view(table_code: str) -> dict:
         table_view = table_service.get_table_view(table_code)
@@ -152,6 +152,7 @@ def register_table_events(
         if not client_session_id:
             raise ConnectionRefusedError("Missing client_session_id.")
 
+        intentional_unload_sessions.discard(client_session_id)
         session_registry.bind_connection(
             sid,
             client_session_id,
@@ -192,6 +193,11 @@ def register_table_events(
         if session_registry.has_connection(client_session_id):
             return
 
+        grace_seconds = DISCONNECTED_MEMBER_GRACE_SECONDS
+        if client_session_id in intentional_unload_sessions:
+            intentional_unload_sessions.discard(client_session_id)
+            grace_seconds = 0
+
         existing_cleanup = disconnect_cleanup_tasks.get(client_session_id)
         if existing_cleanup is not None and not existing_cleanup.done():
             return
@@ -200,35 +206,30 @@ def register_table_events(
             _leave_disconnected_member_after_grace(
                 client_session_id,
                 member_id,
+                grace_seconds,
             )
         )
 
     # ---------------------------- Table Control ---------------------------- #
 
-    @sio.on("table:unload")
-    async def unload_table(sid, data=None):
+    @sio.on("table:prepare_unload")
+    async def prepare_table_unload(sid, data=None):
         try:
             client_session_id = session_registry.resolve_client_session_id(sid)
-            member_id = session_registry.resolve_member_id(sid)
+            session_registry.resolve_member_id(sid)
         except ValueError:
             return
 
-        # Treat this socket as gone immediately. Its later disconnect event is
-        # then a no-op, while a refreshed page can bind a replacement socket
-        # and cancel the short cleanup below.
-        session_registry.unbind_connection(sid)
+        intentional_unload_sessions.add(client_session_id)
 
-        existing_cleanup = disconnect_cleanup_tasks.get(client_session_id)
-        if existing_cleanup is not None and not existing_cleanup.done():
+    @sio.on("table:cancel_unload")
+    async def cancel_table_unload(sid, data=None):
+        try:
+            client_session_id = session_registry.resolve_client_session_id(sid)
+        except ValueError:
             return
 
-        disconnect_cleanup_tasks[client_session_id] = asyncio.create_task(
-            _leave_disconnected_member_after_grace(
-                client_session_id,
-                member_id,
-                PAGE_UNLOAD_GRACE_SECONDS,
-            )
-        )
+        intentional_unload_sessions.discard(client_session_id)
 
     @sio.on("table:create")
     async def create_table(sid, data):

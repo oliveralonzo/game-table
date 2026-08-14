@@ -281,7 +281,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     const { state, dispatch } = useTable();
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
     const selfMemberIdRef = useRef<string | null>(null);
-    const leavingForPageUnloadRef = useRef(false);
+    const preparingForPageUnloadRef = useRef(false);
     const [isSessionReady, setIsSessionReady] = useState(false);
 
     const { clientSessionId } = useSession();
@@ -292,33 +292,49 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     }, [state.selfMemberId]);
 
     useEffect(() => {
-        const leaveForPageUnload = (event?: PageTransitionEvent) => {
-            // A page kept in the back-forward cache has not actually been closed.
-            if (event?.persisted) return;
-            if (leavingForPageUnloadRef.current) return;
+        const cancelPreparedPageUnload = () => {
+            if (!preparingForPageUnloadRef.current) return;
+
+            preparingForPageUnloadRef.current = false;
+            const socket = socketRef.current;
+            if (socket?.connected) {
+                socket.emit("table:cancel_unload");
+            }
+        };
+
+        const onBeforeUnload = (event: BeforeUnloadEvent) => {
             if (!selfMemberIdRef.current) return;
 
             const socket = socketRef.current;
             if (!socket?.connected) return;
 
-            leavingForPageUnloadRef.current = true;
-            // No acknowledgement is useful while the document is unloading.
-            // The server briefly defers this leave so a refresh can reconnect
-            // without losing the tab-scoped persistent session.
-            socket.emit("table:unload");
+            if (!preparingForPageUnloadRef.current) {
+                preparingForPageUnloadRef.current = true;
+                socket.emit("table:prepare_unload");
+            }
+
+            event.preventDefault();
+            event.returnValue = true;
+
+            // Timers remain paused while the browser confirmation is open.
+            // This runs only if the user chooses Stay and the page survives.
+            window.setTimeout(cancelPreparedPageUnload, 0);
         };
 
-        const onBeforeUnload = () => leaveForPageUnload();
-        const onPageHide = (event: PageTransitionEvent) => {
-            leaveForPageUnload(event);
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) {
+                cancelPreparedPageUnload();
+            }
         };
 
         window.addEventListener("beforeunload", onBeforeUnload);
-        window.addEventListener("pagehide", onPageHide);
+        window.addEventListener("focus", cancelPreparedPageUnload);
+        window.addEventListener("pageshow", onPageShow);
 
         return () => {
             window.removeEventListener("beforeunload", onBeforeUnload);
-            window.removeEventListener("pagehide", onPageHide);
+            window.removeEventListener("focus", cancelPreparedPageUnload);
+            window.removeEventListener("pageshow", onPageShow);
         };
     }, []);
 
