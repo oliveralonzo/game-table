@@ -77,6 +77,10 @@ export const en = {
         tool: "Leaderboard",
         empty: "Completed signed-in games will appear here.",
         signInRequired: "Sign in to view the leaderboard.",
+        rank: {
+            notRankedShort: "NR",
+            notRankedExplanation: "NR means not ranked yet. Play at least {{count}} games to qualify for the win-percentage ranking.",
+        },
         sort: {
             label: "Sort by",
             won: "Won",

@@ -650,7 +650,11 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
 
     return (
         <KonstaApp theme="ios" safeAreas={false} className="min-h-[100svh]">
-            <div className="min-h-[100svh] flex flex-col items-center justify-center bg-transparent p-4">
+            <div className={`relative min-h-[100svh] flex flex-col items-center bg-transparent ${
+                (page === "account" || page === "leaderboard") && accountsEnabled
+                    ? "justify-start px-4 pb-4 pt-20"
+                    : "justify-center p-4"
+            }`}>
                 <div className="absolute top-0 left-0 z-10 p-4">
                     <Logo />
                 </div>

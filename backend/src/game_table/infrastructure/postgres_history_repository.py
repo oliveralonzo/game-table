@@ -14,6 +14,9 @@ from game_table.history.game_history import GameHistory
 from game_table.history.leaderboard_entry import LeaderboardEntry
 
 
+MIN_WIN_PERCENTAGE_GAMES = 10
+
+
 class PostgresHistoryRepository:
     def __init__(self, connection_factory: Callable[[], Connection]):
         self._connection_factory = connection_factory
@@ -306,8 +309,12 @@ class PostgresHistoryRepository:
             return "games_played DESC, games_won DESC, username ASC"
         if sort == "win_percentage":
             return (
-                "(games_won::float / NULLIF(games_played, 0)) DESC, "
-                "games_won DESC, games_played DESC, username ASC"
+                f"(games_played >= {MIN_WIN_PERCENTAGE_GAMES}) DESC, "
+                f"CASE WHEN games_played >= {MIN_WIN_PERCENTAGE_GAMES} "
+                "THEN (games_won::float / NULLIF(games_played, 0)) END DESC, "
+                f"CASE WHEN games_played >= {MIN_WIN_PERCENTAGE_GAMES} "
+                "THEN games_won END DESC, "
+                "games_played DESC, games_won DESC, username ASC"
             )
 
         return "games_won DESC, games_played DESC, username ASC"

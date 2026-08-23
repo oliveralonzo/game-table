@@ -73,7 +73,7 @@ export default function NicknameSettings({
     };
 
     const content = (
-        <div className="grid gap-2 p-3">
+        <div className={`grid gap-2 ${compact ? "py-1" : "p-3"}`}>
             <label className="grid gap-1.5">
                 <span className="text-xs font-medium text-black/45 dark:text-white/45">
                     {t("table.label.displayName")}
@@ -105,7 +105,7 @@ export default function NicknameSettings({
                                 type="button"
                                 tonal
                                 rounded
-                                title={t("table.action.generateName")}
+                                title={t("join.action.generate")}
                                 className="h-11 min-w-24 px-3 font-semibold"
                                 onClick={() => {
                                     const generated = generateNickname(i18n.language);
@@ -115,7 +115,7 @@ export default function NicknameSettings({
                                     save(generated);
                                 }}
                             >
-                                {t("table.action.generateName")}
+                                {t("join.action.generate")}
                             </Button>
                         ) : null}
                     </span>

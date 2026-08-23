@@ -77,6 +77,10 @@ export const es = {
         tool: "Posiciones",
         empty: "Los juegos completados con cuenta aparecerán aquí.",
         signInRequired: "Inicia sesión para ver la tabla.",
+        rank: {
+            notRankedShort: "NR",
+            notRankedExplanation: "NR significa sin clasificación. Juega al menos {{count}} partidas para clasificar por porcentaje de victorias.",
+        },
         sort: {
             label: "Ordenar por",
             won: "Ganados",

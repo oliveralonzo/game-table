@@ -12,6 +12,7 @@ export const ptBR = {
     },
     leaderboard: {
         title: "Ranking", tool: "Ranking", empty: "As partidas concluídas com a conta conectada aparecerão aqui.", signInRequired: "Entre para ver o ranking.",
+        rank: { notRankedShort: "NR", notRankedExplanation: "NR significa ainda não classificado. Jogue pelo menos {{count}} partidas para entrar no ranking por porcentagem de vitórias." },
         sort: { label: "Ordenar por", won: "Vitórias", played: "Jogadas", winPercentage: "%" },
         column: { rank: "#", username: "Nome de usuário", won: "Vitórias", played: "Jogadas", winPercentage: "% de vitórias" },
         action: { previous: "Anterior", next: "Próxima" },

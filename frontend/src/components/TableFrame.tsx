@@ -537,7 +537,7 @@ export default function TableFrame({
                         role="dialog"
                         aria-modal="true"
                         aria-label={t("leaderboard.title")}
-                        className="!h-auto !w-fit max-w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] overflow-y-auto rounded-[28px] p-3 !transition-none sm:p-4"
+                        className="!h-auto !w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] overflow-y-auto rounded-[28px] p-3 !transition-none sm:!w-fit sm:p-4"
                     >
                         <LeaderboardScreen onBack={() => setIsLeaderboardOpen(false)} />
                     </Popup>

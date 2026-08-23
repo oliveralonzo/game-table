@@ -28,6 +28,7 @@ type Props = {
 };
 
 const PAGE_SIZE = 10;
+const MIN_WIN_PERCENTAGE_GAMES = 10;
 
 function formatWinPercentage(value: number): string {
     return `${Math.round(value * 100)}%`;
@@ -132,6 +133,8 @@ export default function LeaderboardScreen({ onBack }: Props) {
 
     const canGoBack = page > 1 && !isLoading;
     const canGoForward = hasMore && !isLoading;
+    const hasUnrankedEntries = sort === "win_percentage"
+        && entries.some((entry) => entry.games_played < MIN_WIN_PERCENTAGE_GAMES);
 
     return (
         <div className="grid min-w-0 max-w-full gap-4 p-1 sm:w-[28rem]">
@@ -224,7 +227,10 @@ export default function LeaderboardScreen({ onBack }: Props) {
                             {entries.map((entry, index) => (
                                 <TableRow key={entry.account_id}>
                                     <TableCell className="whitespace-nowrap !pl-3 !pr-5 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
-                                        {(page - 1) * PAGE_SIZE + index + 1}
+                                        {sort === "win_percentage"
+                                            && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
+                                            ? t("leaderboard.rank.notRankedShort")
+                                            : (page - 1) * PAGE_SIZE + index + 1}
                                     </TableCell>
                                     <TableCell className="whitespace-nowrap !pl-2 !pr-6">
                                         <span className="font-semibold text-black dark:text-white">
@@ -255,6 +261,14 @@ export default function LeaderboardScreen({ onBack }: Props) {
                     </Table>
                 </div>
             )}
+
+            {hasUnrankedEntries ? (
+                <p className="-mt-2 px-2 text-xs leading-5 text-black/45 dark:text-white/45">
+                    {t("leaderboard.rank.notRankedExplanation", {
+                        count: MIN_WIN_PERCENTAGE_GAMES,
+                    })}
+                </p>
+            ) : null}
 
             <div className="flex min-w-0 max-w-full justify-end gap-2">
                 <Button
