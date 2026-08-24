@@ -13,6 +13,7 @@ from game_table.auth.auth_verifier import AuthVerifier
 
 
 DISCONNECTED_MEMBER_GRACE_SECONDS = 10 * 60
+PAGE_EXIT_GRACE_SECONDS = 3
 
 
 def _get_serialized_table_view(
@@ -231,7 +232,7 @@ def register_table_events(
         grace_seconds = DISCONNECTED_MEMBER_GRACE_SECONDS
         if client_session_id in intentional_unload_sessions:
             intentional_unload_sessions.discard(client_session_id)
-            grace_seconds = 0
+            grace_seconds = PAGE_EXIT_GRACE_SECONDS
 
         existing_cleanup = disconnect_cleanup_tasks.get(client_session_id)
         if existing_cleanup is not None and not existing_cleanup.done():

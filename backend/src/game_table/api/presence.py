@@ -1,9 +1,13 @@
+import asyncio
 import json
 
 from socketio import ASGIApp, AsyncServer
 
 from game_table.api.ws.session_registry import SessionRegistry
-from game_table.api.ws.table_ws import leave_member_and_broadcast
+from game_table.api.ws.table_ws import (
+    PAGE_EXIT_GRACE_SECONDS,
+    leave_member_and_broadcast,
+)
 from game_table.application.table_service import TableService
 from game_table.game_settings_provider import GameSettingsProvider
 
@@ -81,6 +85,24 @@ class GameTableHttpApp:
                 raise ValueError
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             await self._respond(send, 400, {"error": "Invalid session."})
+            return
+
+        # Browsers do not reliably distinguish refresh from closing a tab.
+        # Give a refreshed page time to reconnect with the same client session
+        # before applying permanent leave semantics (including host transfer).
+        await asyncio.sleep(PAGE_EXIT_GRACE_SECONDS)
+
+        if self._session_registry.has_connection(client_session_id):
+            await self._respond(send, 204, None)
+            return
+
+        if (
+            self._session_registry.get_member_id_for_client_session(
+                client_session_id
+            )
+            != member_id
+        ):
+            await self._respond(send, 204, None)
             return
 
         try:
