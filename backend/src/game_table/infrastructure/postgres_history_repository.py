@@ -311,7 +311,7 @@ class PostgresHistoryRepository:
             return (
                 f"(games_played >= {MIN_WIN_PERCENTAGE_GAMES}) DESC, "
                 f"CASE WHEN games_played >= {MIN_WIN_PERCENTAGE_GAMES} "
-                "THEN (games_won::float / NULLIF(games_played, 0)) END DESC, "
+                "THEN ROUND(100.0 * games_won / NULLIF(games_played, 0)) END DESC, "
                 f"CASE WHEN games_played >= {MIN_WIN_PERCENTAGE_GAMES} "
                 "THEN games_won END DESC, "
                 "games_played DESC, games_won DESC, username ASC"
