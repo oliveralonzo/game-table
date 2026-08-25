@@ -258,7 +258,7 @@ function AccountHistorySkeleton({ t }: { t: (key: string) => string }) {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {Array.from({ length: 4 }).map((_, index) => (
+                    {Array.from({ length: HISTORY_PAGE_SIZE }).map((_, index) => (
                         <TableRow key={index}>
                             <TableCell className="!pl-3 !pr-6">
                                 <div className="h-4 w-14 rounded-full bg-black/10 dark:bg-white/10" />
@@ -838,6 +838,17 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                                                         <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right text-xs font-medium text-black/45 dark:text-white/45">
                                                             {formatHistoryDate(entry.completed_at, i18n.language)}
                                                         </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {Array.from({
+                                                    length: HISTORY_PAGE_SIZE - history.length,
+                                                }).map((_, index) => (
+                                                    <TableRow key={`empty-${index}`} aria-hidden="true">
+                                                        <TableCell className="!pl-3 !pr-6"><span>&nbsp;</span></TableCell>
+                                                        <TableCell className="!pl-2 !pr-6"><span>&nbsp;</span></TableCell>
+                                                        <TableCell className="!pl-2 !pr-6"><span>&nbsp;</span></TableCell>
+                                                        <TableCell className="!pl-2 !pr-6"><span>&nbsp;</span></TableCell>
+                                                        <TableCell className="!pl-2 !pr-3"><span>&nbsp;</span></TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
