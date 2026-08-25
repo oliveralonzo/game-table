@@ -19,7 +19,7 @@ type Props = {
     routed?: boolean;
 };
 
-type SettingsPane = "root" | "general" | "game" | "language";
+type SettingsPane = "general" | "game" | "language";
 
 export default function PlatformSettingsPanel({
     displayName,
@@ -33,7 +33,7 @@ export default function PlatformSettingsPanel({
     routed = false,
 }: Props) {
     const { t } = useTranslation();
-    const [pane, setPane] = useState<SettingsPane>("root");
+    const [pane, setPane] = useState<SettingsPane>("general");
 
     const hasProfile = showProfile
         && displayName !== undefined
@@ -44,23 +44,19 @@ export default function PlatformSettingsPanel({
             ? t("table.label.general")
             : pane === "game"
                 ? t("table.label.game")
-                : pane === "language"
-                    ? t("common.language.label")
-                    : t("table.tool.settings");
+                : t("common.language.label");
 
         return (
             <div className="grid min-w-0 gap-3">
                 <div className="grid min-w-0 gap-2 px-safe-4">
-                    {pane !== "root" ? (
+                    {pane !== "general" ? (
                         <button
                             type="button"
-                            onClick={() => setPane(pane === "language" ? "general" : "root")}
+                            onClick={() => setPane("general")}
                             className="-ml-2 inline-flex w-fit items-center text-sm font-medium text-primary"
                         >
                             <ChevronLeft size={18} />
-                            {pane === "language"
-                                ? t("table.label.general")
-                                : t("table.tool.settings")}
+                            {t("table.label.general")}
                         </button>
                     ) : null}
                     <h2 className="min-w-0 truncate text-[22px] font-bold leading-tight tracking-normal text-black dark:text-white">
@@ -68,51 +64,36 @@ export default function PlatformSettingsPanel({
                     </h2>
                 </div>
 
-                {pane === "root" ? (
-                    <List inset nested={false} outline strong className="m-0 overflow-hidden">
-                        {hasProfile || showLanguage ? (
-                            <ListItem
-                                title={t("table.label.general")}
-                                link
-                                chevron
-                                onClick={() => setPane("general")}
-                                strongTitle={false}
-                                titleFontSizeIos="text-[17px]"
-                            />
-                        ) : null}
-                        {gameSettings ? (
-                            <ListItem
-                                title={t("table.label.game")}
-                                link
-                                chevron
-                                onClick={() => setPane("game")}
-                                strongTitle={false}
-                                titleFontSizeIos="text-[17px]"
-                            />
-                        ) : null}
-                    </List>
-                ) : null}
-
-                {pane !== "root" ? (
-                    <div className="grid w-full min-w-0 max-w-full gap-4">
-                        {pane === "general" ? (
-                            <>
-                                {hasProfile ? (
-                                    <section className="grid gap-2">
-                                        <h3 className="px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
-                                            {t("table.label.profile")}
-                                        </h3>
-                                        <NicknameSettings
-                                            value={displayName}
-                                            onDraftChange={onDisplayNameDraftChange}
-                                            onChange={onDisplayNameChange}
-                                            showGenerator={showDisplayNameGenerator}
-                                            compact={compactProfile}
+                <div className="grid w-full min-w-0 max-w-full gap-4">
+                    {pane === "general" ? (
+                        <>
+                            {hasProfile ? (
+                                <section className="grid gap-2">
+                                    <h3 className="px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
+                                        {t("table.label.profile")}
+                                    </h3>
+                                    <NicknameSettings
+                                        value={displayName}
+                                        onDraftChange={onDisplayNameDraftChange}
+                                        onChange={onDisplayNameChange}
+                                        showGenerator={showDisplayNameGenerator}
+                                        compact={compactProfile}
+                                    />
+                                </section>
+                            ) : null}
+                            {gameSettings || showLanguage ? (
+                                <List inset nested={false} outline strong className="m-0 overflow-hidden">
+                                    {gameSettings ? (
+                                        <ListItem
+                                            title={t("table.label.game")}
+                                            link
+                                            chevron
+                                            onClick={() => setPane("game")}
+                                            strongTitle={false}
+                                            titleFontSizeIos="text-[17px]"
                                         />
-                                    </section>
-                                ) : null}
-                                {showLanguage ? (
-                                    <List inset nested={false} outline strong className="m-0 overflow-hidden">
+                                    ) : null}
+                                    {showLanguage ? (
                                         <ListItem
                                             title={t("common.language.label")}
                                             link
@@ -121,16 +102,16 @@ export default function PlatformSettingsPanel({
                                             strongTitle={false}
                                             titleFontSizeIos="text-[17px]"
                                         />
-                                    </List>
-                                ) : null}
-                            </>
-                        ) : null}
-                        {pane === "game" ? gameSettings : null}
-                        {pane === "language" && showLanguage ? (
-                            <LanguageSettingsList radioName="platform-language" />
-                        ) : null}
-                    </div>
-                ) : null}
+                                    ) : null}
+                                </List>
+                            ) : null}
+                        </>
+                    ) : null}
+                    {pane === "game" ? gameSettings : null}
+                    {pane === "language" && showLanguage ? (
+                        <LanguageSettingsList radioName="platform-language" />
+                    ) : null}
+                </div>
             </div>
         );
     }
