@@ -165,6 +165,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                 <PlatformSettingsPanel
                     displayName={displayName}
                     onDisplayNameChange={updateName}
+                    routed
                     gameSettings={gamePlugin.features.settings ? (
                         <SettingsPanel
                             value={lobbyConfig}
@@ -174,10 +175,12 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             seatCount={seatCount}
                             onAddSeat={addSeat}
                             onRemoveSeat={removeSeat}
-                            title={t("table.tool.settings")}
+                            title={t("table.label.game")}
+                            showHeading={false}
                             displayInitialLabel={memberInitialLabels[selfId]?.label}
                             flush
                             collapsible={false}
+                            embeddedGamePane
                             sections={{ profile: false, language: false }}
                         />
                     ) : undefined}

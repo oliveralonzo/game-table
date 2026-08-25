@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft } from "lucide-react";
+import { List, ListItem } from "konsta/react";
 import LanguageSettingsList from "game-table/components/LanguageSettingsList";
 import NicknameSettings, {
     type NicknameChangeHandler,
@@ -14,7 +16,10 @@ type Props = {
     showProfile?: boolean;
     showLanguage?: boolean;
     gameSettings?: ReactNode;
+    routed?: boolean;
 };
+
+type SettingsPane = "root" | "profile" | "game" | "language";
 
 export default function PlatformSettingsPanel({
     displayName,
@@ -25,8 +30,97 @@ export default function PlatformSettingsPanel({
     showProfile = true,
     showLanguage = true,
     gameSettings,
+    routed = false,
 }: Props) {
     const { t } = useTranslation();
+    const [pane, setPane] = useState<SettingsPane>("root");
+
+    const hasProfile = showProfile
+        && displayName !== undefined
+        && !!onDisplayNameChange;
+
+    if (routed) {
+        const paneTitle = pane === "profile"
+            ? t("table.label.profile")
+            : pane === "game"
+                ? t("table.label.game")
+                : pane === "language"
+                    ? t("common.language.label")
+                    : t("table.tool.settings");
+
+        return (
+            <div className="grid min-w-0 gap-3">
+                <div className="grid min-w-0 gap-2 px-safe-4">
+                    {pane !== "root" ? (
+                        <button
+                            type="button"
+                            onClick={() => setPane("root")}
+                            className="-ml-2 inline-flex w-fit items-center text-sm font-medium text-primary"
+                        >
+                            <ChevronLeft size={18} />
+                            {t("table.tool.settings")}
+                        </button>
+                    ) : null}
+                    <h2 className="min-w-0 truncate text-[22px] font-bold leading-tight tracking-normal text-black dark:text-white">
+                        {paneTitle}
+                    </h2>
+                </div>
+
+                {pane === "root" ? (
+                    <List inset nested={false} outline strong className="m-0 overflow-hidden">
+                        {hasProfile ? (
+                            <ListItem
+                                title={t("table.label.profile")}
+                                link
+                                chevron
+                                onClick={() => setPane("profile")}
+                                strongTitle={false}
+                                titleFontSizeIos="text-[17px]"
+                            />
+                        ) : null}
+                        {gameSettings ? (
+                            <ListItem
+                                title={t("table.label.game")}
+                                link
+                                chevron
+                                onClick={() => setPane("game")}
+                                strongTitle={false}
+                                titleFontSizeIos="text-[17px]"
+                            />
+                        ) : null}
+                        {showLanguage ? (
+                            <ListItem
+                                title={t("common.language.label")}
+                                link
+                                chevron
+                                onClick={() => setPane("language")}
+                                strongTitle={false}
+                                titleFontSizeIos="text-[17px]"
+                            />
+                        ) : null}
+                    </List>
+                ) : null}
+
+                {pane !== "root" ? (
+                    <div className="grid w-full min-w-0 max-w-full">
+                        {pane === "profile" && hasProfile ? (
+                            <NicknameSettings
+                                value={displayName}
+                                onDraftChange={onDisplayNameDraftChange}
+                                onChange={onDisplayNameChange}
+                                showGenerator={showDisplayNameGenerator}
+                                compact={compactProfile}
+                            />
+                        ) : null}
+                        {pane === "game" ? gameSettings : null}
+                        {pane === "language" && showLanguage ? (
+                            <LanguageSettingsList radioName="platform-language" />
+                        ) : null}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
 
     return (
         <div className="grid min-w-0 gap-5">

@@ -89,7 +89,12 @@ class PostgresHistoryRepository:
             (account_id,),
         )
 
-    def list_history_for_account(self, account_id: str) -> list[AccountHistoryEntry]:
+    def list_history_for_account(
+        self,
+        account_id: str,
+        limit: int,
+        offset: int,
+    ) -> list[AccountHistoryEntry]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
@@ -145,13 +150,30 @@ class PostgresHistoryRepository:
                         account_game_results.points_against,
                         account_game_results.account_id
                     ORDER BY game_history.completed_at DESC
-                    LIMIT 50
+                    LIMIT %s OFFSET %s
                     """,
-                    (account_id,),
+                    (account_id, limit, offset),
                 )
                 rows = cursor.fetchall()
 
         return [self._history_entry_from_row(row) for row in rows]
+
+    def get_history_totals_for_account(self, account_id: str) -> tuple[int, int]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*)::int AS games_played,
+                        COUNT(*) FILTER (WHERE won)::int AS games_won
+                    FROM account_game_results
+                    WHERE account_id = %s
+                    """,
+                    (account_id,),
+                )
+                row = cursor.fetchone()
+
+        return row["games_played"], row["games_won"]
 
     def list_leaderboard(
         self,

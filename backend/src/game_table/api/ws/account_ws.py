@@ -136,10 +136,22 @@ def register_account_events(
             if account is None:
                 raise ValueError("Account does not exist.")
 
-            entries = history_service.list_history_for_account(account.id)
+            history_page = history_service.list_history_for_account(
+                account.id,
+                page=(data or {}).get("page", 1),
+                page_size=(data or {}).get("page_size", 10),
+            )
 
             return {
-                "history": [entry.to_dict() for entry in entries],
+                "history": [
+                    entry.to_dict()
+                    for entry in history_page["entries"]
+                ],
+                "page": history_page["page"],
+                "page_size": history_page["page_size"],
+                "has_more": history_page["has_more"],
+                "games_played": history_page["games_played"],
+                "games_won": history_page["games_won"],
             }
         except Exception as exc:
             return _error_response(exc)

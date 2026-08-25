@@ -56,6 +56,9 @@ export const en = {
             gamesPlayed: "Games played",
             gamesWon: "Games won",
             viewFull: "Full history",
+            page: "Page {{page}}",
+            previous: "Previous page",
+            next: "Next page",
             empty: "Completed signed-in games will appear here.",
             guestFallback: "Not signed in",
             noPartnerFallback: "None",
@@ -200,6 +203,7 @@ export const en = {
             seats: "Seats",
             table: "Table",
             profile: "Profile",
+            game: "Game",
             displayName: "Display Name",
         },
         status: {

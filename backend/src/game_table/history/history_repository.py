@@ -23,7 +23,15 @@ class HistoryRepository(Protocol):
     def list_results_for_account(self, account_id: str) -> list[AccountGameResult]:
         ...
 
-    def list_history_for_account(self, account_id: str) -> list[AccountHistoryEntry]:
+    def list_history_for_account(
+        self,
+        account_id: str,
+        limit: int,
+        offset: int,
+    ) -> list[AccountHistoryEntry]:
+        ...
+
+    def get_history_totals_for_account(self, account_id: str) -> tuple[int, int]:
         ...
 
     def list_leaderboard(

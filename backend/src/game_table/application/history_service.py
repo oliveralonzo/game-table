@@ -16,6 +16,8 @@ from game_table.history.leaderboard_entry import LeaderboardEntry
 
 
 LEADERBOARD_SORTS = {"games_won", "games_played", "win_percentage"}
+DEFAULT_ACCOUNT_HISTORY_PAGE_SIZE = 10
+MAX_ACCOUNT_HISTORY_PAGE_SIZE = 50
 DEFAULT_LEADERBOARD_PAGE_SIZE = 10
 MAX_LEADERBOARD_PAGE_SIZE = 50
 MAX_ACCOUNT_STATS_BATCH_SIZE = 20
@@ -71,11 +73,38 @@ class HistoryService:
 
         return self._repository.list_results_for_account(account_id.strip())
 
-    def list_history_for_account(self, account_id: str) -> list[AccountHistoryEntry]:
+    def list_history_for_account(
+        self,
+        account_id: str,
+        page: int = 1,
+        page_size: int = DEFAULT_ACCOUNT_HISTORY_PAGE_SIZE,
+    ) -> dict:
         if not account_id or not account_id.strip():
             raise ValueError("Account ID is required.")
 
-        return self._repository.list_history_for_account(account_id.strip())
+        clean_account_id = account_id.strip()
+        clean_page = max(1, int(page))
+        clean_page_size = min(
+            MAX_ACCOUNT_HISTORY_PAGE_SIZE,
+            max(1, int(page_size)),
+        )
+        entries = self._repository.list_history_for_account(
+            clean_account_id,
+            limit=clean_page_size + 1,
+            offset=(clean_page - 1) * clean_page_size,
+        )
+        games_played, games_won = self._repository.get_history_totals_for_account(
+            clean_account_id
+        )
+
+        return {
+            "entries": entries[:clean_page_size],
+            "page": clean_page,
+            "page_size": clean_page_size,
+            "has_more": len(entries) > clean_page_size,
+            "games_played": games_played,
+            "games_won": games_won,
+        }
 
     def list_leaderboard(
         self,

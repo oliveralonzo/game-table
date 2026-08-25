@@ -129,7 +129,14 @@ type AccountHistoryParticipant = {
 };
 
 type AccountHistoryAck =
-    | { history: AccountHistoryEntry[] }
+    | {
+        history: AccountHistoryEntry[];
+        page: number;
+        page_size: number;
+        has_more: boolean;
+        games_played: number;
+        games_won: number;
+    }
     | BackendErrorAck;
 
 type LeaderboardEntry = {
@@ -258,6 +265,8 @@ type TableSocketAPI = {
     ) => void;
     listAccountHistory: (
         token: string,
+        page: number,
+        pageSize: number,
         onResult: (response: AccountHistoryAck) => void
     ) => void;
     listLeaderboard: (
@@ -835,9 +844,15 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
 
     const listAccountHistory = useCallback((
         token: string,
+        page: number,
+        pageSize: number,
         onResult: (response: AccountHistoryAck) => void
     ) => {
-        emit("account:history", { token }, onResult);
+        emit(
+            "account:history",
+            { token, page, page_size: pageSize },
+            onResult
+        );
     }, [emit]);
 
     const listLeaderboard = useCallback((

@@ -6,7 +6,7 @@ import {
     useAuth,
     useUser,
 } from "@clerk/react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import {
     Button,
     Segmented,
@@ -59,7 +59,14 @@ type AccountHistoryParticipant = {
 };
 
 type AccountHistoryAck =
-    | { history: AccountHistoryEntry[] }
+    | {
+        history: AccountHistoryEntry[];
+        page: number;
+        page_size: number;
+        has_more: boolean;
+        games_played: number;
+        games_won: number;
+    }
     | { error: string; code?: string; message: string };
 
 type UsernameAvailabilityAck =
@@ -77,6 +84,8 @@ type Props = {
     onBack: () => void;
     afterAuthUrl: string;
 };
+
+const HISTORY_PAGE_SIZE = 10;
 
 const clerkAuthAppearance = {
     elements: {
@@ -306,12 +315,14 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [deleteUsernameDraft, setDeleteUsernameDraft] = useState("");
     const [history, setHistory] = useState<AccountHistoryEntry[]>([]);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyHasMore, setHistoryHasMore] = useState(false);
+    const [gamesPlayed, setGamesPlayed] = useState(0);
+    const [gamesWon, setGamesWon] = useState(0);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [accountView, setAccountView] =
         useState<"profile" | "history">("profile");
     const [status, setStatus] = useState<string | null>(null);
-    const gamesPlayed = history.length;
-    const gamesWon = history.filter((entry) => entry.won).length;
     const deleteUsernameMatches =
         account !== null && deleteUsernameDraft.trim() === account.username;
     const shouldShowAccountSkeleton =
@@ -355,6 +366,10 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             setIsDeletingAccount(false);
             setDeleteUsernameDraft("");
             setHistory([]);
+            setHistoryPage(1);
+            setHistoryHasMore(false);
+            setGamesPlayed(0);
+            setGamesWon(0);
             setIsHistoryLoading(false);
             setAccountView("profile");
             setStatus(null);
@@ -412,6 +427,10 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
     useEffect(() => {
         if (!isLoaded || !isSignedIn || !account) {
             setHistory([]);
+            setHistoryPage(1);
+            setHistoryHasMore(false);
+            setGamesPlayed(0);
+            setGamesWon(0);
             setIsHistoryLoading(false);
             return;
         }
@@ -427,23 +446,31 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                 return;
             }
 
-            listAccountHistory(token, (response: AccountHistoryAck) => {
-                if (!isCurrent) return;
+            listAccountHistory(
+                token,
+                historyPage,
+                HISTORY_PAGE_SIZE,
+                (response: AccountHistoryAck) => {
+                    if (!isCurrent) return;
 
-                setIsHistoryLoading(false);
-                if ("error" in response) {
-                    setStatus(response.message);
-                    return;
+                    setIsHistoryLoading(false);
+                    if ("error" in response) {
+                        setStatus(response.message);
+                        return;
+                    }
+
+                    setHistory(response.history);
+                    setHistoryHasMore(response.has_more);
+                    setGamesPlayed(response.games_played);
+                    setGamesWon(response.games_won);
                 }
-
-                setHistory(response.history);
-            });
+            );
         });
 
         return () => {
             isCurrent = false;
         };
-    }, [account, getToken, isLoaded, isSignedIn, listAccountHistory]);
+    }, [account, getToken, historyPage, isLoaded, isSignedIn, listAccountHistory]);
 
     useEffect(() => {
         if (!isSignedIn || account) {
@@ -817,6 +844,37 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                                         </Table>
                                     </div>
                                 )}
+                                {history.length > 0 && (historyPage > 1 || historyHasMore) ? (
+                                    <div className="flex items-center justify-end gap-2">
+                                        <span className="mr-1 text-xs font-medium text-black/45 dark:text-white/45">
+                                            {t("account.history.page", { page: historyPage })}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            rounded
+                                            outline
+                                            aria-label={t("account.history.previous")}
+                                            title={t("account.history.previous")}
+                                            disabled={historyPage === 1 || isHistoryLoading}
+                                            onClick={() => setHistoryPage((current) => Math.max(1, current - 1))}
+                                            className="!h-9 !w-9 px-0"
+                                        >
+                                            <ChevronLeft size={18} strokeWidth={2.2} />
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            rounded
+                                            outline
+                                            aria-label={t("account.history.next")}
+                                            title={t("account.history.next")}
+                                            disabled={!historyHasMore || isHistoryLoading}
+                                            onClick={() => setHistoryPage((current) => current + 1)}
+                                            className="!h-9 !w-9 px-0"
+                                        >
+                                            <ChevronRight size={18} strokeWidth={2.2} />
+                                        </Button>
+                                    </div>
+                                ) : null}
                             </div>
                         ) : (
 	                        <div className="grid gap-5">

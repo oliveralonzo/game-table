@@ -56,6 +56,9 @@ export const es = {
             gamesPlayed: "Juegos",
             gamesWon: "Ganados",
             viewFull: "Historial completo",
+            page: "Página {{page}}",
+            previous: "Página anterior",
+            next: "Página siguiente",
             empty: "Los juegos completados con cuenta aparecerán aquí.",
             guestFallback: "Sin cuenta",
             noPartnerFallback: "Nadie",
@@ -200,6 +203,7 @@ export const es = {
             seats: "Asientos",
             table: "Mesa",
             profile: "Perfil",
+            game: "Juego",
             displayName: "Apodo",
         },
         status: {
