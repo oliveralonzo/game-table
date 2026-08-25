@@ -203,6 +203,7 @@ export const en = {
             seats: "Seats",
             table: "Table",
             profile: "Profile",
+            general: "General",
             game: "Game",
             displayName: "Display Name",
         },
