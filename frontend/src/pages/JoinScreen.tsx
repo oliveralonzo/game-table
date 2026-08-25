@@ -727,6 +727,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                     onSuccess?.();
                                 }}
                                 showProfile={false}
+                                routed
                             />
                         </Glass>
                     </Popover>
