@@ -111,7 +111,7 @@ export const es = {
             back: "Volver",
             dismiss: "Cerrar",
             generate: "Generar",
-            join: "Iniciar sesión",
+            join: "Entrar",
             rejoin: "Volver",
             create: "Crear",
         },
@@ -121,7 +121,7 @@ export const es = {
             spanish: "ES",
         },
         identity: {
-            guest: "Entrando como invitado",
+            guest: "Iniciar sesión",
             account: "Entrando como @{{username}}",
         },
         field: {
