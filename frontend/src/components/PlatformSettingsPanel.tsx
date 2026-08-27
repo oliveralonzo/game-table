@@ -16,6 +16,7 @@ type Props = {
     showProfile?: boolean;
     showLanguage?: boolean;
     gameSettings?: ReactNode;
+    gameSettingsNested?: boolean;
     routed?: boolean;
 };
 
@@ -30,6 +31,7 @@ export default function PlatformSettingsPanel({
     showProfile = true,
     showLanguage = true,
     gameSettings,
+    gameSettingsNested = false,
     routed = false,
 }: Props) {
     const { t } = useTranslation();
@@ -48,6 +50,7 @@ export default function PlatformSettingsPanel({
 
         return (
             <div className="grid min-w-0 gap-3">
+                {!(pane === "game" && gameSettingsNested) ? (
                 <div className="grid min-w-0 gap-2 px-safe-4">
                     {pane !== "general" ? (
                         <button
@@ -63,6 +66,7 @@ export default function PlatformSettingsPanel({
                         {paneTitle}
                     </h2>
                 </div>
+                ) : null}
 
                 <div className="grid w-full min-w-0 max-w-full gap-4">
                     {pane === "general" ? (
