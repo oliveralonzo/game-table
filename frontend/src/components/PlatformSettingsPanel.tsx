@@ -15,7 +15,7 @@ type Props = {
     compactProfile?: boolean;
     showProfile?: boolean;
     showLanguage?: boolean;
-    gameSettings?: ReactNode;
+    gameSettings?: ReactNode | ((navigation: { backToGeneral: () => void }) => ReactNode);
     gameSettingsNested?: boolean;
     routed?: boolean;
 };
@@ -40,6 +40,9 @@ export default function PlatformSettingsPanel({
     const hasProfile = showProfile
         && displayName !== undefined
         && !!onDisplayNameChange;
+    const renderedGameSettings = typeof gameSettings === "function"
+        ? gameSettings({ backToGeneral: () => setPane("general") })
+        : gameSettings;
 
     if (routed) {
         const paneTitle = pane === "general"
@@ -111,7 +114,7 @@ export default function PlatformSettingsPanel({
                             ) : null}
                         </>
                     ) : null}
-                    {pane === "game" ? gameSettings : null}
+                    {pane === "game" ? renderedGameSettings : null}
                     {pane === "language" && showLanguage ? (
                         <LanguageSettingsList radioName="platform-language" />
                     ) : null}
@@ -138,7 +141,7 @@ export default function PlatformSettingsPanel({
                     />
                 </section>
             ) : null}
-            {gameSettings}
+            {renderedGameSettings}
             {showLanguage ? (
                 <section>
                     <h3 className="mb-2 px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
