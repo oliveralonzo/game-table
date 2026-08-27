@@ -67,6 +67,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         selfMemberIdForActivity
     );
     const [activeTableTool, setActiveTableTool] = useState<TableTool | null>(null);
+    const [settingsNested, setSettingsNested] = useState(false);
     const SettingsPanel = gamePlugin.SettingsPanel;
 
     const table = state.tableView;
@@ -166,6 +167,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     displayName={displayName}
                     onDisplayNameChange={updateName}
                     routed
+                    gameSettingsNested={settingsNested}
                     gameSettings={gamePlugin.features.settings ? (
                         <SettingsPanel
                             value={lobbyConfig}
@@ -181,6 +183,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             flush
                             collapsible={false}
                             embeddedGamePane
+                            onNestedNavigationChange={setSettingsNested}
                             sections={{ profile: false, language: false }}
                         />
                     ) : undefined}
