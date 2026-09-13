@@ -21,7 +21,8 @@
   },
   "scripts": {
     "build": "tsc -p frontend/tsconfig.json && cp frontend/src/index.css frontend/dist/index.css",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "test:loading-page": "npm run build && node --test frontend/tests/loading-page.test.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.12.5",
