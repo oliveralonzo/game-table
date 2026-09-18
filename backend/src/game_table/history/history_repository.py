@@ -42,6 +42,11 @@ class HistoryRepository(Protocol):
     ) -> list[LeaderboardEntry]:
         ...
 
+    def list_player_records(
+        self, account_id: str, relationship: str, sort: str, limit: int, offset: int
+    ) -> list[LeaderboardEntry]:
+        ...
+
     def list_stats_for_accounts(
         self,
         account_ids: list[str],

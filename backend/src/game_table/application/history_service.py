@@ -133,6 +133,37 @@ class HistoryService:
             "has_more": len(entries) > clean_page_size,
         }
 
+    def list_player_records(
+        self,
+        account_id: str,
+        relationship: str = "teammates",
+        sort: str = "games_won",
+        page: int = 1,
+        page_size: int = DEFAULT_LEADERBOARD_PAGE_SIZE,
+    ) -> dict:
+        if not account_id or not account_id.strip():
+            raise ValueError("Account ID is required.")
+        if relationship not in {"teammates", "opponents"}:
+            raise ValueError("Invalid player relationship.")
+        if sort not in LEADERBOARD_SORTS:
+            raise ValueError("Invalid player record sort.")
+
+        clean_page = max(1, int(page))
+        clean_page_size = min(MAX_LEADERBOARD_PAGE_SIZE, max(1, int(page_size)))
+        entries = self._repository.list_player_records(
+            account_id=account_id.strip(),
+            relationship=relationship,
+            sort=sort,
+            limit=clean_page_size + 1,
+            offset=(clean_page - 1) * clean_page_size,
+        )
+        return {
+            "entries": entries[:clean_page_size],
+            "page": clean_page,
+            "page_size": clean_page_size,
+            "has_more": len(entries) > clean_page_size,
+        }
+
     def list_stats_for_accounts(self, account_ids: list[str]) -> list[LeaderboardEntry]:
         if not isinstance(account_ids, list):
             raise ValueError("Account IDs must be a list.")

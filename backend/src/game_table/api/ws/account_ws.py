@@ -178,6 +178,34 @@ def register_account_events(
         except Exception as exc:
             return _error_response(exc)
 
+    @sio.on("account:player_records")
+    async def account_player_records(sid, data):
+        try:
+            _require_account_dependencies()
+            _require_history_dependencies()
+            identity = _verify_payload_token(data)
+            account = account_service.find_by_auth_identity(
+                identity.provider, identity.subject
+            )
+            if account is None:
+                raise ValueError("Account does not exist.")
+
+            records_page = history_service.list_player_records(
+                account_id=account.id,
+                relationship=(data or {}).get("relationship", "teammates"),
+                sort=(data or {}).get("sort", "games_won"),
+                page=(data or {}).get("page", 1),
+                page_size=(data or {}).get("page_size", 10),
+            )
+            return {
+                "records": [entry.to_dict() for entry in records_page["entries"]],
+                "page": records_page["page"],
+                "page_size": records_page["page_size"],
+                "has_more": records_page["has_more"],
+            }
+        except Exception as exc:
+            return _error_response(exc)
+
     @sio.on("account:stats")
     async def account_stats(sid, data):
         try:

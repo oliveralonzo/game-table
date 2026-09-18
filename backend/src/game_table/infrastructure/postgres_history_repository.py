@@ -244,6 +244,52 @@ class PostgresHistoryRepository:
 
         return [self._leaderboard_entry_from_row(row) for row in rows]
 
+    def list_player_records(
+        self,
+        account_id: str,
+        relationship: str,
+        sort: str,
+        limit: int,
+        offset: int,
+    ) -> list[LeaderboardEntry]:
+        # The relationship and sort are validated by HistoryService; use fixed SQL
+        # fragments here so neither value becomes user-supplied SQL.
+        relationship_clause = (
+            "other_result.team_index = my_result.team_index"
+            if relationship == "teammates"
+            else "other_result.team_index <> my_result.team_index"
+        )
+        order_by = self._player_records_order_by(sort)
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    f"""
+                    WITH player_records AS (
+                        SELECT
+                            other_account.id AS account_id,
+                            other_account.username,
+                            COUNT(*)::int AS games_played,
+                            SUM(CASE WHEN my_result.won THEN 1 ELSE 0 END)::int AS games_won
+                        FROM account_game_results AS my_result
+                        JOIN account_game_results AS other_result
+                          ON other_result.game_history_id = my_result.game_history_id
+                         AND other_result.account_id <> my_result.account_id
+                         AND {relationship_clause}
+                        JOIN accounts AS other_account
+                          ON other_account.id = other_result.account_id
+                        WHERE my_result.account_id = %s
+                        GROUP BY other_account.id, other_account.username
+                    )
+                    SELECT * FROM player_records
+                    ORDER BY {order_by}
+                    LIMIT %s OFFSET %s
+                    """,
+                    (account_id, limit, offset),
+                )
+                rows = cursor.fetchall()
+
+        return [self._leaderboard_entry_from_row(row) for row in rows]
+
     def list_results_for_game(self, game_history_id: str) -> list[AccountGameResult]:
         return self._fetch_results(
             """
@@ -339,4 +385,12 @@ class PostgresHistoryRepository:
                 "games_played DESC, games_won DESC, username ASC"
             )
 
+        return "games_won DESC, games_played DESC, username ASC"
+
+    @staticmethod
+    def _player_records_order_by(sort: str) -> str:
+        if sort == "games_played":
+            return "games_played DESC, games_won DESC, username ASC"
+        if sort == "win_percentage":
+            return "games_won::numeric / games_played DESC, games_played DESC, username ASC"
         return "games_won DESC, games_played DESC, username ASC"

@@ -74,6 +74,16 @@ export const es = {
             rounds_one: "{{count}} mano",
             rounds_other: "{{count}} manos",
         },
+        playerRecords: {
+            title: "Resultados por jugador",
+            view: "Resultados por jugador",
+            relationshipLabel: "Relación con el jugador",
+            teammates: "Frente",
+            opponents: "Rivales",
+            teammate: "Frente",
+            opponent: "Rival",
+            loading: "Cargando resultados…",
+        },
     },
     leaderboard: {
         title: "Posiciones",

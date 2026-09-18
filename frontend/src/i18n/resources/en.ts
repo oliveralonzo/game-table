@@ -74,6 +74,16 @@ export const en = {
             rounds_one: "{{count}} round",
             rounds_other: "{{count}} rounds",
         },
+        playerRecords: {
+            title: "Player Records",
+            view: "Player Records",
+            relationshipLabel: "Player relationship",
+            teammates: "Teammates",
+            opponents: "Opponents",
+            teammate: "Teammate",
+            opponent: "Opponent",
+            loading: "Loading player records…",
+        },
     },
     leaderboard: {
         title: "Leaderboard",

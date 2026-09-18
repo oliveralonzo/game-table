@@ -22,6 +22,7 @@ import { useSession } from "game-table/context/SessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { generateNickname } from "game-table/utils/nicknameGenerator";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
+import PlayerRecordsScreen from "game-table/pages/PlayerRecordsScreen";
 
 type AccountView = {
     id: string;
@@ -294,6 +295,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
         deleteAccount,
         getAccount,
         listAccountHistory,
+        listPlayerRecords,
         renameUsername,
         updateAccountTableNickname,
     } = useTableSocket();
@@ -320,8 +322,12 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
     const [gamesPlayed, setGamesPlayed] = useState(0);
     const [gamesWon, setGamesWon] = useState(0);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [recordAvailability, setRecordAvailability] = useState<{
+        teammates: boolean;
+        opponents: boolean;
+    } | null>(null);
     const [accountView, setAccountView] =
-        useState<"profile" | "history">("profile");
+        useState<"profile" | "history" | "playerRecords">("profile");
     const [status, setStatus] = useState<string | null>(null);
     const deleteUsernameMatches =
         account !== null && deleteUsernameDraft.trim() === account.username;
@@ -345,7 +351,9 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                             : null
             : null;
     const screenTitle =
-        accountView === "history"
+        accountView === "playerRecords"
+            ? t("account.playerRecords.title")
+            : accountView === "history"
             ? t("account.history.fullTitle")
             : isLoaded && isSignedIn && hasCheckedAccount && !account && !accountCheckFailed
             ? t("account.createUsernameTitle")
@@ -371,6 +379,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             setGamesPlayed(0);
             setGamesWon(0);
             setIsHistoryLoading(false);
+            setRecordAvailability(null);
             setAccountView("profile");
             setStatus(null);
             return;
@@ -471,6 +480,30 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             isCurrent = false;
         };
     }, [account, getToken, historyPage, isLoaded, isSignedIn, listAccountHistory]);
+
+    useEffect(() => {
+        if (!isLoaded || !isSignedIn || !account) {
+            setRecordAvailability(null);
+            return;
+        }
+
+        let isCurrent = true;
+        setRecordAvailability(null);
+        getToken().then((token) => {
+            if (!isCurrent || !token) return;
+            const available = { teammates: false, opponents: false };
+            let responses = 0;
+            for (const relationship of ["teammates", "opponents"] as const) {
+                listPlayerRecords(token, relationship, "games_won", 1, 1, (response) => {
+                    if (!isCurrent) return;
+                    available[relationship] = !('error' in response) && response.records.length > 0;
+                    responses += 1;
+                    if (responses === 2) setRecordAvailability({ ...available });
+                });
+            }
+        });
+        return () => { isCurrent = false; };
+    }, [account, getToken, isLoaded, isSignedIn, listPlayerRecords]);
 
     useEffect(() => {
         if (!isSignedIn || account) {
@@ -692,6 +725,10 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
     }
 
     function handleBack() {
+        if (accountView === "playerRecords") {
+            setAccountView("history");
+            return;
+        }
         if (accountView !== "profile") {
             setAccountView("profile");
             return;
@@ -772,8 +809,20 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                             {status ?? t("join.backendErrors.UNKNOWN")}
                         </div>
                     ) : account ? (
-                        accountView === "history" ? (
+                        accountView === "playerRecords" ? (
+                            <PlayerRecordsScreen availability={recordAvailability ?? { teammates: false, opponents: false }} />
+                        ) : accountView === "history" ? (
                             <div className="grid min-w-0 max-w-full gap-3">
+                                <Button
+                                    type="button"
+                                    rounded
+                                    outline
+                                    className="h-10 justify-self-start px-4 text-sm font-semibold transition-colors hover:bg-primary/10"
+                                    onClick={() => setAccountView("playerRecords")}
+                                    disabled={!recordAvailability || (!recordAvailability.teammates && !recordAvailability.opponents)}
+                                >
+                                    {t("account.playerRecords.view")}
+                                </Button>
                                 {isHistoryLoading ? (
                                     <AccountHistorySkeleton t={t} />
                                 ) : history.length === 0 ? (

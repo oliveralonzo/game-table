@@ -158,6 +158,16 @@ type LeaderboardAck =
     }
     | BackendErrorAck;
 
+type PlayerRelationship = "teammates" | "opponents";
+type PlayerRecordsAck =
+    | {
+        records: LeaderboardEntry[];
+        page: number;
+        page_size: number;
+        has_more: boolean;
+    }
+    | BackendErrorAck;
+
 type AccountStatsAck =
     | { stats: LeaderboardEntry[] }
     | BackendErrorAck;
@@ -274,6 +284,14 @@ type TableSocketAPI = {
         page: number,
         pageSize: number,
         onResult: (response: LeaderboardAck) => void
+    ) => void;
+    listPlayerRecords: (
+        token: string,
+        relationship: PlayerRelationship,
+        sort: LeaderboardSort,
+        page: number,
+        pageSize: number,
+        onResult: (response: PlayerRecordsAck) => void
     ) => void;
     listAccountStats: (
         accountIds: string[],
@@ -868,6 +886,21 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         );
     }, [emit]);
 
+    const listPlayerRecords = useCallback((
+        token: string,
+        relationship: PlayerRelationship,
+        sort: LeaderboardSort,
+        page: number,
+        pageSize: number,
+        onResult: (response: PlayerRecordsAck) => void
+    ) => {
+        emit(
+            "account:player_records",
+            { token, relationship, sort, page, page_size: pageSize },
+            onResult
+        );
+    }, [emit]);
+
     const listAccountStats = useCallback((
         accountIds: string[],
         onResult: (response: AccountStatsAck) => void
@@ -918,6 +951,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         deleteAccount,
         listAccountHistory,
         listLeaderboard,
+        listPlayerRecords,
         listAccountStats,
         listTables,
     };
