@@ -49,7 +49,13 @@ def test_teammates_and_opponents_use_different_team_comparisons():
     assert "other_result.team_index <> my_result.team_index" in _query_for("opponents")
 
 
-def _query_for(relationship):
+def test_percentage_sort_uses_leaderboard_nr_threshold():
+    query = _query_for("opponents", "win_percentage")
+    assert "(games_played >= 10) DESC" in query
+    assert "CASE WHEN games_played >= 10" in query
+
+
+def _query_for(relationship, sort="games_won"):
     class Cursor:
         query = ""
 
@@ -66,6 +72,6 @@ def _query_for(relationship):
 
     connection = Connection()
     PostgresHistoryRepository(lambda: connection).list_player_records(
-        "me", relationship, "games_won", 10, 0
+        "me", relationship, sort, 10, 0
     )
     return connection.cursor_instance.query

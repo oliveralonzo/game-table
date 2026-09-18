@@ -25,6 +25,7 @@ type RecordEntry = {
 };
 
 const PAGE_SIZE = 10;
+const MIN_WIN_PERCENTAGE_GAMES = 10;
 
 type Availability = { teammates: boolean; opponents: boolean };
 
@@ -79,6 +80,9 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
         setPage(1);
     }
 
+    const hasUnrankedEntries = sort === "win_percentage"
+        && records.some((entry) => entry.games_played < MIN_WIN_PERCENTAGE_GAMES);
+
     return (
         <div className="grid min-w-0 max-w-full gap-4">
             <Segmented strong rounded className="w-full" aria-label={t("account.playerRecords.relationshipLabel")}>
@@ -116,6 +120,7 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
                     <Table style={{ width: "max-content", minWidth: "100%" }}>
                         <TableHead>
                             <TableRow header>
+                                <TableCell header scope="col" className="whitespace-nowrap !pl-3 !pr-5">{t("leaderboard.column.rank")}</TableCell>
                                 <TableCell header scope="col" className="whitespace-nowrap !pl-3 !pr-6">{t(relationship === "teammates" ? "account.playerRecords.teammate" : "account.playerRecords.opponent")}</TableCell>
                                 <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">{t("leaderboard.column.won")}</TableCell>
                                 <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">{t("leaderboard.column.played")}</TableCell>
@@ -123,8 +128,13 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {records.map((entry) => (
+                            {records.map((entry, index) => (
                                 <TableRow key={entry.account_id}>
+                                    <TableCell className="whitespace-nowrap !pl-3 !pr-5 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
+                                        {sort === "win_percentage" && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
+                                            ? t("leaderboard.rank.notRankedShort")
+                                            : (page - 1) * PAGE_SIZE + index + 1}
+                                    </TableCell>
                                     <TableCell className="whitespace-nowrap !pl-3 !pr-6 font-semibold text-black dark:text-white">@{entry.username}</TableCell>
                                     <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black dark:text-white">{entry.games_won}</TableCell>
                                     <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played}</TableCell>
@@ -135,6 +145,12 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
                     </Table>
                 </div>
             )}
+
+            {hasUnrankedEntries ? (
+                <p className="-mt-2 px-2 text-xs leading-5 text-black/45 dark:text-white/45">
+                    {t("account.playerRecords.notRankedExplanation", { count: MIN_WIN_PERCENTAGE_GAMES })}
+                </p>
+            ) : null}
 
             {(page > 1 || hasMore) && !error ? (
                 <div className="flex items-center justify-end gap-2">

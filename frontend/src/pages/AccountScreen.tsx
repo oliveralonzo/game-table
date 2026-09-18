@@ -725,10 +725,6 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
     }
 
     function handleBack() {
-        if (accountView === "playerRecords") {
-            setAccountView("history");
-            return;
-        }
         if (accountView !== "profile") {
             setAccountView("profile");
             return;
@@ -813,16 +809,6 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                             <PlayerRecordsScreen availability={recordAvailability ?? { teammates: false, opponents: false }} />
                         ) : accountView === "history" ? (
                             <div className="grid min-w-0 max-w-full gap-3">
-                                <Button
-                                    type="button"
-                                    rounded
-                                    outline
-                                    className="h-10 justify-self-start px-4 text-sm font-semibold transition-colors hover:bg-primary/10"
-                                    onClick={() => setAccountView("playerRecords")}
-                                    disabled={!recordAvailability || (!recordAvailability.teammates && !recordAvailability.opponents)}
-                                >
-                                    {t("account.playerRecords.view")}
-                                </Button>
                                 {isHistoryLoading ? (
                                     <AccountHistorySkeleton t={t} />
                                 ) : history.length === 0 ? (
@@ -1095,15 +1081,27 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                                         </div>
                                     </div>
 
-                                    <Button
-                                        type="button"
-                                        rounded
-                                        outline
-                                        className="h-10 px-3 text-sm font-semibold transition-colors hover:bg-primary/10"
-                                        onClick={() => setAccountView("history")}
-                                    >
-                                        {t("account.history.viewFull")}
-                                    </Button>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button
+                                            type="button"
+                                            rounded
+                                            outline
+                                            className="!h-auto min-h-10 px-2 py-2 text-center text-sm font-semibold leading-4 transition-colors hover:bg-primary/10"
+                                            onClick={() => setAccountView("history")}
+                                        >
+                                            {t("account.history.viewFull")}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            rounded
+                                            outline
+                                            className="!h-auto min-h-10 px-2 py-2 text-center text-sm font-semibold leading-4 transition-colors hover:bg-primary/10"
+                                            onClick={() => setAccountView("playerRecords")}
+                                            disabled={!recordAvailability || (!recordAvailability.teammates && !recordAvailability.opponents)}
+                                        >
+                                            {t("account.playerRecords.view")}
+                                        </Button>
+                                    </div>
                                 </section>
 
                                 <section className="grid gap-2">

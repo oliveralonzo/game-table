@@ -389,8 +389,4 @@ class PostgresHistoryRepository:
 
     @staticmethod
     def _player_records_order_by(sort: str) -> str:
-        if sort == "games_played":
-            return "games_played DESC, games_won DESC, username ASC"
-        if sort == "win_percentage":
-            return "games_won::numeric / games_played DESC, games_played DESC, username ASC"
-        return "games_won DESC, games_played DESC, username ASC"
+        return PostgresHistoryRepository._leaderboard_order_by(sort)

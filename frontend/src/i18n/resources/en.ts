@@ -83,6 +83,7 @@ export const en = {
             teammate: "Teammate",
             opponent: "Opponent",
             loading: "Loading player records…",
+            notRankedExplanation: "NR means not ranked yet. Play at least {{count}} games with or against a player to qualify for the win-percentage ranking.",
         },
     },
     leaderboard: {

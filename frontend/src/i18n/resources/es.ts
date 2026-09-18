@@ -83,6 +83,7 @@ export const es = {
             teammate: "Frente",
             opponent: "Rival",
             loading: "Cargando resultados…",
+            notRankedExplanation: "NR significa sin clasificación. Juega al menos {{count}} partidas con o contra un jugador para clasificar por porcentaje de victorias.",
         },
     },
     leaderboard: {
