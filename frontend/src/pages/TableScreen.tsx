@@ -168,7 +168,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     onDisplayNameChange={updateName}
                     routed
                     gameSettingsNested={settingsNested}
-                    gameSettings={gamePlugin.features.settings ? (({ backToGeneral }) => (
+                    gameSettings={gamePlugin.features.settings ? (
                         <SettingsPanel
                             value={lobbyConfig}
                             onChange={(next: unknown) => updateGameSettings(next)}
@@ -184,10 +184,9 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             collapsible={false}
                             embeddedGamePane
                             onNestedNavigationChange={setSettingsNested}
-                            onBackToGeneral={backToGeneral}
                             sections={{ profile: false, language: false }}
                         />
-                    )) : undefined}
+                    ) : undefined}
                 />
             )}
             messages={messages}

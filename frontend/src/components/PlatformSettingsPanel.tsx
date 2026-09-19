@@ -15,12 +15,12 @@ type Props = {
     compactProfile?: boolean;
     showProfile?: boolean;
     showLanguage?: boolean;
-    gameSettings?: ReactNode | ((navigation: { backToGeneral: () => void }) => ReactNode);
+    gameSettings?: ReactNode;
     gameSettingsNested?: boolean;
     routed?: boolean;
 };
 
-type SettingsPane = "general" | "game" | "language";
+type SettingsPane = "general" | "language";
 
 export default function PlatformSettingsPanel({
     displayName,
@@ -40,20 +40,15 @@ export default function PlatformSettingsPanel({
     const hasProfile = showProfile
         && displayName !== undefined
         && !!onDisplayNameChange;
-    const renderedGameSettings = typeof gameSettings === "function"
-        ? gameSettings({ backToGeneral: () => setPane("general") })
-        : gameSettings;
 
     if (routed) {
         const paneTitle = pane === "general"
             ? t("table.label.general")
-            : pane === "game"
-                ? t("table.label.game")
-                : t("common.language.label");
+            : t("common.language.label");
 
         return (
             <div className="grid min-w-0 gap-3">
-                {!(pane === "game" && gameSettingsNested) ? (
+                {!(pane === "general" && gameSettingsNested) ? (
                 <div className="grid min-w-0 gap-2 px-safe-4">
                     {pane !== "general" ? (
                         <button
@@ -88,33 +83,21 @@ export default function PlatformSettingsPanel({
                                     />
                                 </section>
                             ) : null}
-                            {gameSettings || showLanguage ? (
+                            {gameSettings}
+                            {showLanguage ? (
                                 <List inset nested={false} outline strong className="m-0 overflow-hidden">
-                                    {gameSettings ? (
-                                        <ListItem
-                                            title={t("table.label.game")}
-                                            link
-                                            chevron
-                                            onClick={() => setPane("game")}
-                                            strongTitle={false}
-                                            titleFontSizeIos="text-[17px]"
-                                        />
-                                    ) : null}
-                                    {showLanguage ? (
-                                        <ListItem
-                                            title={t("common.language.label")}
-                                            link
-                                            chevron
-                                            onClick={() => setPane("language")}
-                                            strongTitle={false}
-                                            titleFontSizeIos="text-[17px]"
-                                        />
-                                    ) : null}
+                                    <ListItem
+                                        title={t("common.language.label")}
+                                        link
+                                        chevron
+                                        onClick={() => setPane("language")}
+                                        strongTitle={false}
+                                        titleFontSizeIos="text-[17px]"
+                                    />
                                 </List>
                             ) : null}
                         </>
                     ) : null}
-                    {pane === "game" ? renderedGameSettings : null}
                     {pane === "language" && showLanguage ? (
                         <LanguageSettingsList radioName="platform-language" />
                     ) : null}
@@ -141,7 +124,7 @@ export default function PlatformSettingsPanel({
                     />
                 </section>
             ) : null}
-            {renderedGameSettings}
+            {gameSettings}
             {showLanguage ? (
                 <section>
                     <h3 className="mb-2 px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
