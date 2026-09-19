@@ -89,8 +89,18 @@ type AccountView = {
 };
 
 type AccountAck =
-    | { account: AccountView | null }
+    | {
+        account: AccountView | null;
+        history_overview?: AccountHistoryOverview | null;
+    }
     | BackendErrorAck;
+
+type AccountHistoryOverview = {
+    games_played: number;
+    games_won: number;
+    has_teammate_records: boolean;
+    has_opponent_records: boolean;
+};
 
 type UsernameAvailabilityAck =
     | {
@@ -136,6 +146,8 @@ type AccountHistoryAck =
         has_more: boolean;
         games_played: number;
         games_won: number;
+        has_teammate_records: boolean;
+        has_opponent_records: boolean;
     }
     | BackendErrorAck;
 

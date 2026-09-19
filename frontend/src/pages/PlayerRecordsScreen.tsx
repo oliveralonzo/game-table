@@ -13,6 +13,7 @@ import {
 } from "konsta/react";
 import { useTranslation } from "react-i18next";
 import { useTableSocket } from "game-table/context/TableSocket";
+import PlayerStatsTableSkeleton from "game-table/components/PlayerStatsTableSkeleton";
 
 type Relationship = "teammates" | "opponents";
 type Sort = "games_won" | "games_played" | "win_percentage";
@@ -24,12 +25,57 @@ type RecordEntry = {
     win_percentage: number;
 };
 
+type CachedPlayerRecordsPage = {
+    records: RecordEntry[];
+    hasMore: boolean;
+};
+
 const PAGE_SIZE = 10;
 const MIN_WIN_PERCENTAGE_GAMES = 10;
 
 type Availability = { teammates: boolean; opponents: boolean };
 
-export default function PlayerRecordsScreen({ availability }: { availability: Availability }) {
+const playerRecordsCache = new Map<string, CachedPlayerRecordsPage>();
+
+function cacheKey(
+    accountId: string,
+    relationship: Relationship,
+    sort: Sort,
+    page: number,
+): string {
+    return `${accountId}:${relationship}:${sort}:${page}`;
+}
+
+export function getCachedPlayerRecordsPage(
+    accountId: string,
+    relationship: Relationship,
+    sort: Sort,
+    page: number,
+): CachedPlayerRecordsPage | undefined {
+    return playerRecordsCache.get(cacheKey(accountId, relationship, sort, page));
+}
+
+export function cachePlayerRecordsPage(
+    accountId: string,
+    relationship: Relationship,
+    sort: Sort,
+    page: number,
+    records: RecordEntry[],
+    hasMore: boolean,
+): void {
+    playerRecordsCache.set(
+        cacheKey(accountId, relationship, sort, page),
+        { records, hasMore },
+    );
+}
+
+export default function PlayerRecordsScreen({
+    accountId,
+    availability,
+}: {
+    accountId: string;
+    availability: Availability;
+}) {
     const { t } = useTranslation();
     const { getToken } = useAuth();
     const { listPlayerRecords } = useTableSocket();
@@ -45,10 +91,11 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
 
     useEffect(() => {
         let current = true;
+        const cached = getCachedPlayerRecordsPage(accountId, relationship, sort, page);
         setLoading(true);
         setError(null);
-        setRecords([]);
-        setHasMore(false);
+        setRecords(cached?.records ?? []);
+        setHasMore(cached?.hasMore ?? false);
         getToken().then((token) => {
             if (!current) return;
             if (!token) {
@@ -63,12 +110,20 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
                     setError(response.message);
                     return;
                 }
+                cachePlayerRecordsPage(
+                    accountId,
+                    relationship,
+                    sort,
+                    page,
+                    response.records,
+                    response.has_more,
+                );
                 setRecords(response.records);
                 setHasMore(response.has_more);
             });
         });
         return () => { current = false; };
-    }, [getToken, listPlayerRecords, page, relationship, sort, t]);
+    }, [accountId, getToken, listPlayerRecords, page, relationship, sort, t]);
 
     function changeRelationship(next: Relationship) {
         setRelationship(next);
@@ -114,31 +169,38 @@ export default function PlayerRecordsScreen({ availability }: { availability: Av
             {error ? (
                 <div role="alert" className="rounded-2xl bg-ios-light-surface-2 px-4 py-5 text-sm font-medium text-red-600 dark:bg-ios-dark-surface-2 dark:text-red-300">{error}</div>
             ) : loading && records.length === 0 ? (
-                <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-5 text-sm text-black/55 dark:bg-ios-dark-surface-2 dark:text-white/55" aria-live="polite">{t("account.playerRecords.loading")}</div>
+                <PlayerStatsTableSkeleton
+                    personColumnLabel={t(relationship === "teammates"
+                        ? "account.playerRecords.teammate"
+                        : "account.playerRecords.opponent")}
+                    rows={PAGE_SIZE}
+                />
             ) : (
-                <div className={`min-w-0 max-w-full overflow-x-auto rounded-2xl bg-ios-light-surface-2 dark:bg-ios-dark-surface-2 ${loading ? "opacity-70" : ""}`}>
+                <div aria-busy={loading} className={`min-w-0 max-w-full overflow-x-auto rounded-2xl bg-ios-light-surface-2 transition-opacity dark:bg-ios-dark-surface-2 ${loading ? "opacity-70" : ""}`}>
                     <Table style={{ width: "max-content", minWidth: "100%" }}>
                         <TableHead>
                             <TableRow header>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-3 !pr-5">{t("leaderboard.column.rank")}</TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-3 !pr-6">{t(relationship === "teammates" ? "account.playerRecords.teammate" : "account.playerRecords.opponent")}</TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">{t("leaderboard.column.won")}</TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">{t("leaderboard.column.played")}</TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-3 text-right">{t("leaderboard.column.winPercentage")}</TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-3 !pr-3">{t("leaderboard.column.rank")}</TableCell>
+                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-4">{t(relationship === "teammates" ? "account.playerRecords.teammate" : "account.playerRecords.opponent")}</TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.won")}</TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.lost")}</TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.played")}</TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">{t("leaderboard.column.winPercentage")}</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {records.map((entry, index) => (
                                 <TableRow key={entry.account_id}>
-                                    <TableCell className="whitespace-nowrap !pl-3 !pr-5 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
+                                    <TableCell className="w-px whitespace-nowrap !pl-3 !pr-3 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
                                         {sort === "win_percentage" && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
                                             ? t("leaderboard.rank.notRankedShort")
                                             : (page - 1) * PAGE_SIZE + index + 1}
                                     </TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-3 !pr-6 font-semibold text-black dark:text-white">@{entry.username}</TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black dark:text-white">{entry.games_won}</TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played}</TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{Math.round(entry.win_percentage * 100)}%</TableCell>
+                                    <TableCell className="whitespace-nowrap !pl-2 !pr-4 font-semibold text-black dark:text-white">@{entry.username}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black dark:text-white">{entry.games_won}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played - entry.games_won}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !pl-2 !pr-3 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{Math.round(entry.win_percentage * 100)}%</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

@@ -175,6 +175,52 @@ class PostgresHistoryRepository:
 
         return row["games_played"], row["games_won"]
 
+    def get_history_overview_for_account(
+        self, account_id: str
+    ) -> tuple[int, int, bool, bool]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    WITH my_results AS (
+                        SELECT game_history_id, account_id, team_index, won
+                        FROM account_game_results
+                        WHERE account_id = %s
+                    )
+                    SELECT
+                        COUNT(*)::int AS games_played,
+                        COUNT(*) FILTER (WHERE won)::int AS games_won,
+                        EXISTS (
+                            SELECT 1
+                            FROM my_results AS my_result
+                            JOIN account_game_results AS teammate_result
+                              ON teammate_result.game_history_id = my_result.game_history_id
+                             AND teammate_result.account_id <> my_result.account_id
+                             AND teammate_result.team_index = my_result.team_index
+                        ) AS has_teammate_records,
+                        EXISTS (
+                            SELECT 1
+                            FROM my_results AS my_result
+                            JOIN account_game_results AS opponent_result
+                              ON opponent_result.game_history_id = my_result.game_history_id
+                             AND opponent_result.account_id <> my_result.account_id
+                             AND opponent_result.team_index <> my_result.team_index
+                        ) AS has_opponent_records
+                    FROM my_results
+                    """,
+                    (account_id,),
+                )
+                row = cursor.fetchone()
+
+        if row is None:
+            return 0, 0, False, False
+        return (
+            row["games_played"],
+            row["games_won"],
+            row["has_teammate_records"],
+            row["has_opponent_records"],
+        )
+
     def list_leaderboard(
         self,
         sort: str,

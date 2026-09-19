@@ -34,6 +34,11 @@ class HistoryRepository(Protocol):
     def get_history_totals_for_account(self, account_id: str) -> tuple[int, int]:
         ...
 
+    def get_history_overview_for_account(
+        self, account_id: str
+    ) -> tuple[int, int, bool, bool]:
+        ...
+
     def list_leaderboard(
         self,
         sort: str,

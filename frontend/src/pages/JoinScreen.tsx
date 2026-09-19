@@ -12,7 +12,11 @@ import { useAuthSession } from "game-table/context/AuthSessionContext";
 import Logo from "game-table/components/Logo";
 import AccountScreen from "game-table/pages/AccountScreen";
 import OpenTablesList from "game-table/components/OpenTablesList";
-import LeaderboardScreen from "game-table/pages/LeaderboardScreen";
+import LeaderboardScreen, {
+    cacheLeaderboardPage,
+    getCachedLeaderboardPage,
+    LEADERBOARD_PAGE_SIZE,
+} from "game-table/pages/LeaderboardScreen";
 import { useSession } from "game-table/context/SessionContext";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import {
@@ -139,6 +143,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
         createTable,
         getAccount,
         joinTable,
+        listLeaderboard,
         lookupTable,
         updateAccountTableNickname,
     } = useTableSocket();
@@ -209,6 +214,23 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
             setPage("join");
         }
     }, [accountsEnabled, page]);
+
+    useEffect(() => {
+        if (!accountsEnabled || getCachedLeaderboardPage("games_won", 1)) return;
+
+        let isCurrent = true;
+        listLeaderboard("games_won", 1, LEADERBOARD_PAGE_SIZE, (response) => {
+            if (!isCurrent || "error" in response) return;
+            cacheLeaderboardPage(
+                "games_won",
+                1,
+                response.leaderboard,
+                response.has_more,
+            );
+        });
+
+        return () => { isCurrent = false; };
+    }, [accountsEnabled, listLeaderboard]);
 
     useEffect(() => {
         if (!accountsEnabled) {
@@ -740,7 +762,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                     }}
                     className={`rounded-[28px] ${
                         (page === "account" || page === "leaderboard") && accountsEnabled
-                            ? "w-fit max-w-[calc(100vw-2rem)] p-3 sm:p-4"
+                            ? "w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] p-3 sm:w-fit sm:p-4"
                             : "w-full max-w-md p-5 sm:p-6"
                     }`}
                 >

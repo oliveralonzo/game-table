@@ -41,3 +41,6 @@ CREATE INDEX IF NOT EXISTS account_game_results_account_idx
 
 CREATE INDEX IF NOT EXISTS account_game_results_game_idx
     ON account_game_results (game_history_id);
+
+CREATE INDEX IF NOT EXISTS account_game_results_account_game_team_idx
+    ON account_game_results (account_id, game_history_id, team_index);

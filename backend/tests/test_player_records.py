@@ -34,6 +34,40 @@ def test_player_records_are_paged_after_database_aggregation():
     assert result["entries"][0].win_percentage == 0.6
 
 
+def test_history_overview_includes_player_record_availability():
+    class HistoryRepository(FakeRepository):
+        def list_history_for_account(self, _account_id, limit, offset):
+            assert (limit, offset) == (11, 0)
+            return []
+
+        def get_history_overview_for_account(self, account_id):
+            assert account_id == "me"
+            return 12, 7, True, False
+
+    result = HistoryService(HistoryRepository()).list_history_for_account(" me ")
+
+    assert result["games_played"] == 12
+    assert result["games_won"] == 7
+    assert result["has_teammate_records"] is True
+    assert result["has_opponent_records"] is False
+
+
+def test_history_overview_can_be_loaded_without_history_rows():
+    class HistoryRepository(FakeRepository):
+        def get_history_overview_for_account(self, account_id):
+            assert account_id == "me"
+            return 12, 7, True, False
+
+    result = HistoryService(HistoryRepository()).get_history_overview_for_account(" me ")
+
+    assert result == {
+        "games_played": 12,
+        "games_won": 7,
+        "has_teammate_records": True,
+        "has_opponent_records": False,
+    }
+
+
 @pytest.mark.parametrize("kwargs", [
     {"account_id": ""},
     {"account_id": "me", "relationship": "strangers"},

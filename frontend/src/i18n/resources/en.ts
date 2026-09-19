@@ -104,9 +104,10 @@ export const en = {
         column: {
             rank: "#",
             username: "Username",
-            won: "Won",
-            played: "Played",
-            winPercentage: "Win %",
+            won: "W",
+            lost: "L",
+            played: "P",
+            winPercentage: "%",
         },
         action: {
             previous: "Previous",

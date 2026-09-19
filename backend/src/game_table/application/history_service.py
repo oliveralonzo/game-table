@@ -93,17 +93,31 @@ class HistoryService:
             limit=clean_page_size + 1,
             offset=(clean_page - 1) * clean_page_size,
         )
-        games_played, games_won = self._repository.get_history_totals_for_account(
-            clean_account_id
-        )
+        overview = self.get_history_overview_for_account(clean_account_id)
 
         return {
             "entries": entries[:clean_page_size],
             "page": clean_page,
             "page_size": clean_page_size,
             "has_more": len(entries) > clean_page_size,
+            **overview,
+        }
+
+    def get_history_overview_for_account(self, account_id: str) -> dict:
+        if not account_id or not account_id.strip():
+            raise ValueError("Account ID is required.")
+
+        (
+            games_played,
+            games_won,
+            has_teammate_records,
+            has_opponent_records,
+        ) = self._repository.get_history_overview_for_account(account_id.strip())
+        return {
             "games_played": games_played,
             "games_won": games_won,
+            "has_teammate_records": has_teammate_records,
+            "has_opponent_records": has_opponent_records,
         }
 
     def list_leaderboard(

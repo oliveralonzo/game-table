@@ -22,7 +22,10 @@ import { useSession } from "game-table/context/SessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { generateNickname } from "game-table/utils/nicknameGenerator";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
-import PlayerRecordsScreen from "game-table/pages/PlayerRecordsScreen";
+import PlayerRecordsScreen, {
+    cachePlayerRecordsPage,
+    getCachedPlayerRecordsPage,
+} from "game-table/pages/PlayerRecordsScreen";
 
 type AccountView = {
     id: string;
@@ -32,7 +35,15 @@ type AccountView = {
 };
 
 type AccountAck =
-    | { account: AccountView | null }
+    | {
+        account: AccountView | null;
+        history_overview?: {
+            games_played: number;
+            games_won: number;
+            has_teammate_records: boolean;
+            has_opponent_records: boolean;
+        } | null;
+    }
     | { error: string; code?: string; message: string };
 
 type AccountHistoryEntry = {
@@ -67,6 +78,8 @@ type AccountHistoryAck =
         has_more: boolean;
         games_played: number;
         games_won: number;
+        has_teammate_records: boolean;
+        has_opponent_records: boolean;
     }
     | { error: string; code?: string; message: string };
 
@@ -416,6 +429,12 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
 
                 setAccountCheckFailed(false);
                 setAccount(response.account);
+                setGamesPlayed(response.history_overview?.games_played ?? 0);
+                setGamesWon(response.history_overview?.games_won ?? 0);
+                setRecordAvailability(response.history_overview ? {
+                    teammates: response.history_overview.has_teammate_records,
+                    opponents: response.history_overview.has_opponent_records,
+                } : null);
                 setUsernameDraft(response.account?.username ?? "");
                 setDisplayName(response.account?.table_nickname ?? "");
                 setDisplayNameDraft(response.account?.table_nickname ?? "");
@@ -444,6 +463,8 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             return;
         }
 
+        if (accountView !== "history") return;
+
         let isCurrent = true;
         setIsHistoryLoading(true);
 
@@ -470,8 +491,6 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
 
                     setHistory(response.history);
                     setHistoryHasMore(response.has_more);
-                    setGamesPlayed(response.games_played);
-                    setGamesWon(response.games_won);
                 }
             );
         });
@@ -479,7 +498,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
         return () => {
             isCurrent = false;
         };
-    }, [account, getToken, historyPage, isLoaded, isSignedIn, listAccountHistory]);
+    }, [account, accountView, getToken, historyPage, isLoaded, isSignedIn, listAccountHistory]);
 
     useEffect(() => {
         if (!isLoaded || !isSignedIn || !account) {
@@ -487,23 +506,33 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             return;
         }
 
+        if (!recordAvailability) return;
+        const relationship = recordAvailability.teammates
+            ? "teammates"
+            : recordAvailability.opponents
+                ? "opponents"
+                : null;
+        if (!relationship || getCachedPlayerRecordsPage(
+            account.id, relationship, "games_won", 1
+        )) return;
+
         let isCurrent = true;
-        setRecordAvailability(null);
         getToken().then((token) => {
             if (!isCurrent || !token) return;
-            const available = { teammates: false, opponents: false };
-            let responses = 0;
-            for (const relationship of ["teammates", "opponents"] as const) {
-                listPlayerRecords(token, relationship, "games_won", 1, 1, (response) => {
-                    if (!isCurrent) return;
-                    available[relationship] = !('error' in response) && response.records.length > 0;
-                    responses += 1;
-                    if (responses === 2) setRecordAvailability({ ...available });
-                });
-            }
+            listPlayerRecords(token, relationship, "games_won", 1, HISTORY_PAGE_SIZE, (response) => {
+                if (!isCurrent || "error" in response) return;
+                cachePlayerRecordsPage(
+                    account.id,
+                    relationship,
+                    "games_won",
+                    1,
+                    response.records,
+                    response.has_more,
+                );
+            });
         });
         return () => { isCurrent = false; };
-    }, [account, getToken, isLoaded, isSignedIn, listPlayerRecords]);
+    }, [account, getToken, isLoaded, isSignedIn, listPlayerRecords, recordAvailability]);
 
     useEffect(() => {
         if (!isSignedIn || account) {
@@ -735,11 +764,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
 
     return (
         <section
-            className={`mx-auto grid gap-5 ${
-                accountView !== "profile"
-                    ? "w-[min(42rem,calc(100vw-4rem))] max-w-full"
-                    : "w-[min(28rem,calc(100vw-4rem))]"
-            }`}
+            className="mx-auto grid w-full max-w-full gap-5 sm:w-[28rem]"
         >
             <div className="flex items-center justify-between gap-3">
                 <Button
@@ -806,7 +831,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                         </div>
                     ) : account ? (
                         accountView === "playerRecords" ? (
-                            <PlayerRecordsScreen availability={recordAvailability ?? { teammates: false, opponents: false }} />
+                            <PlayerRecordsScreen accountId={account.id} availability={recordAvailability ?? { teammates: false, opponents: false }} />
                         ) : accountView === "history" ? (
                             <div className="grid min-w-0 max-w-full gap-3">
                                 {isHistoryLoading ? (
@@ -1065,18 +1090,18 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
                                             <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
-                                                {isHistoryLoading ? "..." : gamesPlayed}
+                                                {gamesWon}
                                             </div>
                                             <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
-                                                {t("account.history.gamesPlayed")}
+                                                {t("account.history.gamesWon")}
                                             </div>
                                         </div>
                                         <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
                                             <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
-                                                {isHistoryLoading ? "..." : gamesWon}
+                                                {gamesPlayed}
                                             </div>
                                             <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
-                                                {t("account.history.gamesWon")}
+                                                {t("account.history.gamesPlayed")}
                                             </div>
                                         </div>
                                     </div>

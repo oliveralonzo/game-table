@@ -39,8 +39,15 @@ def register_account_events(
                 identity.subject,
             )
 
+            history_overview = None
+            if account is not None and history_service is not None:
+                history_overview = history_service.get_history_overview_for_account(
+                    account.id
+                )
+
             return {
                 "account": account.to_dict() if account else None,
+                "history_overview": history_overview,
             }
         except Exception as exc:
             return _error_response(exc)
@@ -152,6 +159,8 @@ def register_account_events(
                 "has_more": history_page["has_more"],
                 "games_played": history_page["games_played"],
                 "games_won": history_page["games_won"],
+                "has_teammate_records": history_page["has_teammate_records"],
+                "has_opponent_records": history_page["has_opponent_records"],
             }
         except Exception as exc:
             return _error_response(exc)

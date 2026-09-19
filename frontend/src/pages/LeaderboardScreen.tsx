@@ -12,10 +12,11 @@ import {
 } from "konsta/react";
 import { useTranslation } from "react-i18next";
 import { useTableSocket } from "game-table/context/TableSocket";
+import PlayerStatsTableSkeleton from "game-table/components/PlayerStatsTableSkeleton";
 
-type LeaderboardSort = "games_won" | "games_played" | "win_percentage";
+export type LeaderboardSort = "games_won" | "games_played" | "win_percentage";
 
-type LeaderboardEntry = {
+export type LeaderboardEntry = {
     account_id: string;
     username: string;
     games_played: number;
@@ -27,70 +28,35 @@ type Props = {
     onBack: () => void;
 };
 
-const PAGE_SIZE = 10;
+export const LEADERBOARD_PAGE_SIZE = 10;
 const MIN_WIN_PERCENTAGE_GAMES = 10;
+
+type CachedLeaderboardPage = {
+    entries: LeaderboardEntry[];
+    hasMore: boolean;
+};
+
+const leaderboardCache = new Map<string, CachedLeaderboardPage>();
+
+function cacheKey(sort: LeaderboardSort, page: number) {
+    return `${sort}:${page}`;
+}
+
+export function getCachedLeaderboardPage(sort: LeaderboardSort, page: number) {
+    return leaderboardCache.get(cacheKey(sort, page));
+}
+
+export function cacheLeaderboardPage(
+    sort: LeaderboardSort,
+    page: number,
+    entries: LeaderboardEntry[],
+    hasMore: boolean,
+) {
+    leaderboardCache.set(cacheKey(sort, page), { entries, hasMore });
+}
 
 function formatWinPercentage(value: number): string {
     return `${Math.round(value * 100)}%`;
-}
-
-function LeaderboardSkeleton({ t }: { t: (key: string) => string }) {
-    return (
-        <div
-            className="min-w-0 max-w-full overflow-hidden rounded-2xl bg-ios-light-surface-2 dark:bg-ios-dark-surface-2"
-            aria-hidden="true"
-        >
-            <Table className="table-fixed" style={{ tableLayout: "fixed" }}>
-                <colgroup>
-                    <col className="w-10" />
-                    <col className="w-auto" />
-                    <col className="w-14" />
-                    <col className="w-14" />
-                    <col className="w-12" />
-                </colgroup>
-                <TableHead>
-                    <TableRow header>
-                        <TableCell header scope="col" className="truncate !px-3">
-                            {t("leaderboard.column.rank")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-3">
-                            {t("leaderboard.column.username")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-3 text-right">
-                            {t("leaderboard.column.won")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-3 text-right">
-                            {t("leaderboard.column.played")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-3 text-right">
-                            {t("leaderboard.column.winPercentage")}
-                        </TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {Array.from({ length: PAGE_SIZE }).map((_, index) => (
-                        <TableRow key={index}>
-                            <TableCell className="!px-3">
-                                <div className="h-4 w-4 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-3">
-                                <div className="h-4 w-full max-w-28 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-3">
-                                <div className="ml-auto h-4 w-7 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-3">
-                                <div className="ml-auto h-4 w-7 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-3">
-                                <div className="ml-auto h-4 w-9 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    );
 }
 
 export default function LeaderboardScreen({ onBack }: Props) {
@@ -98,17 +64,25 @@ export default function LeaderboardScreen({ onBack }: Props) {
     const { listLeaderboard } = useTableSocket();
     const [sort, setSort] = useState<LeaderboardSort>("games_won");
     const [page, setPage] = useState(1);
-    const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-    const [hasMore, setHasMore] = useState(false);
+    const initialPage = getCachedLeaderboardPage("games_won", 1);
+    const [entries, setEntries] = useState<LeaderboardEntry[]>(
+        () => initialPage?.entries ?? []
+    );
+    const [hasMore, setHasMore] = useState(() => initialPage?.hasMore ?? false);
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
 
     useEffect(() => {
         let isCurrent = true;
+        const cached = getCachedLeaderboardPage(sort, page);
+        if (cached) {
+            setEntries(cached.entries);
+            setHasMore(cached.hasMore);
+        }
         setIsLoading(true);
         setStatus(null);
 
-        listLeaderboard(sort, page, PAGE_SIZE, (response) => {
+        listLeaderboard(sort, page, LEADERBOARD_PAGE_SIZE, (response) => {
             if (!isCurrent) return;
 
             setIsLoading(false);
@@ -119,6 +93,7 @@ export default function LeaderboardScreen({ onBack }: Props) {
 
             setEntries(response.leaderboard);
             setHasMore(response.has_more);
+            cacheLeaderboardPage(sort, page, response.leaderboard, response.has_more);
         });
 
         return () => {
@@ -188,7 +163,10 @@ export default function LeaderboardScreen({ onBack }: Props) {
             </div>
 
             {isLoading && entries.length === 0 ? (
-                <LeaderboardSkeleton t={t} />
+                <PlayerStatsTableSkeleton
+                    personColumnLabel={t("leaderboard.column.username")}
+                    rows={LEADERBOARD_PAGE_SIZE}
+                />
             ) : status ? (
                 <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-5 text-sm font-medium text-red-600 dark:bg-ios-dark-surface-2 dark:text-red-300">
                     {status}
@@ -206,19 +184,22 @@ export default function LeaderboardScreen({ onBack }: Props) {
                     <Table style={{ width: "max-content", minWidth: "100%" }}>
                         <TableHead>
                             <TableRow header>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-3 !pr-5">
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-3 !pr-3">
                                     {t("leaderboard.column.rank")}
                                 </TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-6">
+                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-4">
                                     {t("leaderboard.column.username")}
                                 </TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.won")}
                                 </TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-5 text-right">
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
+                                    {t("leaderboard.column.lost")}
+                                </TableCell>
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.played")}
                                 </TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-3 text-right">
+                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">
                                     {t("leaderboard.column.winPercentage")}
                                 </TableCell>
                             </TableRow>
@@ -226,21 +207,24 @@ export default function LeaderboardScreen({ onBack }: Props) {
                         <TableBody>
                             {entries.map((entry, index) => (
                                 <TableRow key={entry.account_id}>
-                                    <TableCell className="whitespace-nowrap !pl-3 !pr-5 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
+                                    <TableCell className="w-px whitespace-nowrap !pl-3 !pr-3 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
                                         {sort === "win_percentage"
                                             && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
                                             ? t("leaderboard.rank.notRankedShort")
-                                            : (page - 1) * PAGE_SIZE + index + 1}
+                                            : (page - 1) * LEADERBOARD_PAGE_SIZE + index + 1}
                                     </TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-6">
+                                    <TableCell className="whitespace-nowrap !pl-2 !pr-4">
                                         <span className="font-semibold text-black dark:text-white">
                                             @{entry.username}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black dark:text-white">
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black dark:text-white">
                                         {entry.games_won}
                                     </TableCell>
-                                    <TableCell className="whitespace-nowrap !pl-2 !pr-5 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">
+                                        {entry.games_played - entry.games_won}
+                                    </TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">
                                         {entry.games_played}
                                     </TableCell>
                                     <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">
@@ -248,10 +232,11 @@ export default function LeaderboardScreen({ onBack }: Props) {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {Array.from({ length: PAGE_SIZE - entries.length }).map((_, index) => (
+                            {Array.from({ length: LEADERBOARD_PAGE_SIZE - entries.length }).map((_, index) => (
                                 <TableRow key={`empty-${index}`} aria-hidden="true">
                                     <TableCell className="!pl-3 !pr-5"><span>&nbsp;</span></TableCell>
                                     <TableCell className="!pl-2 !pr-6"><span>&nbsp;</span></TableCell>
+                                    <TableCell className="!px-2"><span>&nbsp;</span></TableCell>
                                     <TableCell className="!pl-2 !pr-5"><span>&nbsp;</span></TableCell>
                                     <TableCell className="!pl-2 !pr-5"><span>&nbsp;</span></TableCell>
                                     <TableCell className="!pl-2 !pr-3"><span>&nbsp;</span></TableCell>
