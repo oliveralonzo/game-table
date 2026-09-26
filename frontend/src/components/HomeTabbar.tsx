@@ -23,11 +23,9 @@ export default function HomeTabbar({ activeTab, onChange }: {
             {tabs.map(({ id, icon: Icon }) => (
                 <TabbarLink key={id} active={activeTab === id}
                     label={t(`navigation.${id}`)} icon={<Icon size={24} aria-hidden="true" />}
-                    linkProps={{ href: "/", "aria-current": activeTab === id ? "page" : undefined }}
-                    onClick={(event) => {
-                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                        event.preventDefault();
-                        onChange(id);
+                    linkProps={{ component: "button", type: "button", "aria-current": activeTab === id ? "page" : undefined }}
+                    onClick={() => {
+                        if (id !== activeTab) onChange(id);
                     }}
                 />
             ))}
