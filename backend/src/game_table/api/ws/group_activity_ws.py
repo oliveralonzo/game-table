@@ -3,16 +3,16 @@ from asyncio import to_thread
 from game_table.api.ws.errors import error_response
 
 
-def register_group_activity_events(sio, account_service, activity_service, auth_verifier):
+def register_group_activity_events(sio, account_service, activity_service, auth_verifier, sessions=None):
     @sio.on('group:player_records')
     async def group_player_records(sid, data=None):
-        return await read_activity(data, player_records=True)
+        return await read_activity(sid, data, player_records=True)
 
     @sio.on('group:activity')
     async def group_activity(sid, data=None):
-        return await read_activity(data)
+        return await read_activity(sid, data)
 
-    async def read_activity(data, player_records=False):
+    async def read_activity(sid, data, player_records=False):
         try:
             if account_service is None or activity_service is None or auth_verifier is None:
                 raise RuntimeError('Group activity is not configured.')
@@ -20,9 +20,12 @@ def register_group_activity_events(sio, account_service, activity_service, auth_
             group_id = payload.get('group_id')
             if not isinstance(group_id, str) or not group_id.strip():
                 raise ValueError('Group ID is required.')
+            admitted = await sessions.enter(sid, payload) if sessions else None
             def read():
-                identity = auth_verifier.verify_token(payload.get('token'))
-                account = account_service.find_by_auth_identity(identity.provider, identity.subject)
+                account = admitted
+                if account is None:
+                    identity = auth_verifier.verify_token(payload.get('token'))
+                    account = account_service.find_by_auth_identity(identity.provider, identity.subject)
                 if account is None:
                     raise PermissionError('Account does not exist.')
                 if player_records:

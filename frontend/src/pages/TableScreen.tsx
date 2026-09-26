@@ -38,6 +38,9 @@ type Props = {
 
 export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     const { t } = useTranslation();
+    const showTodaySponsor = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date()) === "2026-09-26";
     const { state } = useTable();
     const {
         assignSeat,
@@ -216,6 +219,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                 <h1 className="text-[34px] font-bold leading-tight tracking-normal text-black dark:text-white">
                     {t("table.label.seats")}
                 </h1>
+
             </div>
 
             <div className="min-w-0">
@@ -224,9 +228,10 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     colors={{
                         shadowIos: glassWithoutLightInsetShadow,
                     }}
-                    className="aspect-square w-full rounded-[28px] p-5 sm:p-6"
+                    className="w-full rounded-[28px] p-5 sm:p-6"
                 >
                     <SeatsPanel
+                        sizeToContent
                         seats={seats}
                         seatCount={seatCount}
                         initialLabels={seatInitialLabels}
@@ -275,6 +280,9 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     <p className="font-mono text-sm text-black/55 dark:text-white/55">
                         {table.table_code}
                     </p>
+                    {showTodaySponsor && <p className="mt-1 text-center text-xs text-black/55 dark:text-white/55">
+                        {t("table.label.sponsoredBy", { sponsor: "@RafaMarchena" })}
+                    </p>}
                     <Button
                         type="button"
                         inline

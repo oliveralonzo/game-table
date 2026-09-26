@@ -40,7 +40,8 @@ def record(entry, won):
 
 
 class GroupActivityService:
-    def __init__(self, groups, repository: GroupActivityRepository, clock_ms=None):
+    def __init__(self, groups, repository: GroupActivityRepository, clock_ms=None, *, session_authorized=False):
+        self._session_authorized = session_authorized
         self._groups = groups
         self._repository = repository
         self._clock = clock_ms or (lambda: int(time() * 1000))
@@ -50,7 +51,8 @@ class GroupActivityService:
         current = month_key(self._clock())
         season = current if season == 'current' else season
         start, end = (None, None) if season == 'all' else month_bounds(season)
-        snapshot = self._repository.read(group_id, account_id, start, end)
+        snapshot = self._repository.read(group_id, account_id, start, end,
+                                         **({"authorized": True} if self._session_authorized else {}))
         if snapshot is None:
             raise PermissionError('Only current members may access the group.')
         first = month_key(min(snapshot.created_at, snapshot.first_played_at or snapshot.created_at))

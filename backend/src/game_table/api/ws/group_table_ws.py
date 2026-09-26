@@ -1,10 +1,11 @@
 """Authenticated group-table creation and discovery."""
 from asyncio import to_thread
+from game_table.api.ws.group_sessions import group_room
 from game_table.api.ws.errors import error_response
 
 
-def register_group_table_events(sio, accounts, tables, auth):
-    async def execute(data, create, close=False):
+def register_group_table_events(sio, accounts, tables, auth, sessions=None):
+    async def execute(sid, data, create, close=False):
         try:
             if accounts is None or tables is None or auth is None:
                 raise RuntimeError('Groups are not configured.')
@@ -12,9 +13,12 @@ def register_group_table_events(sio, accounts, tables, auth):
             group_id = payload.get('group_id')
             if not isinstance(group_id, str) or not group_id.strip():
                 raise ValueError('Group ID is required.')
+            admitted = await sessions.enter(sid, payload) if sessions else None
             def run():
-                identity = auth.verify_token(payload.get('token'))
-                account = accounts.find_by_auth_identity(identity.provider, identity.subject)
+                account = admitted
+                if account is None:
+                    identity = auth.verify_token(payload.get('token'))
+                    account = accounts.find_by_auth_identity(identity.provider, identity.subject)
                 if account is None:
                     raise PermissionError('Account does not exist.')
                 if close:
@@ -32,18 +36,20 @@ def register_group_table_events(sio, accounts, tables, auth):
 
     @sio.on('group:tables')
     async def list_tables(sid, data=None):
-        return await execute(data, False)
+        return await execute(sid, data, False)
 
     @sio.on('group:create_table')
     async def create_table(sid, data=None):
-        result = await execute(data, True)
+        result = await execute(sid, data, True)
         if 'table' in result:
-            await sio.emit('group:tables_changed')
+            await sio.emit('group:tables_changed', {'group_id': (data or {}).get('group_id')},
+                           room=group_room((data or {}).get('group_id')))
         return result
 
     @sio.on('group:close_empty_table')
     async def close_empty_table(sid, data=None):
-        result = await execute(data, False, close=True)
+        result = await execute(sid, data, False, close=True)
         if result.get('closed'):
-            await sio.emit('group:tables_changed')
+            await sio.emit('group:tables_changed', {'group_id': (data or {}).get('group_id')},
+                           room=group_room((data or {}).get('group_id')))
         return result

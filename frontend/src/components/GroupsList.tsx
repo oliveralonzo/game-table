@@ -2,7 +2,7 @@ import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import type { NicknameChangeHandler } from "game-table/components/NicknameSettings";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Glass } from "konsta/react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import { useAuthSession } from "game-table/context/AuthSessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
@@ -71,6 +71,10 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
         const activity = new URLSearchParams(location.search).get("view") === "stats" ? "/activity" : "";
         navigate(`/g/${selected.public_id}${activity}`, { replace: true });
     }, [selected?.public_id, location.pathname, location.search, navigate]);
+    // A failed group entry belongs on the groups tab, not an intermediate page.
+    if (groupId && isAuthLoaded && (!isSignedIn || (!selected && (failed || groups !== null)))) {
+        return <Navigate to="/" replace state={{ homeTab: "groups", groupOpenFailed: isSignedIn, authUserId }} />;
+    }
     if (isAuthLoaded && isSignedIn && selected) {
         return <>
             {failed && retryNotice}
@@ -79,7 +83,7 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
     }
     const status = !isAuthLoaded ? "loading" : !isSignedIn ? "signIn"
         : groups === null ? (failed ? "loadError" : "loading")
-        : groupId ? "unavailable" : groups.length === 0 ? "empty" : null;
+        : groups.length === 0 ? "empty" : null;
     if (status === "loading" && groupId) return <AppLoadingScreen />;
     if (status === "signIn") return (
         <div className="w-full max-w-md">
@@ -89,15 +93,11 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
                         className="cursor-pointer underline underline-offset-2 hover:text-black dark:hover:text-white" />,
                 }} />
             </p>
-            {groupId && <Button clear rounded onClick={() => navigate("/", { state: { homeTab: "groups" } })}>
-                {t("groups.list.back")}
-            </Button>}
         </div>
     );
     if (status) return renderList(<section className="grid gap-3 px-5 py-6 text-center">
         <p role={status === "loadError" ? "alert" : "status"} className="text-black/55 dark:text-white/55">{t(`groups.list.${status}`)}</p>
         {status === "loadError" && <Button tonal rounded onClick={() => setRetry(value => value + 1)}>{t("groups.list.retry")}</Button>}
-        {groupId && <Button clear rounded onClick={() => navigate("/", { state: { homeTab: "groups" } })}>{t("groups.list.back")}</Button>}
     </section>);
     return renderList(<>
         <ul className="divide-y divide-black/10 dark:divide-white/10">

@@ -40,8 +40,11 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
   const { groups } = useGroupsCache();
   const routeGroupId = groups?.find(group => group.public_id === groupPublicId)?.id ?? null;
   useGroupPresence(gamePlugin.features.accounts
-    ? (code ? state.tableView?.group_id ?? null
-      : routeGroupId)
+    ? (code ? (state.tableView?.table_code === normalizeTableCode(code) && state.selfMemberId
+        ? (state.tableView.group_member_ids?.includes(state.selfMemberId)
+          ? state.tableView.group_id ?? null : null)
+        : undefined)
+      : groupPublicId && groups === null ? undefined : routeGroupId)
     : null);
   const {
     isSessionReady,

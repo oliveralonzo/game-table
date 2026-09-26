@@ -5,12 +5,16 @@ from asyncio import to_thread
 from game_table.api.ws.errors import error_response
 
 
-def register_group_events(sio, account_service, group_service, auth_verifier, settings_provider=None):
+def register_group_events(sio, account_service, group_service, auth_verifier, settings_provider=None, sessions=None):
     @sio.on('group:list')
     async def list_groups(sid, data=None):
         try:
             if account_service is None or group_service is None or auth_verifier is None:
                 raise RuntimeError('Groups are not configured.')
+            if sessions:
+                groups = await sessions.list_groups(sid, data or {})
+                return {'groups': [{'id': g.id, 'public_id': g.public_id, 'name': g.name,
+                                    'member_count': g.member_count} for g in groups]}
             token = (data or {}).get('token')
 
             def read_groups():
@@ -37,11 +41,23 @@ def register_group_events(sio, account_service, group_service, auth_verifier, se
             if not isinstance(group_id, str) or not group_id.strip():
                 raise ValueError('Group ID is required.')
 
+            admitted = await sessions.enter(sid, payload) if sessions else None
+
             def read_members():
+                if admitted:
+                    account = admitted
+                else:
+                    return read_authenticated_members()
+                return read_roster(account)
+
+            def read_authenticated_members():
                 identity = auth_verifier.verify_token(payload.get('token'))
                 account = account_service.find_by_auth_identity(identity.provider, identity.subject)
                 if account is None:
                     raise PermissionError('Account does not exist.')
+                return read_roster(account)
+
+            def read_roster(account):
                 members = group_service.list_members(account.id, group_id)
                 return {'group_id': group_id, 'members': [
                     {'account_id': member.account_id, 'username': member.username,
@@ -56,14 +72,17 @@ def register_group_events(sio, account_service, group_service, auth_verifier, se
                 response['code'] = 'GROUP_ACCESS_DENIED'
             return response
 
-    async def settings_request(data, update=False):
+    async def settings_request(sid, data, update=False):
         try:
             if not all((account_service, group_service, auth_verifier, settings_provider)):
                 raise RuntimeError('Group settings are not configured.')
             payload = data or {}
+            admitted = await sessions.enter(sid, payload) if sessions else None
             def run():
-                identity = auth_verifier.verify_token(payload.get('token'))
-                account = account_service.find_by_auth_identity(identity.provider, identity.subject)
+                account = admitted
+                if account is None:
+                    identity = auth_verifier.verify_token(payload.get('token'))
+                    account = account_service.find_by_auth_identity(identity.provider, identity.subject)
                 if account is None:
                     raise PermissionError('Account does not exist.')
                 group_id = payload.get('group_id')
@@ -83,8 +102,8 @@ def register_group_events(sio, account_service, group_service, auth_verifier, se
 
     @sio.on('group:settings')
     async def group_settings(sid, data=None):
-        return await settings_request(data)
+        return await settings_request(sid, data)
 
     @sio.on('group:update_settings')
     async def update_group_settings(sid, data=None):
-        return await settings_request(data, update=True)
+        return await settings_request(sid, data, update=True)

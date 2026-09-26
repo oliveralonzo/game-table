@@ -24,7 +24,7 @@ class GroupPresence:
         return {account for group, account, _ in self.entries.values() if group == group_id}
 
 
-def register_group_presence_events(sio, account_service, group_service, auth_verifier, table_registry):
+def register_group_presence_events(sio, account_service, group_service, auth_verifier, table_registry, sessions=None):
     presence = GroupPresence(lambda sid: sio.manager.is_connected(sid, '/'))
     pending = {}
 
@@ -39,6 +39,12 @@ def register_group_presence_events(sio, account_service, group_service, auth_ver
             group_id = payload.get('group_id')
             if not isinstance(group_id, str) or not group_id.strip():
                 raise ValueError('Group ID is required.')
+            if sessions:
+                account = await sessions.enter(sid, payload)
+                if sessions.registry:
+                    return sessions.presence_snapshot(group_id)
+                account_id = account.id
+                member_ids = group_service.admitted_members(group_id)
             def authorize():
                 identity = auth_verifier.verify_token(payload.get('token'))
                 account = account_service.find_by_auth_identity(identity.provider, identity.subject)
@@ -46,7 +52,8 @@ def register_group_presence_events(sio, account_service, group_service, auth_ver
                     raise PermissionError('Account does not exist.')
                 members = group_service.list_members(account.id, group_id)
                 return account.id, {member.account_id for member in members}
-            account_id, member_ids = await to_thread(authorize)
+            if not sessions:
+                account_id, member_ids = await to_thread(authorize)
             if pending.get(sid) is not request or not presence.connected(sid):
                 return {'group_id': group_id, 'active_members': []}
             presence.touch(sid, group_id, account_id)
@@ -68,4 +75,6 @@ def register_group_presence_events(sio, account_service, group_service, auth_ver
     async def leave(sid, data=None):
         pending.pop(sid, None)
         presence.leave(sid, (data or {}).get('group_id'))
+        if sessions:
+            await sessions.leave(sid, (data or {}).get('group_id'))
         return {'left': True}

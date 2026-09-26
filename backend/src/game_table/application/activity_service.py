@@ -5,7 +5,7 @@ Supported by ChatGPT (GPT-5)
 Date: 2026-06-07
 Version: 0.1
 
-Application service for transient table-scoped activity events.
+Application service for transient room-scoped activity events.
 """
 
 from game_table.activity.reaction import Reaction

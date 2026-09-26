@@ -3,13 +3,19 @@ import { useAuthSession } from "game-table/context/AuthSessionContext";
 import { useGroupsCache } from "game-table/context/GroupsCacheContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 
-export function useGroupPresence(groupId: string | null) {
-    const { getAuthToken, isSignedIn } = useAuthSession();
+export function useGroupPresence(groupId: string | null | undefined) {
+    const { getAuthToken, isSignedIn, isAuthLoaded } = useAuthSession();
     const { updateGroupPresence, leaveGroupPresence, groupConnectionVersion } = useTableSocket();
     const { savePresence } = useGroupsCache();
     useEffect(() => {
+        // Undefined means navigation is still resolving. Never interpret it as
+        // leaving the group: the server may already have joined its table.
+        if (groupId === undefined || !isAuthLoaded) return;
         savePresence(null);
-        if (!groupId || !isSignedIn) return;
+        if (!groupId || !isSignedIn) {
+            leaveGroupPresence();
+            return;
+        }
         let current = true;
         let busy = false;
         let requestVersion = 0;
@@ -51,8 +57,7 @@ export function useGroupPresence(groupId: string | null) {
             window.clearInterval(interval);
             window.clearTimeout(requestTimeout);
             window.removeEventListener("focus", refresh);
-            leaveGroupPresence(groupId);
             savePresence(null);
         };
-    }, [groupId, isSignedIn, getAuthToken, updateGroupPresence, leaveGroupPresence, groupConnectionVersion, savePresence]);
+    }, [groupId, isSignedIn, isAuthLoaded, getAuthToken, updateGroupPresence, leaveGroupPresence, groupConnectionVersion, savePresence]);
 }

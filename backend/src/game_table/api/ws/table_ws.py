@@ -38,6 +38,7 @@ async def leave_member_and_broadcast(
 ) -> str:
     """Apply canonical leave semantics for sockets and lifecycle HTTP calls."""
     table_code = table_service.get_table_code_for_member(member_id)
+    group_id = table_service.get_table(table_code).group_id
     table_service.leave_table(member_id)
     session_registry.remove_member_sessions(member_id)
 
@@ -54,6 +55,8 @@ async def leave_member_and_broadcast(
     else:
         await emit_table_deleted(sio, table_code)
 
+    if group_id:
+        await sio.emit("group:tables_changed", {"group_id": group_id}, room=f"group:{group_id}")
     return table_code
 
 
@@ -93,7 +96,8 @@ def register_table_events(
             table_view = _get_table_view(table_code)
             await sio.emit("table:updated", table_view, room=table_code)
             if table_view.get("group_id"):
-                await sio.emit("group:tables_changed")
+                await sio.emit("group:tables_changed", {"group_id": table_view["group_id"]},
+                               room=f'group:{table_view["group_id"]}')
         except ValueError:
             pass
 
@@ -123,11 +127,15 @@ def register_table_events(
     ) -> None:
         await sio.enter_room(sid, table_code)
         await sio.enter_room(sid, f"member:{member_id}")
+        await session_registry.table_entered(sid, table_service.get_table(table_code), member_id)
 
         await _broadcast_table_list_update()
 
         table_view = _get_table_view(table_code)
         await sio.emit("table:updated", table_view, room=table_code)
+        if table_view.get("group_id"):
+            await sio.emit("group:tables_changed", {"group_id": table_view["group_id"]},
+                           room=f'group:{table_view["group_id"]}')
 
     async def _restore_existing_table_session(sid: str, member_id: str) -> bool:
         try:
@@ -137,6 +145,7 @@ def register_table_events(
 
         await sio.enter_room(sid, table_code)
         await sio.enter_room(sid, f"member:{member_id}")
+        await session_registry.table_entered(sid, table_service.get_table(table_code), member_id)
 
         await sio.emit(
             "table:restored",
@@ -150,7 +159,7 @@ def register_table_events(
 
     async def _leave_disconnected_member_after_grace(
         client_session_id: str,
-        member_id: str,
+        member_id: str | None,
         grace_seconds: float = DISCONNECTED_MEMBER_GRACE_SECONDS,
     ) -> None:
         try:
@@ -159,23 +168,23 @@ def register_table_events(
             if session_registry.has_connection(client_session_id):
                 return
 
-            if (
-                session_registry.get_member_id_for_client_session(
-                    client_session_id
-                ) != member_id
-            ):
+            current_member = session_registry.get_member_id_for_client_session(client_session_id)
+            if current_member != member_id:
+                # Replacement/closure may already have removed the seat while
+                # the disconnected browser still has group presence.
+                if current_member is None:
+                    await session_registry.expire_presence(client_session_id)
                 return
 
             try:
-                await leave_member_and_broadcast(
-                    sio,
-                    table_service,
-                    session_registry,
-                    game_settings_provider,
-                    member_id,
-                )
+                if member_id is not None:
+                    await leave_member_and_broadcast(
+                        sio, table_service, session_registry, game_settings_provider, member_id,
+                    )
             except ValueError:
-                return
+                pass
+            finally:
+                await session_registry.expire_presence(client_session_id)
         finally:
             if (
                 disconnect_cleanup_tasks.get(client_session_id)
@@ -207,6 +216,7 @@ def register_table_events(
                 pending_cleanup = disconnect_cleanup_tasks.pop(client_session_id, None)
                 if pending_cleanup is not None:
                     pending_cleanup.cancel()
+                await session_registry.restore_presence(sid)
                 return
 
             session_registry.remove_client_session_member(client_session_id)
@@ -214,6 +224,7 @@ def register_table_events(
         pending_cleanup = disconnect_cleanup_tasks.pop(client_session_id, None)
         if pending_cleanup is not None:
             pending_cleanup.cancel()
+        await session_registry.restore_presence(sid)
 
     @sio.event
     async def disconnect(sid):
@@ -226,7 +237,7 @@ def register_table_events(
 
         session_registry.unbind_connection(sid)
 
-        if client_session_id is None or member_id is None:
+        if client_session_id is None or (member_id is None and client_session_id not in session_registry.group_presences):
             return
 
         if session_registry.has_connection(client_session_id):
@@ -255,7 +266,6 @@ def register_table_events(
     async def prepare_table_unload(sid, data=None):
         try:
             client_session_id = session_registry.resolve_client_session_id(sid)
-            session_registry.resolve_member_id(sid)
         except ValueError:
             return
 
@@ -333,6 +343,8 @@ def register_table_events(
                 session_registry.remove_member_sessions(removed_member_id)
 
             await emit_table_deleted(sio, table_code)
+            if table.group_id:
+                await sio.emit("group:tables_changed", {"group_id": table.group_id}, room=f"group:{table.group_id}")
             await _broadcast_table_list_update()
 
             return {

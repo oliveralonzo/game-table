@@ -288,6 +288,7 @@ export const en = {
         label: {
             code: "Code",
             seats: "Seats",
+            sponsoredBy: "Table sponsored by {{sponsor}}",
             table: "Table",
             profile: "Profile",
             general: "General",

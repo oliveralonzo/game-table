@@ -10,12 +10,16 @@ from game_table.application.table_session_service import TableSessionService
 
 class GroupTableService(TableSessionService):
     def __init__(self, groups: GroupService, registry: TableRegistry,
-                 code_factory: Callable[[], str] = generate_table_code, *, settings_provider=None):
+                 code_factory: Callable[[], str] = generate_table_code, *, settings_provider=None, sessions=None):
         super().__init__(registry.group_tables, registry.member_to_table)
         self._groups = groups
+        self._sessions = sessions
         self._registry = registry
         self._code_factory = code_factory
         self._settings_provider = settings_provider
+        # Presentation hints only: never use these to authorize mutations.
+        self._group_member_ids: set[str] = set()
+        self._group_public_ids: dict[str, str | None] = {}
 
     def list_tables(self, account_id: str, group_id: str) -> list[dict]:
         self._groups.get_group(account_id, group_id)
@@ -30,13 +34,41 @@ class GroupTableService(TableSessionService):
                      else self._settings_provider.default_settings())
         table = self._registry.create_empty(group_id=group_id, code_factory=self._code_factory, rules=rules,
                                             seat_count=getattr(group, 'default_seat_count', 4))
+        self._group_public_ids[table.instance_id] = getattr(group, 'public_id', None)
         return self.table_preview(table)
 
     _view = staticmethod(TableSessionService.table_preview)
 
-    def join_table(self, *args, **kwargs):
-        with self._registry._lock:
-            return super().join_table(*args, **kwargs)
+    def join_table(self, member_id: str, table_code: str, name: str,
+                   account_id: str | None = None, account_username: str | None = None,
+                   creator_identity: str | None = None):
+        table = self._get_table(table_code)
+        if member_id in self._member_to_table:
+            raise ValueError("Member already belongs to a table.")
+        # Resolve the joining account once, outside the registry lock. Guests
+        # can still join; database failures must not leave a half-joined session.
+        if self._sessions and account_id:
+            self._sessions.admit(account_id, table.group_id, f'table:{member_id}')
+        is_member = self._groups.is_member(account_id, table.group_id) if account_id else False
+        try:
+            with self._registry._lock:
+                if self._get_table(table_code) is not table:
+                    raise ValueError('Table does not exist.')
+                replaced = super().join_table(member_id, table_code, name, account_id,
+                                              account_username, creator_identity)
+                if is_member:
+                    self._group_member_ids.add(member_id)
+                return replaced
+        except Exception:
+            if self._sessions:
+                self._sessions.release(f'table:{member_id}')
+            raise
+
+    def _remove_member_identity(self, member_id: str) -> None:
+        self._group_member_ids.discard(member_id)
+        if self._sessions:
+            self._sessions.release(f'table:{member_id}')
+        super()._remove_member_identity(member_id)
 
     def close_empty_table(self, account_id: str, group_id: str, table_code: str, instance_id: str) -> None:
         self._groups.get_group(account_id, group_id)
@@ -48,6 +80,7 @@ class GroupTableService(TableSessionService):
                 raise ValueError('Only empty tables can be closed from the group.')
             self._tables.pop(table_code)
             self._last_activity.pop(table_code, None)
+            self._group_public_ids.pop(table.instance_id, None)
 
     def leave_table(self, member_id: str) -> None:
         code, table = self._get_table_for_member(member_id)
@@ -56,6 +89,7 @@ class GroupTableService(TableSessionService):
         if not table.members:
             self._tables.pop(code, None)
             self._last_activity.pop(code, None)
+            self._group_public_ids.pop(table.instance_id, None)
 
     def delete_table(self, member_id: str, table_code: str) -> str | None:
         code, table = self._get_table_for_member(member_id)
@@ -72,7 +106,12 @@ class GroupTableService(TableSessionService):
         account_id = table.members[member_id].account_id
         if not account_id:
             raise PermissionError('Only group members may manage seats.')
-        self._groups.get_group(account_id, table.group_id)
+        try:
+            self._groups.get_group(account_id, table.group_id)
+        except (PermissionError, ValueError):
+            self._group_member_ids.discard(member_id)
+            raise
+        self._group_member_ids.add(member_id)
         return table
 
     def add_seat(self, member_id: str) -> None:
@@ -93,12 +132,13 @@ class GroupTableService(TableSessionService):
     def get_table_view(self, table_code: str) -> dict:
         view = super().get_table_view(table_code)
         table = self._get_table(table_code)
-        # These capabilities inform the UI; mutations still authorize afresh.
+        # Moves and broadcasts serialize this repeatedly. Hints are resolved
+        # on join (and refreshed by protected actions), never by a snapshot.
         view['group_member_ids'] = [key for key, member in table.members.items()
-                                    if self._groups.is_member(member.account_id, table.group_id)]
+                                    if (self._sessions.is_member(member.account_id, table.group_id)
+                                        if self._sessions else key in self._group_member_ids)]
         if view['group_member_ids']:
-            account_id = table.members[view['group_member_ids'][0]].account_id
-            view['group_public_id'] = self._groups.get_group(account_id, table.group_id).public_id
+            view['group_public_id'] = self._group_public_ids.get(table.instance_id)
         return view
 
     def prepare_game_start(self, member_id: str):
@@ -108,7 +148,8 @@ class GroupTableService(TableSessionService):
         participants = self.get_seat_account_participants(table.table_code)
         for participant in participants:
             participant['group_participation'] = (
-                'member' if group.membership_for(participant['account_id']) else 'guest')
+                'member' if (self._sessions.is_member(participant['account_id'], table.group_id)
+                             if self._sessions else group.membership_for(participant['account_id'])) else 'guest')
         return {'table_code': table.table_code, 'player_count': player_count,
                 'rules': table.pending_rules, 'participants': participants}
 
@@ -131,8 +172,10 @@ class GroupTableService(TableSessionService):
 
     def validate_game_end(self, member_id: str, *, completed: bool = False) -> None:
         table = self._require_group_member(member_id)
-        if not completed or table.active_game_id is None:
-            raise PermissionError('Only completed group games can be ended here.')
+        if not any(seat.member_id == member_id for seat in table.seats):
+            raise PermissionError('Only seated group members may end the game.')
+        if table.active_game_id is None:
+            raise ValueError('No active game.')
 
     def detach_game(self, member_id: str, *, completed: bool = False):
         self.validate_game_end(member_id, completed=completed)

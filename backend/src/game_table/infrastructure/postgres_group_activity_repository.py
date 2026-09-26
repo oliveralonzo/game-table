@@ -9,7 +9,7 @@ class PostgresGroupActivityRepository:
     def __init__(self, connection_factory: Callable[[], Connection]):
         self._connection_factory = connection_factory
 
-    def read(self, group_id, account_id, start, end):
+    def read(self, group_id, account_id, start, end, *, authorized=False):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute("""
@@ -40,9 +40,9 @@ class PostgresGroupActivityRepository:
                               AND (%s::bigint IS NULL OR COALESCE(h.started_at, h.completed_at) < %s)
                         ) game), '[]'::jsonb) AS games
                     FROM groups g WHERE g.id = %s AND g.deleted_at IS NULL
-                      AND EXISTS (SELECT 1 FROM group_memberships requester
+                      AND (%s OR EXISTS (SELECT 1 FROM group_memberships requester
                           WHERE requester.group_id = g.id AND requester.account_id = %s
-                            AND requester.left_at IS NULL)
-                """, (end, end, start, start, end, end, group_id, account_id))
+                            AND requester.left_at IS NULL))
+                """, (end, end, start, start, end, end, group_id, authorized, account_id))
                 row = cursor.fetchone()
         return GroupActivitySnapshot(**row) if row else None

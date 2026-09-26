@@ -192,3 +192,108 @@ def test_existing_table_socket_flow_joins_restores_and_closes_group_table(servic
         assert not router.table_exists('BABA-1234')
         assert sessions.get_member_id_for_client_session('browser') is None
     asyncio.run(run())
+
+
+class MembershipRepository:
+    """Count actual repository reads, including authorization reads."""
+    def __init__(self):
+        self.reads = 0
+        self.members = {'member-account'}
+        self.public_id = 'first-group'
+        self.unavailable = False
+
+    def get_by_id(self, group_id):
+        self.reads += 1
+        if self.unavailable:
+            raise RuntimeError('Database unavailable')
+        return SimpleNamespace(
+            id=group_id, public_id=self.public_id, deleted_at=None,
+            membership_for=lambda account: account in self.members or None,
+        )
+
+
+def membership_services():
+    from game_table.application.group_service import GroupService
+    repository = MembershipRepository()
+    registry = TableRegistry()
+    service = GroupTableService(GroupService(repository), registry, lambda: 'CODE-1234')
+    service.create_table('member-account', 'g')
+    return service, repository, registry
+
+
+def test_repeated_gameplay_snapshots_do_not_read_database():
+    service, repository, _ = membership_services()
+    for index in range(4):
+        account = f'account-{index}'
+        repository.members.add(account)
+        service.join_table(str(index), 'CODE-1234', str(index), account_id=account)
+        service.assign_seat(str(index), index)
+    service.join_table('guest', 'CODE-1234', 'Guest', account_id='non-member')
+    service.join_table('anonymous', 'CODE-1234', 'Anonymous')
+    reads = repository.reads
+    repository.unavailable = True
+    for _ in range(50):
+        view = service.get_table_view('CODE-1234')
+        assert view['group_member_ids'] == ['0', '1', '2', '3']
+        assert view['group_public_id'] == 'first-group'
+    assert repository.reads == reads
+
+
+@pytest.mark.parametrize('action', [
+    lambda service: service.add_seat('m'),
+    lambda service: service.remove_seat('m'),
+    lambda service: service.unassign_seat('m', 0),
+    lambda service: service.update_rules('m', {}),
+    lambda service: service.prepare_game_start('m'),
+    lambda service: service.attach_game('m', 'game'),
+    lambda service: service.validate_game_end('m', completed=True),
+])
+def test_cached_ui_membership_never_authorizes_removed_member(action):
+    service, repository, _ = membership_services()
+    service.join_table('m', 'CODE-1234', 'Member', account_id='member-account')
+    service.join_table('guest', 'CODE-1234', 'Guest')
+    service.assign_seat('guest', 0)
+    assert service.get_table_view('CODE-1234')['group_member_ids'] == ['m']
+    repository.members.clear()
+    reads = repository.reads
+    with pytest.raises(PermissionError):
+        action(service)
+    assert repository.reads == reads + 1
+    assert service.get_table_view('CODE-1234')['group_member_ids'] == []
+    assert service.get_table_view('CODE-1234')['seats'][0] == 'guest'
+
+
+def test_replacement_join_rechecks_membership_and_removes_old_hint():
+    service, repository, _ = membership_services()
+    service.join_table('old', 'CODE-1234', 'Member', account_id='member-account')
+    repository.members.clear()
+    assert service.join_table('new', 'CODE-1234', 'Member', account_id='member-account') == 'old'
+    assert service.get_table_view('CODE-1234')['group_member_ids'] == []
+    assert service._group_member_ids == set()
+    repository.members.add('member-account')
+    service.remove_seat('new')
+    assert service.get_table_view('CODE-1234')['group_member_ids'] == ['new']
+    service.leave_table('new')
+    assert service._group_member_ids == set()
+    assert service._group_public_ids == {}
+    repository.public_id = 'second-group'
+    service.create_table('member-account', 'other-group')
+    service.join_table('new', 'CODE-1234', 'Member', account_id='member-account')
+    assert service.get_table_view('CODE-1234')['group_public_id'] == 'second-group'
+
+
+def test_failed_join_lookup_does_not_leave_partial_session():
+    service, repository, registry = membership_services()
+    repository.unavailable = True
+    with pytest.raises(RuntimeError):
+        service.join_table('m', 'CODE-1234', 'Member', account_id='member-account')
+    assert registry.member_to_table == {}
+    assert service.get_table_view('CODE-1234')['members'] == {}
+    assert service._group_member_ids == set()
+
+
+def test_unused_table_closure_discards_public_id_hint():
+    service, _, _ = membership_services()
+    table = service.get_table('CODE-1234')
+    service.close_empty_table('member-account', 'g', table.table_code, table.instance_id)
+    assert service._group_public_ids == {}

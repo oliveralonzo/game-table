@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import { Button, Glass, List, ListItem, Popover } from "konsta/react";
 import { useGroupsCache } from "game-table/context/GroupsCacheContext";
 import { useTable } from "game-table/context/TableState";
+import { canEndTableGame } from "game-table/utils/tablePermissions";
 import { useTableSocket } from "game-table/context/TableSocket";
 
 export default function TableLifecycleAction() {
@@ -24,7 +25,8 @@ export default function TableLifecycleAction() {
         ? (state.selfMemberId && table.group_member_ids?.includes(state.selfMemberId) && table.group_public_id
             ? `/g/${encodeURIComponent(table.group_public_id!)}` : "/")
         : "/";
-    const hasActiveGame = !!table?.active_game_id;
+    const canEndGame = canEndTableGame(table, state.selfMemberId);
+    const hasActions = canClose || canEndGame;
 
     const leave = () => {
         if (!confirm(t("table.dialog.leaveConfirm"))) return;
@@ -64,24 +66,24 @@ export default function TableLifecycleAction() {
                 inline
                 rounded
                 clear
-                aria-label={canClose ? t("table.action.tableActions") : t("table.action.leaveTable")}
-                title={canClose ? t("table.action.tableActions") : t("table.action.leaveTable")}
-                onClick={() => canClose ? setIsOpen((open) => !open) : leave()}
+                aria-label={hasActions ? t("table.action.tableActions") : t("table.action.leaveTable")}
+                title={hasActions ? t("table.action.tableActions") : t("table.action.leaveTable")}
+                onClick={() => hasActions ? setIsOpen((open) => !open) : leave()}
                 className="h-full aspect-square px-0 text-black/65 transition-opacity hover:opacity-70 active:opacity-55 dark:text-white/70 [--color-ios-hover-highlight:transparent]"
             >
                 <LogOut size={20} strokeWidth={2} />
             </Button>
         </Glass>
-        {canClose ? <Popover
+        {hasActions ? <Popover
             opened={isOpen}
             target={buttonRef.current}
             onBackdropClick={() => setIsOpen(false)}
             className="[--color-ios-hover-highlight:transparent]"
         >
             <List nested>
-                <ListItem title={t("table.action.leaveTable")} link chevron={false} onClick={leave} strongTitle={false} />
-                <ListItem title={t("table.action.closeTable")} link chevron={false} onClick={close} strongTitle={false} colors={{ primaryTextIos: "text-red-600 dark:text-red-400" }} />
-                {hasActiveGame && isHost ? <ListItem title={t("table.action.endGame")} link chevron={false} onClick={endGame} strongTitle={false} colors={{ primaryTextIos: "text-red-600 dark:text-red-400" }} /> : null}
+                {!isLastGroupParticipant && <ListItem title={t("table.action.leaveTable")} link chevron={false} onClick={leave} strongTitle={false} />}
+                {canClose ? <ListItem title={t("table.action.closeTable")} link chevron={false} onClick={close} strongTitle={false} colors={{ primaryTextIos: "text-red-600 dark:text-red-400" }} /> : null}
+                {canEndGame ? <ListItem title={t("table.action.endGame")} link chevron={false} onClick={endGame} strongTitle={false} colors={{ primaryTextIos: "text-red-600 dark:text-red-400" }} /> : null}
             </List>
         </Popover> : null}
     </>;

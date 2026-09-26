@@ -288,6 +288,7 @@ export const es = {
         label: {
             code: "Codigo",
             seats: "Asientos",
+            sponsoredBy: "Mesa patrocinada por {{sponsor}}",
             table: "Mesa",
             profile: "Perfil",
             general: "General",

@@ -7,6 +7,26 @@ class SessionRegistry:
     def __init__(self):
         self._sid_to_client_session_id: dict[str, str] = {}
         self._client_session_to_member_id: dict[str, str] = {}
+        # Group presence and table membership share the same browser session.
+        self.group_presences: dict[str, tuple[str, str]] = {}
+        self.presence_coordinator = None
+
+    async def restore_presence(self, sid):
+        if self.presence_coordinator:
+            await self.presence_coordinator.restore_presence(sid)
+
+    async def table_entered(self, sid, table, member_id):
+        if self.presence_coordinator:
+            await self.presence_coordinator.table_entered(sid, table, member_id)
+
+    async def expire_presence(self, client_session_id):
+        if self.presence_coordinator:
+            await self.presence_coordinator.expire_presence(client_session_id)
+
+    def get_sids_for_client_session(self, client_session_id):
+        return [sid for sid, client in self._sid_to_client_session_id.items()
+                if client == client_session_id]
+
 
     def bind_connection(self, sid: str, client_session_id: str) -> None:
         self._sid_to_client_session_id[sid] = client_session_id

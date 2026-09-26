@@ -144,7 +144,7 @@ def test_roster_query_filters_departed_members_and_rechecks_access():
     result = repo.list_members('group-with-quote\'', 'verified-account')
     assert result[0].username == 'alice'
     query, params = connection.calls[0]
-    assert params == ("group-with-quote'", 'verified-account')
+    assert params == ("group-with-quote'", False, 'verified-account')
     assert params[0] not in query
     assert 'm.left_at IS NULL' in query
     assert 'requester.left_at IS NULL' in query

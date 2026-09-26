@@ -7,7 +7,7 @@ import { REACTION_DURATION_MS } from "game-table/constants/activity";
 import type { ChatMessage, ReactionEvent } from "game-table/types/activity";
 import { createClientId } from "game-table/utils/clientId";
 
-type ServerChatMessage = Omit<ChatMessage, "status">;
+type ServerChatMessage = Omit<ChatMessage, "status"> & { group_id?: string; table_code?: string };
 type SocketAck = {
     ok?: boolean;
 } | null | undefined;
@@ -16,6 +16,7 @@ export function useActivity(
     roundKey?: string | number,
     tableCode?: string,
     selfMemberId?: string | null,
+    groupId?: string,
 ) {
     const tableSocket = useTableSocket();
 
@@ -26,9 +27,9 @@ export function useActivity(
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     
-    const chatStorageKey = tableCode
-        ? `chat:${tableCode}`
-        : null;
+    const chatStorageKey = groupId
+        ? `chat:group:${groupId}:${selfMemberId ?? ""}`
+        : tableCode ? `chat:${tableCode}` : null;
 
     useEffect(() => {
         if (!chatStorageKey) return;
@@ -55,6 +56,7 @@ export function useActivity(
 
     useEffect(() => {
         const handleReaction = (reaction: ReactionEvent) => {
+            if (groupId) return;
             const timedReaction: ReactionEvent = {
                 ...reaction,
                 id: `${reaction.sender_id}-${reaction.ts}-${reaction.value}-${createClientId()}`,
@@ -92,6 +94,8 @@ export function useActivity(
         };
 
         const handleChatMessage = (message: ServerChatMessage) => {
+            if (groupId ? message.group_id !== groupId : !!message.group_id) return;
+            if (!groupId && message.table_code && message.table_code !== tableCode) return;
             const sentMessage: ChatMessage = {
                 ...message,
                 status: "sent",
@@ -122,7 +126,7 @@ export function useActivity(
             tableSocket.off("activity:reaction", handleReaction);
             tableSocket.off("activity:chat_message", handleChatMessage);
         };
-    }, [tableSocket, persistMessages]);
+    }, [tableSocket, persistMessages, groupId, tableCode]);
 
     useEffect(() => {
         setReactions([]);
@@ -170,7 +174,7 @@ export function useActivity(
 
         tableSocket.emit(
             "activity:chat_message",
-            { text: trimmed, client_message_id },
+            { text: trimmed, client_message_id, ...(groupId ? { group_id: groupId } : {}) },
             (response: SocketAck) => {
                 if (response?.ok) return;
 

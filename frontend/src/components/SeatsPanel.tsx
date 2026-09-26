@@ -54,6 +54,7 @@ type Props = {
     onAssignSeat: (index: number) => void;
     onUnassignSeat: (index: number) => void;
     footerAction?: ReactNode;
+    sizeToContent?: boolean;
 };
 
 export default function SeatsPanel({
@@ -66,6 +67,7 @@ export default function SeatsPanel({
     onAssignSeat,
     onUnassignSeat,
     footerAction,
+    sizeToContent = false,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
@@ -116,7 +118,7 @@ export default function SeatsPanel({
     }[];
 
     return (
-        <section className="flex h-full flex-col justify-between">
+        <section className={sizeToContent ? "flex flex-col gap-4" : "flex h-full flex-col justify-between"}>
             {/*
                 Previous seat selection kept for the branded rebuild.
 
@@ -139,9 +141,13 @@ export default function SeatsPanel({
                 });
             */}
 
-            <div className="flex flex-1 items-center py-8">
+            {/* Equal top/side padding sets the illustration's size. Bottom
+                padding reserves the seat overhang before the action button. */}
+            <div className={sizeToContent
+                ? "flex items-center px-[15%] pt-[15%] pb-[10.5%] sm:px-[18%] sm:pt-[18%] sm:pb-[9.6%]"
+                : "flex flex-1 items-center py-8"}>
                 <div className="flex w-full justify-center">
-                    <div className="relative aspect-square w-[70%] sm:w-1/2">
+                    <div className={`relative aspect-square ${sizeToContent ? "w-full" : "w-[70%] sm:w-1/2"}`}>
                         {seatPositions.map((_, index) => {
                             const positionOffset = getRelativeSeatOffset(
                                 seatCount,

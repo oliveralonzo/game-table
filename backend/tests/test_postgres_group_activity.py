@@ -97,3 +97,30 @@ def test_new_game_writer_preserves_group_start_eligibility_and_private_scope(rep
             cursor.execute("SELECT group_id, group_participation FROM game_history JOIN account_game_results ON game_history.id = game_history_id WHERE id = 'new_private_game'")
             assert cursor.fetchone() == (None, None)
     assert 'new_private_game' not in {game['id'] for game in repository.read('g', 'owner', None, None).games}
+
+
+def test_live_session_access_reads_history_and_saves_defaults_without_reauthorizing(repository):
+    from game_table.application.group_session_service import GroupSessionService
+    from game_table.group.group import Group, GroupMembership
+    from game_table.infrastructure.postgres_group_repository import PostgresGroupRepository
+    groups_repo = PostgresGroupRepository(repository._connection_factory)
+    groups = GroupSessionService(groups_repo)
+    groups.admit('owner', 'g', 'socket:test', snapshot=Group('g', 'Group', 1, (
+        GroupMembership('owner-membership', 'g', 'owner', 'owner', 1),)))
+    with repository._connection_factory() as connection:
+        connection.execute('ALTER TABLE groups ADD default_rules jsonb, ADD default_seat_count int')
+        connection.execute('ALTER TABLE accounts ADD table_nickname text')
+        connection.execute('ALTER TABLE group_memberships ADD role text')
+        connection.execute("UPDATE group_memberships SET left_at = 2 WHERE account_id = 'owner'")
+    # Existing admission is authoritative until release/revocation, even when
+    # storage changes. Data operations still enforce group existence.
+    assert repository.read('g', 'owner', None, None) is None
+    assert len(repository.read('g', 'owner', None, None, authorized=True).games) == 4
+    assert [m.account_id for m in groups.list_members('owner', 'g')] == ['later']
+    groups.update_defaults('owner', 'g', {'target': 100}, 2)
+    with repository._connection_factory() as connection:
+        assert connection.execute("SELECT default_rules, default_seat_count FROM groups WHERE id='g'").fetchone() == ({'target': 100}, 2)
+    groups.revoke('owner', 'g')
+    with pytest.raises(PermissionError):
+        groups.update_defaults('owner', 'g', {}, 4)
+    assert repository.read('deleted', 'owner', None, None, authorized=True) is None

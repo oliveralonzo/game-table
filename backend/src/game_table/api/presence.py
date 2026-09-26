@@ -81,7 +81,7 @@ class GameTableHttpApp:
             member_id = self._session_registry.get_member_id_for_client_session(
                 client_session_id
             )
-            if member_id is None:
+            if member_id is None and client_session_id not in self._session_registry.group_presences:
                 raise ValueError
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             await self._respond(send, 400, {"error": "Invalid session."})
@@ -106,16 +106,15 @@ class GameTableHttpApp:
             return
 
         try:
-            await leave_member_and_broadcast(
-                self._sio,
-                self._table_service,
-                self._session_registry,
-                self._game_settings_provider,
-                member_id,
-            )
+            if member_id is not None:
+                await leave_member_and_broadcast(
+                    self._sio, self._table_service, self._session_registry,
+                    self._game_settings_provider, member_id,
+                )
         except ValueError:
-            await self._respond(send, 204, None)
-            return
+            pass
+        finally:
+            await self._session_registry.expire_presence(client_session_id)
 
         await self._respond(send, 204, None)
 

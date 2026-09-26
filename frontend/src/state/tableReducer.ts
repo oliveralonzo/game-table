@@ -36,6 +36,7 @@ export interface TableStateContainer {
  * explicit local resets.
  */
 export type TableAction =
+    | { type: "GROUP_ACCESS_REVOKED"; payload: string }
     | { type: "SET_TABLE_VIEW"; payload: TableView }
     | { type: "CLEAR_TABLE_VIEW" }
     | { type: "SET_TABLE_LIST"; payload: TableList[] }
@@ -67,6 +68,11 @@ export function tableReducer(
     action: TableAction
 ): TableStateContainer {
     switch (action.type) {
+        case "GROUP_ACCESS_REVOKED":
+            if (state.tableView?.group_id !== action.payload) return state;
+            return { ...state, tableView: { ...state.tableView,
+                group_member_ids: state.tableView.group_member_ids?.filter(id => id !== state.selfMemberId),
+            } };
         case "SET_TABLE_VIEW":
             return {
                 ...state,

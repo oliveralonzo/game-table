@@ -3,6 +3,7 @@ from socketio import AsyncServer
 from game_table.application.table_service import TableService
 from game_table.application.activity_service import ActivityService
 from game_table.api.ws.session_registry import SessionRegistry
+from game_table.api.ws.group_sessions import group_room
 
 
 def register_activity_events(
@@ -10,6 +11,7 @@ def register_activity_events(
     table_service: TableService,
     activity_service: ActivityService,
     session_registry: SessionRegistry,
+    group_sessions=None,
 ) -> None:
     """
     Socket.IO adapter for transient activity events.
@@ -45,8 +47,18 @@ def register_activity_events(
             text = data["text"]
             client_message_id = data["client_message_id"]
 
-            sender_id = session_registry.resolve_member_id(sid)
-            table_code = table_service.get_table_code_for_member(sender_id)
+            group_id = data.get("group_id")
+            if group_id is not None:
+                if not isinstance(group_id, str) or not group_id or group_sessions is None:
+                    raise PermissionError("Group chat is unavailable.")
+                sender_id = group_sessions.chat_sender(sid, group_id)
+                room = group_room(group_id)
+                scope = {"group_id": group_id}
+            else:
+                sender_id = session_registry.resolve_member_id(sid)
+                table_code = table_service.get_table_code_for_member(sender_id)
+                room = table_code
+                scope = {"table_code": table_code}
 
             message = activity_service.create_chat_message(
                 sender_id=sender_id,
@@ -56,8 +68,8 @@ def register_activity_events(
 
             await sio.emit(
                 "activity:chat_message",
-                message.to_dict(),
-                room=table_code,
+                {**message.to_dict(), **scope},
+                room=room,
             )
 
             return {

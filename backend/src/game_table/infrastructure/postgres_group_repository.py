@@ -26,7 +26,7 @@ class PostgresGroupRepository:
               AND current_member.left_at IS NULL
         )''', (account_id,))
 
-    def list_members(self, group_id: str, requesting_account_id: str) -> list[GroupMember]:
+    def list_members(self, group_id: str, requesting_account_id: str, *, authorized=False) -> list[GroupMember]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute('''
@@ -36,24 +36,24 @@ class PostgresGroupRepository:
                     JOIN groups g ON g.id = m.group_id
                     WHERE m.group_id = %s AND m.left_at IS NULL
                       AND g.deleted_at IS NULL
-                      AND EXISTS (
+                      AND (%s OR EXISTS (
                           SELECT 1 FROM group_memberships requester
                           WHERE requester.group_id = g.id
                             AND requester.account_id = %s AND requester.left_at IS NULL
-                      )
+                      ))
                     ORDER BY lower(a.username), a.id
-                ''', (group_id, requesting_account_id))
+                ''', (group_id, authorized, requesting_account_id))
                 return [GroupMember(**row) for row in cursor.fetchall()]
 
-    def update_defaults(self, group_id: str, account_id: str, rules: dict, seat_count: int) -> bool:
+    def update_defaults(self, group_id: str, account_id: str, rules: dict, seat_count: int, *, authorized=False) -> bool:
         with self._connection_factory() as connection:
             row = connection.execute("""
                 UPDATE groups g SET default_rules = %s, default_seat_count = %s
-                WHERE g.id = %s AND g.deleted_at IS NULL AND EXISTS (
+                WHERE g.id = %s AND g.deleted_at IS NULL AND (%s OR EXISTS (
                     SELECT 1 FROM group_memberships m WHERE m.group_id = g.id
                     AND m.account_id = %s AND m.left_at IS NULL AND m.role IN ('owner', 'admin')
-                ) RETURNING g.id
-            """, (Jsonb(rules), seat_count, group_id, account_id)).fetchone()
+                )) RETURNING g.id
+            """, (Jsonb(rules), seat_count, group_id, authorized, account_id)).fetchone()
             return row is not None
 
     def _read(self, condition: str, params: tuple) -> list[Group]:

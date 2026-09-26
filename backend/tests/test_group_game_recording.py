@@ -139,13 +139,13 @@ def test_private_history_keeps_null_group_and_real_start_without_database_requir
     assert not s.repo.games
 
 
-def test_only_members_start_and_completed_games_can_be_ended_or_restarted():
+def test_only_members_start_and_completed_games_can_be_restarted():
     s = setup()
     with pytest.raises(PermissionError):
         s.service.start_game_for_table('m1')
     id = s.service.start_game_for_table('m2')
     with pytest.raises(PermissionError):
-        s.service.end_game_for_table('m0')
+        s.service.end_game_for_table('m1')
     assert not s.repo.games
     s.games.completed = True
     next_id = s.service.start_game_for_table('m0')
@@ -201,3 +201,38 @@ def test_member_can_start_a_table_of_anonymous_guests_without_player_credit():
     s.service.record_completed_game_for_table('CODE-1234', id)
     assert s.repo.games[0].group_id == 'g'
     assert s.repo.results == []
+
+
+@pytest.mark.parametrize('completed', [False, True])
+@pytest.mark.parametrize('actor,allowed', [('m0', True), ('m2', True), ('m1', False), ('viewer', False)])
+def test_group_game_end_requires_both_membership_and_a_seat(completed, actor, allowed):
+    s = setup()
+    s.groups.members.add('viewer-account')
+    s.tables.join_table('viewer', 'CODE-1234', 'Viewer', account_id='viewer-account')
+    game_id = s.service.start_game_for_table('m0')
+    s.games.completed = completed
+    if not allowed:
+        with pytest.raises(PermissionError):
+            s.service.end_game_for_table(actor)
+        assert s.tables.get_table('CODE-1234').active_game_id == game_id
+        assert not s.games.removed
+        assert not s.repo.games
+        return
+    s.service.end_game_for_table(actor)
+    table = s.tables.get_table('CODE-1234')
+    assert table.active_game_id is None
+    assert len(table.members) == 5
+    assert table.seats[0].member_id == 'm0'
+    assert s.games.removed == [game_id]
+    assert len(s.repo.games) == int(completed)
+
+
+def test_unseated_member_cannot_end_blocked_game_but_another_seated_member_can():
+    s = setup()
+    game_id = s.service.start_game_for_table('m0')
+    s.tables.unassign_seat('m0', 0)
+    with pytest.raises(PermissionError):
+        s.service.end_game_for_table('m0')
+    s.service.end_game_for_table('m2')
+    assert s.games.removed == [game_id]
+    assert not s.repo.games

@@ -273,7 +273,7 @@ type TableSocketAPI = {
     ) => void;
     getGroupActivity: (token: string, groupId: string, season: string, page: number, onResult: (response: GroupActivity | BackendErrorAck) => void) => void;
     updateGroupPresence: (token: string, groupId: string, onResult: (response: GroupPresenceSnapshot | BackendErrorAck) => void) => void;
-    leaveGroupPresence: (groupId: string) => void;
+    leaveGroupPresence: (groupId?: string) => void;
     listGroupTables: (token: string, groupId: string, onResult: (response: GroupTablesAck) => void) => void;
     createGroupTable: (token: string, groupId: string, onResult: (response: CreateGroupTableAck) => void) => void;
     listGroupMembers: (token: string, groupId: string, onResult: (response: GroupMembersAck) => void) => void;
@@ -349,6 +349,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     activeGroupMemberRef.current = !!state.selfMemberId && !!state.tableView?.group_member_ids?.includes(state.selfMemberId);
     const selfMemberIdRef = useRef<string | null>(null);
     const preparingForPageUnloadRef = useRef(false);
+    const presenceGroupRef = useRef<string | null>(null);
     const [isSessionReady, setIsSessionReady] = useState(false);
     const [groupTablesVersion, setGroupTablesVersion] = useState(0);
     const [groupConnectionVersion, setGroupConnectionVersion] = useState(0);
@@ -372,7 +373,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         };
 
         const onBeforeUnload = (event: BeforeUnloadEvent) => {
-            if (!selfMemberIdRef.current) return;
+            if (!selfMemberIdRef.current && !presenceGroupRef.current) return;
 
             const socket = socketRef.current;
             if (!socket?.connected) return;
@@ -382,8 +383,10 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                 socket.emit("table:prepare_unload");
             }
 
-            event.preventDefault();
-            event.returnValue = true;
+            if (selfMemberIdRef.current) {
+                event.preventDefault();
+                event.returnValue = true;
+            }
 
             // Timers remain paused while the browser confirmation is open.
             // This runs only if the user chooses Stay and the page survives.
@@ -397,7 +400,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         };
 
         const onPageHide = (event: PageTransitionEvent) => {
-            if (event.persisted || !selfMemberIdRef.current) return;
+            if (event.persisted || (!selfMemberIdRef.current && !presenceGroupRef.current)) return;
 
             const backendUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
             const leaveUrl = new URL(
@@ -443,9 +446,18 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
             setIsSessionReady(true);
         });
 
+        socket.on("group:presence_left", (data: { table_code?: string }) => {
+            if (data.table_code && activeTableRef.current === data.table_code) {
+                dispatch({ type: "CLEAR_TABLE_VIEW" });
+                dispatch({ type: "SET_SELF_MEMBER_ID", payload: null });
+            }
+        });
+        socket.on("group:access_revoked", (data: { group_id: string }) => {
+            dispatch({ type: "GROUP_ACCESS_REVOKED", payload: data.group_id });
+            setGroupConnectionVersion(value => value + 1);
+        });
         socket.on("group:tables_changed", () => setGroupTablesVersion(value => value + 1));
         socket.on("table:list_updated", (data: { tables: TableList[] }) => {
-            setGroupTablesVersion(value => value + 1);
             dispatch({
                 type: "SET_TABLE_LIST",
                 payload: data.tables,
@@ -873,10 +885,12 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         const failure = { error: "ConnectionError", message: "Could not refresh group presence." };
         if (!socket?.connected) { onResult(failure); return; }
         socket.timeout(10000).emit("group:presence", { token, group_id: groupId }, (error: Error | null, response: GroupPresenceSnapshot | BackendErrorAck) => {
+            if (!error && response && !("error" in response)) presenceGroupRef.current = groupId;
             onResult(error || !response ? failure : response);
         });
     }, []);
-    const leaveGroupPresence = useCallback((groupId: string) => {
+    const leaveGroupPresence = useCallback((groupId?: string) => {
+        if (!groupId || presenceGroupRef.current === groupId) presenceGroupRef.current = null;
         // Do not queue a stale leave across a reconnect.
         if (socketRef.current?.connected) socketRef.current.emit("group:presence_leave", { group_id: groupId });
     }, []);
