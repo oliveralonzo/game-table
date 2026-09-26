@@ -17,6 +17,9 @@ class GameHistory:
         team_scores: list[int],
         team_player_counts: list[int],
         winning_team_index: int,
+        *,
+        group_id: str | None = None,
+        started_at: int | None = None,
     ):
         if not history_id or not history_id.strip():
             raise ValueError("Game history ID is required.")
@@ -45,6 +48,14 @@ class GameHistory:
         if winning_team_index < 0 or winning_team_index >= len(team_scores):
             raise ValueError("Winning team index is invalid.")
 
+        if group_id is not None and not group_id.strip():
+            raise ValueError("Group ID cannot be empty.")
+        if started_at is not None and not 0 < started_at <= completed_at:
+            raise ValueError("Start time must be positive and no later than completion.")
+        if group_id is not None and started_at is None:
+            raise ValueError("New group history requires a start time.")
+        self._group_id = group_id
+        self._started_at = started_at
         self._id = history_id.strip()
         self._completed_at = completed_at
         self._table_code = table_code.strip()
@@ -52,6 +63,14 @@ class GameHistory:
         self._team_scores = list(team_scores)
         self._team_player_counts = list(team_player_counts)
         self._winning_team_index = winning_team_index
+
+    @property
+    def group_id(self) -> str | None:
+        return self._group_id
+
+    @property
+    def started_at(self) -> int | None:
+        return self._started_at
 
     @property
     def id(self) -> str:
@@ -99,6 +118,8 @@ class GameHistory:
 
     def to_dict(self) -> dict:
         return {
+            **({"group_id": self._group_id} if self._group_id is not None else {}),
+            **({"started_at": self._started_at} if self._started_at is not None else {}),
             "id": self._id,
             "completed_at": self._completed_at,
             "table_code": self._table_code,

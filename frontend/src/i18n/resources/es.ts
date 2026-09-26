@@ -1,4 +1,77 @@
 export const es = {
+    privateTables: { statsNote: "Estas mesas no cuentan para las posiciones de grupos ni de la liga.", create: "Crear mesa", subtitle: "Crea mesas privadas para invitar a otros a unirse.", receivedCode: "¿Recibiste un código?", joinLink: "Únete a una mesa", joinByCode: "Unirse por código", remove: "Quitar {{code}} de mis mesas", unavailable: "No se pudo conectar con la mesa. Inténtalo de nuevo." },
+    groups: {
+        settings: { loadError: "No se pudieron cargar los ajustes del grupo.", saveError: "No se pudieron guardar los ajustes del grupo." },
+        tables: { enterError: "No se pudo entrar a la mesa. Inténtalo de nuevo.", loadError: "No se pudieron actualizar las mesas.", closeError: "No se pudo cerrar la mesa. Puede que ya tenga participantes.", createError: "No se pudo crear la mesa. Inténtalo de nuevo." },
+        roster: { active: "Activos", offline: "Desconectados", loadError: "No se pudieron cargar los miembros del grupo." },
+        list: {"signInPrompt": "<action>Inicia sesión</action> para ver tus grupos.", "openError": "No se pudo abrir el grupo. Inténtalo de nuevo.", "loading": "Cargando grupos…", "empty": "Todavía no perteneces a ningún grupo.", "loadError": "No se pudieron cargar tus grupos.", "retry": "Reintentar", "signIn": "Inicia sesión para ver tus grupos.", "account": "Ir a tu cuenta", "unavailable": "Este grupo no está disponible o ya no eres miembro.", "back": "Volver a grupos"},
+        stats: {
+            playerUnavailable: "Este jugador no aparece en los registros del grupo.",
+            loadError: "No se pudo actualizar la actividad del grupo.",
+            "pageOf": "Página {{page}} de {{total}}",
+            "show": "Mostrar",
+            "teams": "Equipos",
+            "team": "Equipo",
+            "winners": "Ganadores",
+            "losers": "Perdedores",
+            "season": "Temporada",
+            "activity": "Actividad",
+            "history": "Historial",
+            "bestPercentage": "Mejor porcentaje",
+            "totalGames": "Total de partidas del grupo",
+            "winningTeam": "Equipo ganador",
+            "otherTeam": "Otro equipo",
+
+            "mostPlayed": "Más partidas jugadas",
+            "mostWins": "Más victorias",
+            "headToHead": "Mano a mano",
+            "streakLeader": "Mejor racha",
+
+    "title": "Estadísticas",
+    "games": "Partidas jugadas",
+    "players": "Jugadores",
+    "view": "Ver toda la actividad",
+    "allTime": "Todo el tiempo",
+    "monthly": "Mensual",
+    "month": "Mes",
+    "standings": "Posiciones",
+    "played": "{{count}} jugadas",
+    "wins": "{{count}} victorias"
+},
+        preview: {
+    "showTable": "Ver mesa {{number}}",
+    "table": "Mesa {{number}}",
+    "inLobby": "En el grupo",
+    "offline": "Inactivo",
+    "active": "Activo",
+    "empty": "Sin participantes",
+    "members": "Miembros",
+    "exit": "Salir del grupo",
+    "return": "Volver al grupo",
+    "settings": "Los ajustes del grupo se añadirán más adelante.",
+    "notice": "Vista previa · mesas y miembros de ejemplo",
+    "add": "Nueva mesa",
+    "peopleAt": "Participantes de la mesa {{number}}",
+    "enter": "Entrar a la mesa {{number}}"
+},
+        "active_one": "{{count}} activo",
+        "active_other": "{{count}} activos",
+        "enter": "Entrar",
+        "enterGroup": "Entrar a {{name}}",
+        "members_one": "{{count}} miembro",
+        "members_other": "{{count}} miembros"
+},
+
+    navigation: {
+        "label": "Navegación principal",
+        "open-play": "Liga",
+        "tables": "Mesas",
+        "groups": "Grupos",
+        "you": "Tú",
+        "comingSoon": "Próximamente",
+        "accountUnavailable": "La cuenta no está disponible en esta vista previa."
+},
+
     common: {
         language: {
             label: "Idioma",
@@ -74,7 +147,7 @@ export const es = {
             rounds_one: "{{count}} mano",
             rounds_other: "{{count}} manos",
         },
-        playerRecords: {
+        playerRecords: { loadError: "No se pudieron cargar los registros del jugador. Inténtalo de nuevo.",
             title: "Resultados por jugador",
             view: "Resultados por jugador",
             relationshipLabel: "Relación con el jugador",
@@ -102,6 +175,7 @@ export const es = {
             winPercentage: "%",
         },
         column: {
+            headToHead: "M-A-M",
             rank: "#",
             username: "Usuario",
             won: "G",
@@ -109,6 +183,7 @@ export const es = {
             played: "J",
             winPercentage: "%",
         },
+        streak: { label: "Racha de {{count}} victorias" },
         action: {
             previous: "Anterior",
             next: "Siguiente",
@@ -147,7 +222,7 @@ export const es = {
         status: {
             joiningTable: "Entrando a la Mesa",
             creatingTable: "Creando la Mesa",
-            tableNotFound: "Mesa no encontrada",
+            tableNotFoundCode: "No se encontró la mesa {{code}}.", tableNotFound: "Mesa no encontrada",
             nameRequired: "El apodo es obligatorio",
             tableClosed: "La mesa {{code}} fue cerrada.",
             tableRemoved: "El anfitrión te sacó de la mesa.",
@@ -243,6 +318,7 @@ export const es = {
             handViewers: "{{count}} viendo",
             winPercentage: "{{percentage}}%",
             winPercentageLabel: "Porcentaje de victorias: {{percentage}}%",
+            winStreakLabel: "Racha de {{count}} victorias",
             seat: {
                 bottom: "Abajo",
                 right: "Derecha",

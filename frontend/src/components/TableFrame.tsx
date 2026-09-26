@@ -17,6 +17,7 @@ import { MessageCircle, Settings, Users } from "lucide-react";
 import TableLifecycleAction from "game-table/components/TableLifecycleAction";
 import {
     App as KonstaApp,
+    Navbar,
     Badge,
     Button,
     Glass,
@@ -78,6 +79,9 @@ type Props = {
     obscureBottomChrome?: boolean;
     enabledTools?: TableTool[];
     accountsEnabled?: boolean;
+    lifecycleAction?: ReactNode;
+    showReactions?: boolean;
+    fixedChrome?: boolean;
 };
 
 export default function TableFrame({
@@ -98,6 +102,9 @@ export default function TableFrame({
     obscureBottomChrome = false,
     enabledTools = tableTools.map(({ id }) => id),
     accountsEnabled = false,
+    lifecycleAction,
+    showReactions = true,
+    fixedChrome = false,
 }: Props) {
     const { t } = useTranslation();
     const [activeTool, setActiveTool] = useState<TableTool | null>(null);
@@ -184,7 +191,7 @@ export default function TableFrame({
             const panelTop = toolAreaRect.bottom + 12;
             const panelBottomMargin = 16;
             setDesktopPanelMaxHeight(
-                Math.max(160, Math.floor(frameRect.bottom - panelTop - panelBottomMargin))
+                Math.max(160, Math.floor((fixedChrome ? window.innerHeight : frameRect.bottom) - panelTop - panelBottomMargin))
             );
         };
 
@@ -202,7 +209,7 @@ export default function TableFrame({
             window.visualViewport?.removeEventListener("resize", measure);
             window.visualViewport?.removeEventListener("scroll", measure);
         };
-    }, [activeTool, desktopAccessory, isMobileLayout]);
+    }, [activeTool, desktopAccessory, isMobileLayout, fixedChrome]);
 
     useEffect(() => {
         if (!onBottomChromeInsetChange) return;
@@ -356,42 +363,27 @@ export default function TableFrame({
     const overlayChromeVisibilityClass = obscureBottomChrome
         ? "pointer-events-none opacity-0"
         : "opacity-100";
+    const chromePosition = fixedChrome ? "fixed" : "absolute";
     return (
         <KonstaApp theme="ios" safeAreas={false} className="min-h-[100svh]">
             <div
                 ref={frameRef}
-                className={`relative bg-transparent ${fullBleed ? "flex h-[100svh] flex-col overflow-hidden" : "min-h-[100svh] overflow-visible p-4 pt-24"}`}
+                className={`relative bg-transparent ${fullBleed ? "flex h-[100svh] flex-col overflow-hidden" : "min-h-[100svh] overflow-visible p-4 pt-20"}`}
             >
-                <div className="absolute left-4 top-4 z-10">
+                <Navbar className={`${fixedChrome ? "!fixed" : "!absolute"} left-0 !z-10`} innerClassName="items-start">
                     <Logo />
-                </div>
 
                 {isMobileLayout && (
-                    <div className="absolute right-4 top-4 z-10 flex flex-col items-end gap-2">
-                        <TableLifecycleAction />
+                    <div className="flex flex-col items-end gap-2">
+                        {lifecycleAction ?? <TableLifecycleAction />}
                         {mobileAccessory}
-                    </div>
-                )}
-
-                {!isMobileLayout && (
-                    <div ref={desktopReactionRef} className={`absolute bottom-4 left-4 z-10 h-11 transition-opacity ${reactionChromeVisibilityClass}`}>
-                        <ReactionBar
-                            reactions={REACTIONS}
-                            onEmit={onEmitReaction}
-                        />
-                    </div>
-                )}
-
-                {!isMobileLayout && (
-                    <div ref={desktopActionRef} className={`absolute bottom-4 right-4 z-10 transition-opacity ${overlayChromeVisibilityClass}`}>
-                        <TableLifecycleAction />
                     </div>
                 )}
 
                 {!isMobileLayout && (
                     <div
                         ref={desktopToolAreaRef}
-                        className={`absolute right-4 top-4 z-10 w-max transition-opacity ${overlayChromeVisibilityClass}`}
+                        className={`relative w-max transition-opacity ${overlayChromeVisibilityClass}`}
                     >
                         {toolSwitcher}
 
@@ -430,16 +422,33 @@ export default function TableFrame({
                     </div>
                 )}
 
+                </Navbar>
+
+                {!isMobileLayout && (
+                    <div ref={desktopReactionRef} className={`${chromePosition} bottom-4 left-4 z-10 h-11 transition-opacity ${reactionChromeVisibilityClass}`}>
+                        {showReactions && <ReactionBar
+                            reactions={REACTIONS}
+                            onEmit={onEmitReaction}
+                        />}
+                    </div>
+                )}
+
+                {!isMobileLayout && (
+                    <div ref={desktopActionRef} className={`${chromePosition} bottom-4 right-4 z-10 transition-opacity ${overlayChromeVisibilityClass}`}>
+                        {lifecycleAction ?? <TableLifecycleAction />}
+                    </div>
+                )}
+
                 {isMobileLayout && !fullBleed && (
                     <>
                         <div
-                            className={`absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 overflow-visible transition-opacity ${bottomChromeVisibilityClass}`}
+                            className={`${chromePosition} bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 overflow-visible transition-opacity ${bottomChromeVisibilityClass}`}
                         >
                             <div className="h-11 shrink-0">
-                                <ReactionBar
+                                {showReactions && <ReactionBar
                                     reactions={REACTIONS}
                                     onEmit={onEmitReaction}
-                                />
+                                />}
                             </div>
                             <div className={`${fullBleed ? "h-full" : ""} shrink-0`}>
                                 {toolSwitcher}
@@ -488,10 +497,10 @@ export default function TableFrame({
                             className={`absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between gap-3 overflow-visible px-2 py-2 transition-opacity sm:px-4 ${bottomChromeVisibilityClass}`}
                         >
                             <div className="h-11 shrink-0">
-                                <ReactionBar
+                                {showReactions && <ReactionBar
                                     reactions={REACTIONS}
                                     onEmit={onEmitReaction}
-                                />
+                                />}
                             </div>
                             <div className="shrink-0">
                                 {toolSwitcher}

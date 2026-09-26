@@ -35,8 +35,10 @@ export function useTableRoomPeople({
     revokeHandView,
 }: UseTableRoomPeopleArgs) {
     const { listAccountStats } = useTableSocket();
-    const [winPercentagesByAccountId, setWinPercentagesByAccountId] =
-        useState<Record<string, number>>({});
+    const [statsByAccountId, setStatsByAccountId] = useState<Record<string, {
+        winPercentage: number;
+        winStreak: number;
+    }>>({});
     const [pendingHandViewActions, setPendingHandViewActions] =
         useState<Record<string, "share" | "stop">>({});
 
@@ -75,16 +77,19 @@ export function useTableRoomPeople({
 
     useEffect(() => {
         if (!accountIdsKey) {
-            setWinPercentagesByAccountId({});
+            setStatsByAccountId({});
             return;
         }
 
         let isCurrent = true;
-        setWinPercentagesByAccountId({});
+        setStatsByAccountId({});
         listAccountStats(accountIdsKey.split("\u0000"), (response) => {
             if (!isCurrent || "error" in response) return;
-            setWinPercentagesByAccountId(Object.fromEntries(
-                response.stats.map((entry) => [entry.account_id, entry.win_percentage])
+            setStatsByAccountId(Object.fromEntries(
+                response.stats.map((entry) => [entry.account_id, {
+                    winPercentage: entry.win_percentage,
+                    winStreak: entry.win_streak,
+                }])
             ));
         });
 
@@ -119,7 +124,10 @@ export function useTableRoomPeople({
                 name: member.name,
                 accountUsername: member.account_username,
                 winPercentage: member.account_id
-                    ? winPercentagesByAccountId[member.account_id]
+                    ? statsByAccountId[member.account_id]?.winPercentage
+                    : undefined,
+                winStreak: member.account_id
+                    ? statsByAccountId[member.account_id]?.winStreak
                     : undefined,
                 isHost: id === table?.host_id,
                 hasSeat: seatIndex >= 0,
@@ -140,7 +148,7 @@ export function useTableRoomPeople({
     const getRosterActions = (person: RosterPerson): RosterAction[] => {
         const actions: RosterAction[] = [];
 
-        if (isHost && person.hasSeat && typeof person.seatIndex === "number") {
+        if ((isHost || (!!selfId && table?.group_member_ids?.includes(selfId))) && person.hasSeat && typeof person.seatIndex === "number") {
             actions.push({
                 id: "unseat",
                 label: t("table.action.unseat"),

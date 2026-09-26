@@ -8,6 +8,7 @@ import { useAuth } from "@clerk/react";
 import { useClerk } from "@clerk/react";
 
 type AuthSessionAPI = {
+    authUserId: string | null;
     isAuthLoaded: boolean;
     isSignedIn: boolean;
     getAuthToken: () => Promise<string | null>;
@@ -15,6 +16,7 @@ type AuthSessionAPI = {
 };
 
 const AuthSessionContext = createContext<AuthSessionAPI>({
+    authUserId: null,
     isAuthLoaded: true,
     isSignedIn: false,
     getAuthToken: async () => null,
@@ -25,6 +27,7 @@ export function AnonymousAuthSessionProvider({ children }: { children: ReactNode
     return (
         <AuthSessionContext.Provider
             value={{
+                authUserId: null,
                 isAuthLoaded: true,
                 isSignedIn: false,
                 getAuthToken: async () => null,
@@ -37,7 +40,7 @@ export function AnonymousAuthSessionProvider({ children }: { children: ReactNode
 }
 
 export function ClerkAuthSessionProvider({ children }: { children: ReactNode }) {
-    const { isLoaded, isSignedIn, getToken } = useAuth();
+    const { isLoaded, isSignedIn, getToken, userId } = useAuth();
     const { signOut: clerkSignOut } = useClerk();
 
     const getAuthToken = useCallback(async () => {
@@ -55,6 +58,7 @@ export function ClerkAuthSessionProvider({ children }: { children: ReactNode }) 
     return (
         <AuthSessionContext.Provider
             value={{
+                authUserId: userId ?? null,
                 isAuthLoaded: isLoaded,
                 isSignedIn: !!isSignedIn,
                 getAuthToken,

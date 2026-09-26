@@ -12,11 +12,13 @@ class LeaderboardEntry:
         username: str,
         games_played: int,
         games_won: int,
+        win_streak: int = 0,
     ):
         self._account_id = account_id
         self._username = username
         self._games_played = games_played
         self._games_won = games_won
+        self._win_streak = win_streak
 
     @property
     def account_id(self) -> str:
@@ -41,6 +43,10 @@ class LeaderboardEntry:
 
         return self._games_won / self._games_played
 
+    @property
+    def win_streak(self) -> int:
+        return self._win_streak
+
     def to_dict(self) -> dict:
         return {
             "account_id": self._account_id,
@@ -48,4 +54,5 @@ class LeaderboardEntry:
             "games_played": self._games_played,
             "games_won": self._games_won,
             "win_percentage": self.win_percentage,
+            "win_streak": self._win_streak,
         }

@@ -69,7 +69,7 @@ export default function PlatformSettingsPanel({
                 <div className="grid w-full min-w-0 max-w-full gap-4">
                     {pane === "general" ? (
                         <>
-                            {hasProfile ? (
+                            {hasProfile && !gameSettingsNested ? (
                                 <section className="grid gap-2">
                                     <h3 className="px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
                                         {t("table.label.profile")}
@@ -84,7 +84,7 @@ export default function PlatformSettingsPanel({
                                 </section>
                             ) : null}
                             {gameSettings}
-                            {showLanguage ? (
+                            {showLanguage && !gameSettingsNested ? (
                                 <List inset nested={false} outline strong className="m-0 overflow-hidden">
                                     <ListItem
                                         title={t("common.language.label")}

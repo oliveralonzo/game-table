@@ -19,6 +19,8 @@ class GameHistoryRecorder:
         game_id: str | None = None,
         result: dict | None,
         seat_account_participants: list[dict],
+        group_id: str | None = None,
+        started_at: int | None = None,
     ) -> None:
         if self._history_service is None:
             return
@@ -34,11 +36,13 @@ class GameHistoryRecorder:
             seat_account_participants,
         )
 
-        if not account_participants:
+        if not account_participants and group_id is None:
             return
 
         self._history_service.record_completed_game(
             table_code=table_code,
+            group_id=group_id, started_at=started_at,
+            **({'history_id': f'hist_{game_id}'} if game_id is not None and started_at is not None else {}),
             rounds_played=result["rounds_played"],
             team_scores=result["team_scores"],
             team_player_counts=result["team_player_counts"],
@@ -71,6 +75,8 @@ class GameHistoryRecorder:
                 "account_id": account_id,
                 "seat_index": seat_index,
                 "team_index": team_index,
+                **({"group_participation": participant["group_participation"]}
+                   if "group_participation" in participant else {}),
             })
 
         return account_participants

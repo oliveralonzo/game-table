@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/react";
+import { useAuthSession } from "game-table/context/AuthSessionContext";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
     Button,
@@ -31,7 +31,6 @@ type CachedPlayerRecordsPage = {
 };
 
 const PAGE_SIZE = 10;
-const MIN_WIN_PERCENTAGE_GAMES = 10;
 
 type Availability = { teammates: boolean; opponents: boolean };
 
@@ -72,17 +71,22 @@ export function cachePlayerRecordsPage(
 export default function PlayerRecordsScreen({
     accountId,
     availability,
+    groupId,
+    season = "current",
 }: {
     accountId: string;
     availability: Availability;
+    groupId?: string;
+    season?: string;
 }) {
     const { t } = useTranslation();
-    const { getToken } = useAuth();
-    const { listPlayerRecords } = useTableSocket();
+    const { getAuthToken: getToken, authUserId } = useAuthSession();
+    const { listPlayerRecords, emit } = useTableSocket();
+    const recordsScope = groupId ? JSON.stringify([authUserId, groupId, season, accountId]) : accountId;
     const [relationship, setRelationship] = useState<Relationship>(
         availability.teammates ? "teammates" : "opponents"
     );
-    const [sort, setSort] = useState<Sort>("games_won");
+    const [sort, setSort] = useState<Sort>("win_percentage");
     const [page, setPage] = useState(1);
     const [records, setRecords] = useState<RecordEntry[]>([]);
     const [hasMore, setHasMore] = useState(false);
@@ -91,27 +95,36 @@ export default function PlayerRecordsScreen({
 
     useEffect(() => {
         let current = true;
-        const cached = getCachedPlayerRecordsPage(accountId, relationship, sort, page);
+        const cached = getCachedPlayerRecordsPage(recordsScope, relationship, sort, page);
         setLoading(true);
         setError(null);
         setRecords(cached?.records ?? []);
         setHasMore(cached?.hasMore ?? false);
+        const fail = () => {
+            if (!current) return;
+            current = false;
+            setLoading(false);
+            setError(t("account.playerRecords.loadError"));
+        };
+        const timeout = window.setTimeout(fail, 15000);
         getToken().then((token) => {
             if (!current) return;
             if (!token) {
+                window.clearTimeout(timeout);
                 setLoading(false);
                 setError(t("account.status.signInAgain"));
                 return;
             }
-            listPlayerRecords(token, relationship, sort, page, PAGE_SIZE, (response) => {
+            const receive: Parameters<typeof listPlayerRecords>[5] = (response) => {
                 if (!current) return;
+                window.clearTimeout(timeout);
                 setLoading(false);
                 if ("error" in response) {
                     setError(response.message);
                     return;
                 }
                 cachePlayerRecordsPage(
-                    accountId,
+                    recordsScope,
                     relationship,
                     sort,
                     page,
@@ -120,10 +133,15 @@ export default function PlayerRecordsScreen({
                 );
                 setRecords(response.records);
                 setHasMore(response.has_more);
-            });
-        });
-        return () => { current = false; };
-    }, [accountId, getToken, listPlayerRecords, page, relationship, sort, t]);
+            };
+            if (groupId) {
+                emit("group:player_records", { token, group_id: groupId, player_id: accountId, season, relationship, sort, page }, receive);
+            } else {
+                listPlayerRecords(token, relationship, sort, page, PAGE_SIZE, receive);
+            }
+        }).catch(fail);
+        return () => { current = false; window.clearTimeout(timeout); };
+    }, [accountId, recordsScope, groupId, season, getToken, emit, listPlayerRecords, page, relationship, sort, t]);
 
     function changeRelationship(next: Relationship) {
         setRelationship(next);
@@ -134,9 +152,6 @@ export default function PlayerRecordsScreen({
         setSort(next);
         setPage(1);
     }
-
-    const hasUnrankedEntries = sort === "win_percentage"
-        && records.some((entry) => entry.games_played < MIN_WIN_PERCENTAGE_GAMES);
 
     return (
         <div className="grid min-w-0 max-w-full gap-4">
@@ -154,14 +169,14 @@ export default function PlayerRecordsScreen({
                     {t("leaderboard.sort.label")}
                 </span>
                 <Segmented rounded strong className="h-9 w-full">
+                    <SegmentedButton type="button" active={sort === "win_percentage"} onClick={() => changeSort("win_percentage")} className="px-2 text-xs font-semibold">
+                        {t("leaderboard.sort.winPercentage")}
+                    </SegmentedButton>
                     <SegmentedButton type="button" active={sort === "games_won"} onClick={() => changeSort("games_won")} className="px-2 text-xs font-semibold">
                         {t("leaderboard.sort.won")}
                     </SegmentedButton>
                     <SegmentedButton type="button" active={sort === "games_played"} onClick={() => changeSort("games_played")} className="px-2 text-xs font-semibold">
                         {t("leaderboard.sort.played")}
-                    </SegmentedButton>
-                    <SegmentedButton type="button" active={sort === "win_percentage"} onClick={() => changeSort("win_percentage")} className="px-2 text-xs font-semibold">
-                        {t("leaderboard.sort.winPercentage")}
                     </SegmentedButton>
                 </Segmented>
             </div>
@@ -174,45 +189,38 @@ export default function PlayerRecordsScreen({
                         ? "account.playerRecords.teammate"
                         : "account.playerRecords.opponent")}
                     rows={PAGE_SIZE}
+                    percentageFirst
                 />
             ) : (
                 <div aria-busy={loading} className={`min-w-0 max-w-full overflow-x-auto rounded-2xl bg-ios-light-surface-2 transition-opacity dark:bg-ios-dark-surface-2 ${loading ? "opacity-70" : ""}`}>
                     <Table style={{ width: "max-content", minWidth: "100%" }}>
                         <TableHead>
                             <TableRow header>
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-3 !pr-3">{t("leaderboard.column.rank")}</TableCell>
-                                <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-4">{t(relationship === "teammates" ? "account.playerRecords.teammate" : "account.playerRecords.opponent")}</TableCell>
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.won")}</TableCell>
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.lost")}</TableCell>
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.played")}</TableCell>
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">{t("leaderboard.column.winPercentage")}</TableCell>
-                            </TableRow>
+                                    <TableCell header scope="col" className="w-px whitespace-nowrap !pl-3 !pr-3">{t("leaderboard.column.rank")}</TableCell>
+                                    <TableCell header scope="col" className="whitespace-nowrap !pl-2 !pr-4">{t(relationship === "teammates" ? "account.playerRecords.teammate" : "account.playerRecords.opponent")}</TableCell>
+                                    <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">{t("leaderboard.column.winPercentage")}</TableCell>
+                                    <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.won")}</TableCell>
+                                    <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.lost")}</TableCell>
+                                    <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">{t("leaderboard.column.played")}</TableCell>
+                                </TableRow>
                         </TableHead>
                         <TableBody>
                             {records.map((entry, index) => (
                                 <TableRow key={entry.account_id}>
                                     <TableCell className="w-px whitespace-nowrap !pl-3 !pr-3 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
-                                        {sort === "win_percentage" && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
-                                            ? t("leaderboard.rank.notRankedShort")
-                                            : (page - 1) * PAGE_SIZE + index + 1}
+                                        {(page - 1) * PAGE_SIZE + index + 1}
                                     </TableCell>
                                     <TableCell className="whitespace-nowrap !pl-2 !pr-4 font-semibold text-black dark:text-white">@{entry.username}</TableCell>
-                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black dark:text-white">{entry.games_won}</TableCell>
-                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played - entry.games_won}</TableCell>
-                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{entry.games_played}</TableCell>
-                                    <TableCell className="w-px whitespace-nowrap !pl-2 !pr-3 text-right font-semibold tabular-nums text-black/70 dark:text-white/70">{Math.round(entry.win_percentage * 100)}%</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !pl-2 !pr-3 text-right font-normal tabular-nums text-black/70 dark:text-white/70">{Math.round(entry.win_percentage * 100)}%</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">{entry.games_won}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">{entry.games_played - entry.games_won}</TableCell>
+                                    <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">{entry.games_played}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </div>
             )}
-
-            {hasUnrankedEntries ? (
-                <p className="-mt-2 px-2 text-xs leading-5 text-black/45 dark:text-white/45">
-                    {t("account.playerRecords.notRankedExplanation", { count: MIN_WIN_PERCENTAGE_GAMES })}
-                </p>
-            ) : null}
 
             {(page > 1 || hasMore) && !error ? (
                 <div className="flex items-center justify-end gap-2">

@@ -42,12 +42,23 @@ class HistoryService:
         team_player_counts: list[int],
         winning_team_index: int,
         account_participants: list[dict],
+        *,
+        group_id: str | None = None,
+        started_at: int | None = None,
+        history_id: str | None = None,
     ) -> GameHistory:
-        if not account_participants:
+        if not account_participants and group_id is None:
             raise ValueError("At least one account participant is required.")
 
+        for participant in account_participants:
+            eligibility = participant.get("group_participation")
+            if group_id is not None and eligibility not in ("member", "guest"):
+                raise ValueError("Group results require captured membership eligibility.")
+            if group_id is None and eligibility is not None:
+                raise ValueError("Private results cannot have group eligibility.")
         game_history = GameHistory(
-            history_id=self._history_id_factory(),
+            history_id=history_id or self._history_id_factory(),
+            group_id=group_id, started_at=started_at,
             completed_at=self._clock_ms(),
             table_code=table_code,
             rounds_played=rounds_played,
@@ -216,6 +227,7 @@ class HistoryService:
             won=team_index == game_history.winning_team_index,
             points_for=game_history.score_for_team(team_index),
             points_against=game_history.points_against_team(team_index),
+            group_participation=participant.get("group_participation"),
         )
 
     @staticmethod

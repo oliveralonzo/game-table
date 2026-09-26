@@ -1,4 +1,77 @@
 export const en = {
+    privateTables: { statsNote: "These tables don’t count toward group or league standings.", create: "Create table", subtitle: "Create private tables to invite others to join.", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
+    groups: {
+        settings: { loadError: "Could not load group settings.", saveError: "Could not save group settings." },
+        tables: { enterError: "Couldn’t enter the table. Try again.", loadError: "Couldn’t refresh the tables.", closeError: "Could not close the table. It may now have participants.", createError: "Couldn’t create the table. Try again." },
+        roster: { active: "Active", offline: "Offline", loadError: "Couldn’t load group members." },
+        list: {"signInPrompt": "<action>Sign in</action> to see your groups.", "openError": "Couldn’t open the group. Try again.", "loading": "Loading groups…", "empty": "You haven’t joined any groups yet.", "loadError": "Couldn’t load your groups.", "retry": "Try again", "signIn": "Sign in to see your groups.", "account": "Go to your account", "unavailable": "This group is unavailable or you are no longer a member.", "back": "Back to groups"},
+        stats: {
+            playerUnavailable: "This player is not in this group’s records.",
+            loadError: "Couldn’t refresh group activity.",
+            "pageOf": "Page {{page}} of {{total}}",
+            "show": "Show",
+            "teams": "Teams",
+            "team": "Team",
+            "winners": "Winners",
+            "losers": "Losers",
+            "season": "Season",
+            "activity": "Activity",
+            "history": "History",
+            "bestPercentage": "Best win percentage",
+            "totalGames": "Total group games",
+            "winningTeam": "Winning team",
+            "otherTeam": "Other team",
+
+            "mostPlayed": "Most games played",
+            "mostWins": "Most wins",
+            "headToHead": "Head-to-head",
+            "streakLeader": "Best streak",
+
+    "title": "Statistics",
+    "games": "Games played",
+    "players": "Players",
+    "view": "View all activity",
+    "allTime": "All time",
+    "monthly": "Monthly",
+    "month": "Month",
+    "standings": "Standings",
+    "played": "{{count}} played",
+    "wins": "{{count}} wins"
+},
+        preview: {
+    "showTable": "Show table {{number}}",
+    "table": "Table {{number}}",
+    "inLobby": "In the group lobby",
+    "offline": "Inactive",
+    "active": "Active",
+    "empty": "No participants",
+    "members": "Members",
+    "exit": "Exit group lobby",
+    "return": "Return to group",
+    "settings": "Group settings will be added later.",
+    "notice": "Preview · sample tables and members",
+    "add": "New table",
+    "peopleAt": "Participants at table {{number}}",
+    "enter": "Enter table {{number}}"
+},
+        "active_one": "{{count}} active",
+        "active_other": "{{count}} active",
+        "enter": "Enter",
+        "enterGroup": "Enter {{name}}",
+        "members_one": "{{count}} member",
+        "members_other": "{{count}} members"
+},
+
+    navigation: {
+        "label": "Main navigation",
+        "open-play": "League",
+        "tables": "Tables",
+        "groups": "Groups",
+        "you": "You",
+        "comingSoon": "Coming soon",
+        "accountUnavailable": "Account access is unavailable in this preview."
+},
+
     common: {
         language: {
             label: "Language",
@@ -74,7 +147,7 @@ export const en = {
             rounds_one: "{{count}} round",
             rounds_other: "{{count}} rounds",
         },
-        playerRecords: {
+        playerRecords: { loadError: "Could not load player records. Try again.",
             title: "Player Records",
             view: "Player Records",
             relationshipLabel: "Player relationship",
@@ -102,6 +175,7 @@ export const en = {
             winPercentage: "%",
         },
         column: {
+            headToHead: "H-T-H",
             rank: "#",
             username: "Username",
             won: "W",
@@ -109,6 +183,7 @@ export const en = {
             played: "P",
             winPercentage: "%",
         },
+        streak: { label: "{{count}}-game win streak" },
         action: {
             previous: "Previous",
             next: "Next",
@@ -147,7 +222,7 @@ export const en = {
         status: {
             joiningTable: "Joining Table",
             creatingTable: "Creating Table",
-            tableNotFound: "Table not found",
+            tableNotFoundCode: "Table {{code}} was not found.", tableNotFound: "Table not found",
             nameRequired: "Name is required",
             tableClosed: "Table {{code}} was closed.",
             tableRemoved: "Host removed you from the table.",
@@ -243,6 +318,7 @@ export const en = {
             handViewers: "{{count}} watching",
             winPercentage: "{{percentage}}%",
             winPercentageLabel: "Win percentage: {{percentage}}%",
+            winStreakLabel: "{{count}}-game win streak",
             seat: {
                 bottom: "Bottom",
                 right: "Right",

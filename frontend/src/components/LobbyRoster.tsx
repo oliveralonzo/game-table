@@ -28,7 +28,7 @@ import {
     List,
     ListItem,
 } from "konsta/react";
-import { ChartNoAxesColumn, Circle, Eye, MoreHorizontal } from "lucide-react";
+import { ChartNoAxesColumn, Circle, Eye, Flame, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
@@ -38,6 +38,7 @@ export type RosterPerson = {
     name: string;
     accountUsername?: string | null;
     winPercentage?: number;
+    winStreak?: number;
     isHost: boolean;
     hasSeat: boolean;
     seatIndex?: number; // 0-based when hasSeat === true
@@ -45,6 +46,7 @@ export type RosterPerson = {
     isSelf?: boolean;
     handViewerCount?: number;
     viewingHandNames?: string[];
+    presence?: { active: boolean; label: string };
 };
 
 export type RosterAction = {
@@ -291,7 +293,7 @@ export default function LobbyRoster({
                     const accountUsernameLabel = p.accountUsername
                         ? `@${p.accountUsername}`
                         : null;
-                    const showSubtitleRow = showSeatLocation || showHandViewStatus || !!accountUsernameLabel;
+                    const showSubtitleRow = showSeatLocation || showHandViewStatus || !!accountUsernameLabel || !!p.presence;
 
                     return (
                         <li
@@ -345,8 +347,24 @@ export default function LobbyRoster({
 	                                                                })}
 	                                                            </span>
 	                                                        ) : null}
+	                                                        {p.winStreak !== undefined && p.winStreak >= 2 ? (
+	                                                            <span
+	                                                                className="inline-flex items-center gap-0.5 font-medium tabular-nums text-black/40 dark:text-white/45"
+	                                                                title={t("table.roster.winStreakLabel", { count: p.winStreak })}
+	                                                                aria-label={t("table.roster.winStreakLabel", { count: p.winStreak })}
+	                                                            >
+	                                                                <Flame aria-hidden="true" size={13} strokeWidth={2.2} />
+	                                                                {p.winStreak}
+	                                                            </span>
+	                                                        ) : null}
 	                                                    </>
 	                                                ) : null}
+                                                {p.presence && (
+                                                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                                                        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${p.presence.active ? "bg-green-600 dark:bg-green-400" : "bg-black/20 dark:bg-white/25"}`} />
+                                                        <span className="truncate">{p.presence.label}</span>
+                                                    </span>
+                                                )}
 	                                                {showSeatLocation ? (
 	                                                    <span>
 	                                                        {seatSubtitle}

@@ -1,3 +1,6 @@
+import { useGroupPresence } from "game-table/hooks/useGroupPresence";
+import { SavedTablesProvider } from "game-table/context/SavedTablesContext";
+import { GroupsCacheProvider, useGroupsCache } from "game-table/context/GroupsCacheContext";
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { TableProvider, useTable } from "game-table/context/TableState";
@@ -32,8 +35,14 @@ repairMalformedLocationPath();
 
 function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
   const { state } = useTable();
-  const { code } = useParams();
+  const { code, groupPublicId } = useParams();
   const navigate = useNavigate();
+  const { groups } = useGroupsCache();
+  const routeGroupId = groups?.find(group => group.public_id === groupPublicId)?.id ?? null;
+  useGroupPresence(gamePlugin.features.accounts
+    ? (code ? state.tableView?.group_id ?? null
+      : routeGroupId)
+    : null);
   const {
     isSessionReady,
     leaveTable,
@@ -61,6 +70,14 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
 
   const gameId = state.tableView?.active_game_id ?? null;
   const tableCode = state.tableView?.table_code ?? null;
+  const previousTableReturnUrl = useRef("/");
+  if (state.tableView) {
+    const groupId = state.tableView.group_id;
+    previousTableReturnUrl.current = groupId
+      ? (state.selfMemberId && state.tableView.group_member_ids?.includes(state.selfMemberId) && state.tableView.group_public_id
+        ? `/g/${encodeURIComponent(state.tableView.group_public_id!)}` : "/")
+      : "/";
+  }
   const routeTableCode = code ? normalizeTableCode(code) : null;
   const selfMemberId = state.selfMemberId;
   const seats = state.tableView?.seats ?? [];
@@ -112,7 +129,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
       routeTableCode === state.lastTableEvent.table_code
     ) {
       setRouteMembershipStatus("idle");
-      navigate("/", { replace: true });
+      navigate(previousTableReturnUrl.current, { replace: true, state: { homeTab: "tables" } });
     }
   }, [navigate, routeTableCode, state.lastTableEvent]);
 
@@ -131,7 +148,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
         rootLeaveTimeoutRef.current = window.setTimeout(() => {
           socketActionsRef.current.leaveTable(
             (message) => alert(message),
-            () => navigate("/", { replace: true })
+            () => navigate("/", { replace: true, state: { homeTab: "tables" } })
           );
           rootLeaveTimeoutRef.current = null;
         }, 250);
@@ -248,14 +265,20 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
       <SessionProvider>
         <TableProvider>
           <TableSocketProvider>
+            <SavedTablesProvider enabled={gamePlugin.features.accounts && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+            <GroupsCacheProvider>
             <BrowserRouter>
               <GameProvider>
                 <Routes>
                   <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
+                  <Route path="/g/:groupPublicId" element={<AppContent gamePlugin={gamePlugin} />} />
+                  <Route path="/g/:groupPublicId/activity" element={<AppContent gamePlugin={gamePlugin} />} />
                   <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
                 </Routes>
               </GameProvider>
             </BrowserRouter>
+            </GroupsCacheProvider>
+            </SavedTablesProvider>
           </TableSocketProvider>
         </TableProvider>
       </SessionProvider>

@@ -19,10 +19,12 @@ Design:
 - Aggregate root.
 - All mutations occur through Table methods.
 - Members and Seats are governed entities.
+- Application services authorize seat changes and game starts.
 - Game is attached but not owned conceptually.
 """
 
 
+from uuid import uuid4
 from enum import Enum
 from typing import Dict, Generic, List, Optional, Set, TypeVar
 
@@ -45,7 +47,7 @@ class Table(Generic[RulesT]):
     Aggregate root for table domain.
 
     Invariants:
-    - Exactly one host while table is OPEN/IN_GAME/GAME_BLOCKED.
+    - Private tables have one host; group tables have no host.
     - Seat count between 2 and 4.
     - At most one active Game attached.
     - Game cannot exist without fully populated seats at start.
@@ -57,28 +59,38 @@ class Table(Generic[RulesT]):
     def __init__(
         self,
         table_code: str,
-        host_member_id: str,
+        host_member_id: str | None,
         host_name: str | None = None,
         host_account_id: str | None = None,
         host_account_username: str | None = None,
         rules: RulesT | None = None,
+        *,
+        group_id: str | None = None,
+        start_empty: bool = False,
     ):
         """
         Create a new Table aggregate.
 
         Invariants enforced at construction:
-        - Table must be created with exactly one host.
+        - Tables can be created empty; private tables acquire a host on entry.
         - Host must have a non-empty display name.
         """
 
-        if not host_member_id:
+        if group_id is not None and (not group_id.strip() or host_member_id is not None):
+            raise ValueError("Group tables require a group and are created without a host.")
+        if group_id is None and not start_empty and not host_member_id:
             raise ValueError("Host member_id is required.")
 
         resolved_host_name = host_name or host_member_id
 
-        if not resolved_host_name or not resolved_host_name.strip():
+        if group_id is None and not start_empty and (not resolved_host_name or not resolved_host_name.strip()):
             raise ValueError("Host name is required.")
 
+        if start_empty and host_member_id is not None:
+            raise ValueError("Empty tables cannot have an initial host.")
+
+        self._group_id = group_id
+        self.instance_id = str(uuid4())
         self.table_code: str = table_code
 
         self._state: TableState = TableState.OPEN
@@ -87,8 +99,10 @@ class Table(Generic[RulesT]):
         self._seats: List["Seat"] = []
 
         self._host_id: Optional[str] = None
+        self._reserved_host_identity: str | None = None
         self._active_game_id: Optional[str] = None
         self._pending_rules = rules
+        self._game_changed_seats: Set[int] = set()
 
         self._hand_view_permissions: Dict[str, Set[str]] = {}
         self._hand_visibility_enabled: Set[str] = set()
@@ -96,12 +110,10 @@ class Table(Generic[RulesT]):
         self._is_persistent: bool = False
 
         self._initialize_default_seats()
-        self._add_initial_host(
-            host_member_id,
-            resolved_host_name,
-            host_account_id,
-            host_account_username,
-        )
+        if group_id is None and not start_empty:
+            self._add_initial_host(
+                host_member_id, resolved_host_name, host_account_id, host_account_username,
+            )
 
 
     # ------------------------- Internal Setup -------------------------- #
@@ -152,6 +164,10 @@ class Table(Generic[RulesT]):
     # ---------------------------- Properties --------------------------- #
 
     @property
+    def group_id(self) -> str | None:
+        return self._group_id
+
+    @property
     def state(self) -> TableState:
         return self._state
 
@@ -168,7 +184,7 @@ class Table(Generic[RulesT]):
         return list(self._seats)
 
     @property
-    def host_id(self) -> str:
+    def host_id(self) -> str | None:
         return self._host_id
 
     @property
@@ -227,6 +243,21 @@ class Table(Generic[RulesT]):
             account_id=account_id,
             account_username=account_username,
         )
+
+        if self.group_id is None and self._host_id is None and self._reserved_host_identity is None:
+            self._host_id = member_id
+
+    def reserve_host(self, creator_identity: str) -> None:
+        if self.group_id is not None or self._members or not creator_identity:
+            raise ValueError("Host reservation requires an empty private table and creator identity.")
+        self._reserved_host_identity = creator_identity
+
+    def claim_reserved_host(self, member_id: str, creator_identity: str | None) -> None:
+        if self._reserved_host_identity and creator_identity == self._reserved_host_identity:
+            if member_id not in self._members:
+                raise ValueError("Host must be a participant.")
+            self._host_id = member_id
+            self._reserved_host_identity = None
 
     def find_member_id_by_account_id(self, account_id: str | None) -> str | None:
         if not account_id:
@@ -330,6 +361,8 @@ class Table(Generic[RulesT]):
         # If seated, unassign seat
         seat_index = self._find_seat_by_member(member_id)
         if seat_index is not None:
+            if self._active_game_id is not None:
+                self._game_changed_seats.add(seat_index)
             self._seats[seat_index].member_id = None
 
             # If game running, block it
@@ -376,17 +409,15 @@ class Table(Generic[RulesT]):
 
     # --------------------------- Seat Control -------------------------- #
 
-    def add_seat(self, acting_member_id: str) -> None:
+    def add_seat(self) -> None:
         """
         Add one seat to the table.
 
         Rules:
-        - Only host may add seats.
         - Table must be OPEN.
         - Cannot exceed MAX_SEATS.
         """
 
-        self._ensure_host(acting_member_id, "Only host may add seats.")
 
         self._ensure_state(TableState.OPEN, "Seats can only be modified while table is open.")
 
@@ -397,18 +428,16 @@ class Table(Generic[RulesT]):
         self._seats.append(Seat(index=new_index))
 
 
-    def remove_seat(self, acting_member_id: str) -> None:
+    def remove_seat(self) -> None:
         """
         Remove the last seat.
 
         Rules:
-        - Only host may modify seat count.
         - Seat count may not go below MIN_SEATS.
         - Cannot modify seats while a game exists.
         - If seat is occupied, member is automatically unassigned.
         """
 
-        self._ensure_host(acting_member_id, "Only host may modify seat count.")
 
         self._ensure_no_game_exists("Cannot modify seats while a game exists.")
 
@@ -461,9 +490,17 @@ class Table(Generic[RulesT]):
                 self._state = TableState.IN_GAME
 
 
+    def get_seat_occupant(self, seat_index: int) -> str | None:
+        """Return the occupant of a valid seat for application authorization."""
+        self._ensure_seat_index_valid(seat_index)
+        return self._seats[seat_index].member_id
+
+
     def unassign_seat(self, seat_index: int) -> None:
         """
-        Remove a member from a seat.
+        Remove a member from a seat as a domain operation.
+
+        The application service authorizes member-initiated requests.
 
         Rules:
         - Seat index must be valid.
@@ -480,6 +517,8 @@ class Table(Generic[RulesT]):
             return  # no-op
 
         former_player_id = seat.member_id
+        if self._active_game_id is not None:
+            self._game_changed_seats.add(seat_index)
 
         seat.member_id = None
 
@@ -510,11 +549,14 @@ class Table(Generic[RulesT]):
 
         self._ensure_host(acting_member_id, "Only host may update config.")
 
-        self._ensure_state(TableState.OPEN, "Rules can only be updated while table is open.")
+        self.set_pending_rules(rules)
 
+    def set_pending_rules(self, rules: RulesT) -> None:
+        """Shared state invariant after the application service authorizes the actor."""
+        self._ensure_state(TableState.OPEN, "Rules can only be updated while table is open.")
         self._pending_rules = rules
 
-    def prepare_game_start(self, acting_member_id: str) -> int:
+    def prepare_game_start(self) -> int:
         """
         Validate that a game may be started and return the number
         of players that should participate.
@@ -523,7 +565,6 @@ class Table(Generic[RulesT]):
         It does NOT create or attach a Game instance.
 
         Rules:
-        - Only host may initiate start.
         - Table must be OPEN.
         - No active game may exist.
         - All seats must be filled.
@@ -532,7 +573,6 @@ class Table(Generic[RulesT]):
         - Number of seated players.
         """
 
-        self._ensure_host(acting_member_id, "Only host may start the game.")
         self._ensure_state(TableState.OPEN, "Game can only be started while table is open.")
         self._ensure_no_game_exists("Game already exists.")
 
@@ -543,7 +583,7 @@ class Table(Generic[RulesT]):
 
 
 
-    def attach_game(self, acting_member_id: str, game_id: str) -> None:
+    def attach_game(self, game_id: str) -> None:
         """
         Attach an externally created Game to this table.
 
@@ -551,7 +591,6 @@ class Table(Generic[RulesT]):
         It records the game_id and transitions state.
 
         Rules:
-        - Only host may attach.
         - Table must be OPEN.
         - No active game may already exist.
         - game_id must be provided by application layer.
@@ -561,13 +600,17 @@ class Table(Generic[RulesT]):
         - Table transitions to IN_GAME.
         """
 
-        self._ensure_host(acting_member_id, "Only host may attach the game.")
         self._ensure_state(TableState.OPEN, "Game can only be attached while table is open.")
         self._ensure_no_game_exists("Game already exists.")
 
+        self._game_changed_seats.clear()
         self._active_game_id = game_id
         self._state = TableState.IN_GAME
 
+
+    @property
+    def game_changed_seats(self) -> frozenset[int]:
+        return frozenset(self._game_changed_seats)
 
     def detach_game(self, acting_member_id: str) -> None:
         """
@@ -580,7 +623,10 @@ class Table(Generic[RulesT]):
         """
 
         self._ensure_host(acting_member_id, "Only host may detach the game.")
+        self.release_game()
 
+    def release_game(self) -> None:
+        """Detach an existing game after application-layer authorization."""
         self._ensure_game_exists()
 
         self._active_game_id = None

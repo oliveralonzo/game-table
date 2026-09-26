@@ -34,6 +34,17 @@ import type { TableView, TableList } from "game-table/types/table";
 import { useSession } from "game-table/context/SessionContext";
 import { useAuthSession } from "game-table/context/AuthSessionContext";
 
+import type { GroupActivity } from "game-table/types/groupActivity";
+
+export type GroupPresenceSnapshot = { group_id: string; active_members: { account_id: string; table_code: string | null }[] };
+export type GroupSummary = { id: string; public_id: string; name: string; member_count: number };
+export type GroupTable = { instance_id: string; table_code: string; group_id: string; state: "open" | "in_game" | "game_blocked"; seat_count: number; seats: (string | null)[]; members: { member_id: string; name: string; account_username: string | null }[] };
+type GroupTablesAck = { group_id: string; tables: GroupTable[] } | BackendErrorAck;
+type CreateGroupTableAck = { table: GroupTable } | BackendErrorAck;
+export type GroupMember = { account_id: string; username: string; name: string; is_self: boolean };
+type GroupMembersAck = { group_id: string; members: GroupMember[] } | BackendErrorAck;
+type GroupsAck = { groups: GroupSummary[] } | BackendErrorAck;
+
 type BackendErrorAck = { error: string; code?: string; message: string };
 
 type CreateJoinAck =
@@ -157,6 +168,7 @@ type LeaderboardEntry = {
     games_played: number;
     games_won: number;
     win_percentage: number;
+    win_streak: number;
 };
 
 type LeaderboardSort = "games_won" | "games_played" | "win_percentage";
@@ -210,7 +222,8 @@ type TableSocketAPI = {
         table_code: string,
         name: string,
         onError?: SocketErrorHandler,
-        onSuccess?: (table_code: string) => void
+        onSuccess?: (table_code: string) => void,
+        expectedInstanceId?: string
     ) => void;
     lookupTable: (
         table_code: string,
@@ -258,6 +271,15 @@ type TableSocketAPI = {
         player_id: string,
         viewer_id: string
     ) => void;
+    getGroupActivity: (token: string, groupId: string, season: string, page: number, onResult: (response: GroupActivity | BackendErrorAck) => void) => void;
+    updateGroupPresence: (token: string, groupId: string, onResult: (response: GroupPresenceSnapshot | BackendErrorAck) => void) => void;
+    leaveGroupPresence: (groupId: string) => void;
+    listGroupTables: (token: string, groupId: string, onResult: (response: GroupTablesAck) => void) => void;
+    createGroupTable: (token: string, groupId: string, onResult: (response: CreateGroupTableAck) => void) => void;
+    listGroupMembers: (token: string, groupId: string, onResult: (response: GroupMembersAck) => void) => void;
+    groupTablesVersion: number;
+    groupConnectionVersion: number;
+    listGroups: (token: string, onResult: (response: GroupsAck) => void) => void;
     getAccount: (
         token: string,
         onResult: (response: AccountAck) => void
@@ -319,9 +341,17 @@ const TableSocketContext = createContext<TableSocketAPI | undefined>(
 export function TableSocketProvider({ children }: { children: ReactNode }) {
     const { state, dispatch } = useTable();
     const socketRef = useRef<ReturnType<typeof io> | null>(null);
+    const activeTableRef = useRef(state.tableView?.table_code);
+    activeTableRef.current = state.tableView?.table_code;
+    const activeGroupRef = useRef(state.tableView?.group_id);
+    activeGroupRef.current = state.tableView?.group_id;
+    const activeGroupMemberRef = useRef(false);
+    activeGroupMemberRef.current = !!state.selfMemberId && !!state.tableView?.group_member_ids?.includes(state.selfMemberId);
     const selfMemberIdRef = useRef<string | null>(null);
     const preparingForPageUnloadRef = useRef(false);
     const [isSessionReady, setIsSessionReady] = useState(false);
+    const [groupTablesVersion, setGroupTablesVersion] = useState(0);
+    const [groupConnectionVersion, setGroupConnectionVersion] = useState(0);
 
     const { clientSessionId } = useSession();
     const { getAuthToken } = useAuthSession();
@@ -408,11 +438,14 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         socketRef.current = socket;
 
         socket.on("connect", () => {
+            setGroupConnectionVersion(value => value + 1);
             socket.emit("table:list");
             setIsSessionReady(true);
         });
 
+        socket.on("group:tables_changed", () => setGroupTablesVersion(value => value + 1));
         socket.on("table:list_updated", (data: { tables: TableList[] }) => {
+            setGroupTablesVersion(value => value + 1);
             dispatch({
                 type: "SET_TABLE_LIST",
                 payload: data.tables,
@@ -432,11 +465,12 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         });
 
         socket.on("table:deleted", (data: { table_code: string }) => {
+            if (activeTableRef.current !== data.table_code) return;
             clearChatStorage(data.table_code);
 
             dispatch({
                 type: "SET_LAST_TABLE_EVENT",
-                payload: { type: "deleted", table_code: data.table_code },
+                payload: { type: "deleted", table_code: data.table_code, group_id: activeGroupRef.current ?? null, group_member: activeGroupMemberRef.current },
             });
 
             dispatch({ type: "CLEAR_TABLE_VIEW" });
@@ -444,11 +478,12 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         });
 
         socket.on("table:removed", (data: { table_code: string }) => {
+            if (activeTableRef.current !== data.table_code) return;
             clearChatStorage(data.table_code);
 
             dispatch({
                 type: "SET_LAST_TABLE_EVENT",
-                payload: { type: "removed", table_code: data.table_code },
+                payload: { type: "removed", table_code: data.table_code, group_id: activeGroupRef.current ?? null, group_member: activeGroupMemberRef.current },
             });
 
             dispatch({ type: "CLEAR_TABLE_VIEW" });
@@ -462,7 +497,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
 
             dispatch({
                 type: "SET_LAST_TABLE_EVENT",
-                payload: { type: "replaced", table_code: data.table_code },
+                payload: { type: "replaced", table_code: data.table_code, group_id: activeGroupRef.current ?? null, group_member: activeGroupMemberRef.current },
             });
 
             dispatch({ type: "CLEAR_TABLE_VIEW" });
@@ -580,7 +615,8 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         table_code: string,
         name: string,
         onError?: SocketErrorHandler,
-        onSuccess?: (table_code: string) => void
+        onSuccess?: (table_code: string) => void,
+        expectedInstanceId?: string
     ) {
         getAuthToken()
             .catch(() => null)
@@ -590,6 +626,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                     {
                         table_code,
                         name,
+                        ...(expectedInstanceId ? { instance_id: expectedInstanceId } : {}),
                         ...(authToken ? { auth_token: authToken } : {}),
                     },
                     (response: CreateJoinAck) => {
@@ -823,6 +860,62 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         });
     }
 
+    const getGroupActivity = useCallback((token: string, groupId: string, season: string, page: number, onResult: (response: GroupActivity | BackendErrorAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not load group activity." };
+        if (!socket?.connected) { onResult(failure); return; }
+        socket.timeout(10000).emit("group:activity", { token, group_id: groupId, season, page }, (error: Error | null, response: GroupActivity | BackendErrorAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+    const updateGroupPresence = useCallback((token: string, groupId: string, onResult: (response: GroupPresenceSnapshot | BackendErrorAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not refresh group presence." };
+        if (!socket?.connected) { onResult(failure); return; }
+        socket.timeout(10000).emit("group:presence", { token, group_id: groupId }, (error: Error | null, response: GroupPresenceSnapshot | BackendErrorAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+    const leaveGroupPresence = useCallback((groupId: string) => {
+        // Do not queue a stale leave across a reconnect.
+        if (socketRef.current?.connected) socketRef.current.emit("group:presence_leave", { group_id: groupId });
+    }, []);
+    const listGroupTables = useCallback((token: string, groupId: string, onResult: (response: GroupTablesAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not load tables." };
+        if (!socket?.connected) { onResult(failure); return; }
+        socket.timeout(10000).emit("group:tables", { token, group_id: groupId }, (error: Error | null, response: GroupTablesAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+    const createGroupTable = useCallback((token: string, groupId: string, onResult: (response: CreateGroupTableAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not create table." };
+        if (!socket?.connected) { onResult(failure); return; }
+        socket.timeout(10000).emit("group:create_table", { token, group_id: groupId }, (error: Error | null, response: CreateGroupTableAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+
+    const listGroupMembers = useCallback((token: string, groupId: string, onResult: (response: GroupMembersAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not load members." };
+        if (!socket?.connected) { onResult(failure); return; }
+        socket.timeout(10000).emit("group:members", { token, group_id: groupId }, (error: Error | null, response: GroupMembersAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+
+    const listGroups = useCallback((token: string, onResult: (response: GroupsAck) => void) => {
+        const socket = socketRef.current;
+        const failure = { error: "ConnectionError", message: "Could not load groups." };
+        if (!socket?.connected) { onResult(failure); return; }
+        // Token-bearing requests bypass the generic emit logger and are bounded.
+        socket.timeout(10000).emit("group:list", { token }, (error: Error | null, response: GroupsAck) => {
+            onResult(error || !response ? failure : response);
+        });
+    }, []);
+
     const getAccount = useCallback((
         token: string,
         onResult: (response: AccountAck) => void
@@ -955,6 +1048,14 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         grantHandView,
         revokeHandView,
         canViewHand,
+        getGroupActivity,
+        updateGroupPresence, leaveGroupPresence,
+        listGroupTables,
+        createGroupTable,
+        listGroupMembers,
+        groupTablesVersion,
+        groupConnectionVersion,
+        listGroups,
         getAccount,
         checkUsernameAvailability,
         createAccount,

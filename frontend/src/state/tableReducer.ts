@@ -27,7 +27,7 @@ export interface TableStateContainer {
     tableView: TableView | null;
     tableList: TableList[];
     selfMemberId: string | null;
-    lastTableEvent: { type: "deleted" | "removed" | "replaced"; table_code: string } | null;
+    lastTableEvent: { type: "deleted" | "removed" | "replaced"; table_code: string; group_id?: string | null; group_member?: boolean } | null;
 }
 
 /**
@@ -42,7 +42,7 @@ export type TableAction =
     | { type: "SET_SELF_MEMBER_ID"; payload: string | null }
     | {
         type: "SET_LAST_TABLE_EVENT";
-        payload: { type: "deleted" | "removed" | "replaced"; table_code: string } | null;
+        payload: { type: "deleted" | "removed" | "replaced"; table_code: string; group_id?: string | null; group_member?: boolean } | null;
     }
     | { type: "RESET_ALL" };
 

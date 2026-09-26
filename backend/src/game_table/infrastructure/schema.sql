@@ -44,3 +44,9 @@ CREATE INDEX IF NOT EXISTS account_game_results_game_idx
 
 CREATE INDEX IF NOT EXISTS account_game_results_account_game_team_idx
     ON account_game_results (account_id, game_history_id, team_index);
+
+-- Nullable context for private/legacy games. Group installation adds the group FK.
+ALTER TABLE game_history ADD COLUMN IF NOT EXISTS group_id TEXT;
+ALTER TABLE game_history ADD COLUMN IF NOT EXISTS started_at BIGINT;
+ALTER TABLE account_game_results ADD COLUMN IF NOT EXISTS group_participation TEXT
+    CHECK (group_participation IN ('member', 'guest'));

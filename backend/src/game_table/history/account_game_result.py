@@ -15,6 +15,8 @@ class AccountGameResult:
         won: bool,
         points_for: int,
         points_against: int,
+        *,
+        group_participation: str | None = None,
     ):
         if not game_history_id or not game_history_id.strip():
             raise ValueError("Game history ID is required.")
@@ -34,6 +36,9 @@ class AccountGameResult:
         if points_against < 0:
             raise ValueError("Points against cannot be negative.")
 
+        if group_participation not in (None, "member", "guest"):
+            raise ValueError("Invalid group participation.")
+        self._group_participation = group_participation
         self._game_history_id = game_history_id.strip()
         self._account_id = account_id.strip()
         self._seat_index = seat_index
@@ -41,6 +46,10 @@ class AccountGameResult:
         self._won = won
         self._points_for = points_for
         self._points_against = points_against
+
+    @property
+    def group_participation(self) -> str | None:
+        return self._group_participation
 
     @property
     def game_history_id(self) -> str:
@@ -72,6 +81,7 @@ class AccountGameResult:
 
     def to_dict(self) -> dict:
         return {
+            **({"group_participation": self._group_participation} if self._group_participation is not None else {}),
             "game_history_id": self._game_history_id,
             "account_id": self._account_id,
             "seat_index": self._seat_index,

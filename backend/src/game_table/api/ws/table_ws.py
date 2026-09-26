@@ -5,6 +5,7 @@ import asyncio
 from socketio import AsyncServer
 from game_table.application.account_service import AccountService
 from game_table.application.table_service import TableService
+from game_table.application.table_session_service import TableSessionService
 from game_table.application.game_table_service import GameTableService
 from game_table.game_settings_provider import GameSettingsProvider
 from game_table.api.ws.errors import error_response as _error_response
@@ -91,6 +92,8 @@ def register_table_events(
         try:
             table_view = _get_table_view(table_code)
             await sio.emit("table:updated", table_view, room=table_code)
+            if table_view.get("group_id"):
+                await sio.emit("group:tables_changed")
         except ValueError:
             pass
 
@@ -299,6 +302,20 @@ def register_table_events(
         except Exception as exc:
             return _error_response(exc)
 
+    @sio.on("table:create_empty")
+    async def create_empty_table(sid, data=None):
+        try:
+            # Allocation does not create a participant or join a socket room.
+            account_id, _ = _resolve_account_identity(data or {})
+            creator_identity = (f"account:{account_id}" if account_id else
+                                f"session:{session_registry.resolve_client_session_id(sid)}")
+            table = table_service.create_empty_table(creator_identity=creator_identity,
+                                                     rules=game_settings_provider.default_settings())
+            await _broadcast_table_list_update()
+            return {"table": table}
+        except Exception as exc:
+            return _error_response(exc)
+
     @sio.on("table:delete")
     async def delete_table(sid, data):
         try:
@@ -334,6 +351,12 @@ def register_table_events(
             table_code = data["table_code"]
             name = data["name"]
 
+            expected_instance = data.get("instance_id")
+            if expected_instance is not None:
+                if (not table_service.table_exists(table_code)
+                        or table_service.get_table(table_code).instance_id != expected_instance):
+                    raise ValueError("Table does not exist.")
+
             member_id = session_registry.get_or_create_member_id(sid)
             account_id, account_username = _resolve_account_identity(data)
 
@@ -343,6 +366,8 @@ def register_table_events(
                 name=name,
                 account_id=account_id,
                 account_username=account_username,
+                creator_identity=(f"account:{account_id}" if account_id else
+                                  f"session:{session_registry.resolve_client_session_id(sid)}"),
             )
 
             if removed_member_id is not None:
@@ -831,6 +856,22 @@ def register_table_events(
                 "account_member_name": account_member_name,
             }
 
+        except Exception as exc:
+            return _error_response(exc)
+
+    @sio.on("table:saved_preview")
+    async def saved_table_preview(sid, data):
+        try:
+            code = data["table_code"]
+            instance_id = data["instance_id"]
+            if not table_service.table_exists(code):
+                return {"table": None}
+            table = table_service.get_table(code)
+            # A saved card refers to one table lifetime, never a reused code.
+            # The instance token is issued to participants, not the public list.
+            if table.group_id is not None or table.instance_id != instance_id:
+                return {"table": None}
+            return {"table": TableSessionService.table_preview(table)}
         except Exception as exc:
             return _error_response(exc)
 

@@ -4,19 +4,21 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { useAuthSession } from "game-table/context/AuthSessionContext";
+import TableEventNotice from "game-table/components/TableEventNotice";
+import PrivateTables from "game-table/components/PrivateTables";
+import AppLoadingScreen from "game-table/components/AppLoadingScreen";
+import { generateCode } from "game-table/utils/tableCode";
+import { generateNickname } from "game-table/utils/nicknameGenerator";
 import Logo from "game-table/components/Logo";
 import AccountScreen from "game-table/pages/AccountScreen";
 import OpenTablesList from "game-table/components/OpenTablesList";
-import LeaderboardScreen, {
-    cacheLeaderboardPage,
-    getCachedLeaderboardPage,
-    LEADERBOARD_PAGE_SIZE,
-} from "game-table/pages/LeaderboardScreen";
+import GroupsList from "game-table/components/GroupsList";
+import HomeTabbar, { type HomeTab } from "game-table/components/HomeTabbar";
 import { useSession } from "game-table/context/SessionContext";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import {
@@ -27,9 +29,10 @@ import { encodeTableCodePath, normalizeTableCode } from "game-table/utils/tableR
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import PlatformSettingsPanel from "game-table/components/PlatformSettingsPanel";
 import NicknameSettings from "game-table/components/NicknameSettings";
-import { ArrowLeft, ChartNoAxesColumn, Settings, UserRound } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 import {
     App as KonstaApp,
+    Navbar,
     Button,
     Glass,
     Popover,
@@ -39,30 +42,6 @@ import {
 
 /* ----------------------------- Code helpers ------------------------------ */
 
-function generateCode(): string {
-    const CONSONANTS = "BCDFGJKLMNPRSTV";
-    const VOWELS = "AEIU";
-
-    const rnd = (n: number) => {
-        try {
-            const a = new Uint32Array(1);
-            crypto.getRandomValues(a);
-            return a[0] % n;
-        } catch {
-            return Math.floor(Math.random() * n);
-        }
-    };
-
-    const pick = (s: string) => s.charAt(rnd(s.length));
-
-    const letters =
-        pick(CONSONANTS) + pick(VOWELS) + pick(CONSONANTS) + pick(VOWELS);
-
-    let digits = "";
-    for (let i = 0; i < 4; i++) digits += String(rnd(10));
-
-    return `${letters}-${digits}`;
-}
 
 type LookupStatus = "idle" | "checking" | "found" | "missing";
 
@@ -73,9 +52,38 @@ type Props = {
 
 type JoinRouteState = {
     intent?: "join" | "create";
+    instanceId?: string;
 };
 
-type JoinScreenPage = "join" | "leaderboard" | "account";
+type JoinScreenPage = "join" | "account" | "groups" | "open-play";
+
+const HOME_TAB_SESSION_KEY = "game-table:home-tab";
+
+function rememberedHomeTab(): HomeTab | undefined {
+    try {
+        const tab = sessionStorage.getItem(HOME_TAB_SESSION_KEY);
+        return tab === "tables" || tab === "groups" || tab === "open-play" || tab === "you" ? tab : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function rememberHomeTab(tab: HomeTab) {
+    try {
+        sessionStorage.setItem(HOME_TAB_SESSION_KEY, tab);
+    } catch {
+        // Navigation still works when browser storage is unavailable.
+    }
+}
+
+function pageFromLocation(search: string, isTableLink: boolean, homeTab?: HomeTab): JoinScreenPage {
+    const params = new URLSearchParams(search);
+    const tab = params.get("tab") ?? homeTab ?? rememberedHomeTab();
+    if (params.get("account") === "1" || tab === "you") return "account";
+    if (isTableLink || tab === "tables") return "join";
+    if (tab === "open-play") return "open-play";
+    return "groups";
+}
 type UrlEntryPhase = "resolving" | "manual";
 
 function hasAccountQuery(search: string): boolean {
@@ -130,10 +138,11 @@ function UrlEntryLoading({ label }: { label: string }) {
 
 export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
 
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const SettingsPanel = gamePlugin.SettingsPanel;
     const navigate = useNavigate();
     const location = useLocation();
+    const { groupPublicId } = useParams();
     const { state, dispatch } = useTable();
     const { displayName, setDisplayName } = useSession();
     const { getAuthToken, isAuthLoaded, isSignedIn, signOut } = useAuthSession();
@@ -143,7 +152,6 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
         createTable,
         getAccount,
         joinTable,
-        listLeaderboard,
         lookupTable,
         updateAccountTableNickname,
     } = useTableSocket();
@@ -168,8 +176,18 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     const [urlEntryPhase, setUrlEntryPhase] = useState<UrlEntryPhase>("resolving");
     const [requiresManualUrlSubmit, setRequiresManualUrlSubmit] = useState(false);
     const [page, setPage] = useState<JoinScreenPage>(() => (
-        hasAccountQuery(location.search) ? "account" : "join"
+        accountsEnabled ? pageFromLocation(location.search, !!urlTableCode, location.state?.homeTab) : "join"
     ));
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get("tab");
+        if (!accountsEnabled || !tab || params.has("group")) return;
+        params.delete("tab");
+        navigate({ pathname: location.pathname, search: params.toString() }, {
+            replace: true, state: { ...location.state, homeTab: tab },
+        });
+    }, [accountsEnabled, location.search, location.pathname, location.state, navigate]);
+    const autoEntryRef = useRef<string | null>(null);
     const hasEditedJoinNameRef = useRef(false);
     const requestedAccountNicknameRef = useRef<string | null>(null);
     const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -200,37 +218,11 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     const isResolvingUrlEntry =
         isUrlMode && page === "join" && urlEntryPhase !== "manual";
 
+    const groupId = groupPublicId ?? new URLSearchParams(location.search).get("group");
+    const isGroupDetail = accountsEnabled && !!groupId;
     const openTables = state.tableList;
-    const activeTopTool = isSettingsOpen
-        ? "settings"
-        : page === "leaderboard"
-            ? "leaderboard"
-            : page === "account"
-                ? "account"
-                : null;
-
-    useEffect(() => {
-        if (!accountsEnabled && (page === "account" || page === "leaderboard")) {
-            setPage("join");
-        }
-    }, [accountsEnabled, page]);
-
-    useEffect(() => {
-        if (!accountsEnabled || getCachedLeaderboardPage("games_won", 1)) return;
-
-        let isCurrent = true;
-        listLeaderboard("games_won", 1, LEADERBOARD_PAGE_SIZE, (response) => {
-            if (!isCurrent || "error" in response) return;
-            cacheLeaderboardPage(
-                "games_won",
-                1,
-                response.leaderboard,
-                response.has_more,
-            );
-        });
-
-        return () => { isCurrent = false; };
-    }, [accountsEnabled, listLeaderboard]);
+    const privateCards = accountsEnabled && page === "join" && !isUrlMode;
+    const activeTab: HomeTab = page === "join" ? "tables" : page === "account" ? "you" : page;
 
     useEffect(() => {
         if (!accountsEnabled) {
@@ -284,10 +276,13 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     }, [accountsEnabled, getAccount, getAuthToken, isAuthLoaded, isSignedIn, setDisplayName]);
 
     useEffect(() => {
-        if (hasAccountQuery(location.search)) {
-            setPage("account");
+        const nextPage = accountsEnabled ? pageFromLocation(location.search, isUrlMode, location.state?.homeTab) : "join";
+        setPage(nextPage);
+        if (accountsEnabled && !isUrlMode && !groupId) {
+            rememberHomeTab(nextPage === "join" ? "tables" : nextPage === "account" ? "you" : nextPage);
         }
-    }, [location.search]);
+        setIsSettingsOpen(false);
+    }, [accountsEnabled, location.search, location.state?.homeTab, isUrlMode, groupId]);
 
     useEffect(() => {
         if (!isUrlMode) return;
@@ -315,11 +310,19 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                 if (!isCurrent) return;
 
                 if ("error" in response) {
+                    if (accountsEnabled && isUrlMode && !isCreateMode) {
+                        navigate("/", { replace: true, state: { homeTab: "tables", tableEntryError: resolveBackendErrorCode(response.code, response.message) === "TABLE_NOT_FOUND" ? "join.status.tableNotFoundCode" : backendErrorToJoinKey(response.code, response.message), tableEntryCode: lookupCode } });
+                        return;
+                    }
                     setLookupStatus("missing");
                     setAccountMemberName(null);
                     return;
                 }
 
+                if (!response.joinable && accountsEnabled && isUrlMode && !isCreateMode) {
+                    navigate("/", { replace: true, state: { homeTab: "tables", tableEntryError: "join.status.tableNotFoundCode", tableEntryCode: lookupCode } });
+                    return;
+                }
                 setLookupStatus(response.joinable ? "found" : "missing");
                 setAccountMemberName(response.account_member_name ?? null);
             });
@@ -329,7 +332,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
             isCurrent = false;
             window.clearTimeout(timeoutId);
         };
-    }, [lookupCode, lookupTable]);
+    }, [lookupCode, lookupTable, accountsEnabled, isUrlMode, isCreateMode, navigate]);
 
     useEffect(() => {
         if (!isUrlMode || page !== "join") return;
@@ -365,7 +368,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     ]);
 
     useEffect(() => {
-        if (isUrlMode || page !== "join" || openTables.length === 0) {
+        if (accountsEnabled || isUrlMode || page !== "join" || openTables.length === 0) {
             setOpenTableAccountNames({});
             return;
         }
@@ -392,6 +395,22 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
         };
     }, [isUrlMode, lookupTable, openTables, page]);
 
+    useEffect(() => {
+        if (!accountsEnabled || !isUrlMode || page !== "join" || isCreateMode
+            || !hasResolvedAccountNickname || lookupStatus !== "found" || requiresManualUrlSubmit
+            || nameErrorKey || joiningCode || autoEntryRef.current === normalizedUrlTableCode) return;
+        if (!inputName.trim() && !accountMemberName) {
+            const name = accountUsername || generateNickname(i18n.language);
+            setInputName(name);
+            setCommittedName(name);
+            setDisplayName(name);
+            return;
+        }
+        autoEntryRef.current = normalizedUrlTableCode;
+        handleJoinWithError(normalizedUrlTableCode);
+    }, [accountsEnabled, isUrlMode, page, isCreateMode, hasResolvedAccountNickname, lookupStatus,
+        requiresManualUrlSubmit, nameErrorKey, joiningCode, normalizedUrlTableCode, inputName, accountMemberName, accountUsername, i18n.language]);
+
     function handleJoinWithError(code: string) {
         if (!canUseAccountMemberName) {
             commitNicknamePreference(inputName);
@@ -405,6 +424,10 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                 const resolvedCode = resolveBackendErrorCode(errorCode, message);
 
                 if (resolvedCode === "TABLE_NOT_FOUND") {
+                    if (accountsEnabled) {
+                        navigate("/", { replace: true, state: { homeTab: "tables", tableEntryError: "join.status.tableNotFoundCode", tableEntryCode: code } });
+                        return;
+                    }
                     setLookupStatus("missing");
                     return;
                 }
@@ -424,7 +447,8 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
             (tableCode) => {
                 setJoiningCode(null);
                 navigate(encodeTableCodePath(tableCode), { replace: true });
-            }
+            },
+            routeState?.instanceId
         );
     }
 
@@ -573,7 +597,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     function handleExitUrlMode() {
         setInputCode("");
         setLookupStatus("idle");
-        navigate("/");
+        navigate("/", { state: { homeTab: "tables" } });
     }
 
     function handleDraftNameChange(name: string) {
@@ -616,6 +640,9 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                 setHasAccountNickname(savedNickname.trim().length > 0);
                 onSuccess?.();
             });
+        }).catch(() => {
+            requestedAccountNicknameRef.current = null;
+            onError?.("Could not save nickname. Try again.");
         });
     }
 
@@ -651,82 +678,52 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
         }
     }
 
-    function handleLeaderboardClick() {
-        setIsSettingsOpen(false);
-        setPage("leaderboard");
-        if (hasAccountQuery(location.search)) {
-            navigate("/", { replace: true });
-        }
-    }
-
     function handleAccountBack() {
-        setPage("join");
-        if (hasAccountQuery(location.search)) {
-            navigate(location.pathname, { replace: true });
-        }
+        navigate(isUrlMode ? location.pathname : "/", { state: { homeTab: "tables" } });
     }
 
-    function handleLeaderboardBack() {
-        setPage("join");
+    function handleTabChange(tab: HomeTab) {
+        rememberHomeTab(tab);
+        setIsSettingsOpen(false);
+        navigate("/", { replace: true, state: { homeTab: tab } });
     }
+
+    if (accountsEnabled && isUrlMode && (isResolvingUrlEntry || joiningCode)) return <AppLoadingScreen />;
+
+    if (isGroupDetail) return <GroupsList groupId={groupId!} gamePlugin={gamePlugin} displayName={inputName || accountUsername || ""} onDisplayNameChange={commitNicknamePreference} />;
 
     return (
-        <KonstaApp theme="ios" safeAreas={false} className="min-h-[100svh]">
-            <div className={`relative min-h-[100svh] flex flex-col items-center bg-transparent ${
-                (page === "account" || page === "leaderboard") && accountsEnabled
-                    ? "justify-start px-4 pb-4 pt-20"
-                    : "justify-center p-4"
+        <KonstaApp theme="ios" iosHoverHighlight={false} safeAreas={false} className="min-h-[100svh]">
+            <div className={`relative min-h-[100svh] flex flex-col items-center justify-start bg-transparent px-4 pt-20 ${
+                accountsEnabled && !isGroupDetail
+                    ? privateCards
+                        ? "pb-[calc(6rem+env(safe-area-inset-bottom))]"
+                        : "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+                    : "pb-4"
             }`}>
-                <div className="absolute top-0 left-0 z-10 p-4">
+                <Navbar className="!fixed left-0" innerClassName="items-start">
                     <Logo />
-                </div>
-                <div className="absolute top-0 right-0 z-10 flex items-start gap-2 p-4">
+                    <div className="flex items-start gap-2">
                     <Segmented
                         rounded
                         strong
-                        className={`h-11 w-auto ${activeTopTool
+                        className={`h-11 w-auto ${isSettingsOpen
                             ? "[&>span:last-child]:opacity-100 [&>span:last-child]:blur-0"
                             : "[&>span:last-child]:!transition-[opacity,filter] [&>span:last-child]:opacity-0 [&>span:last-child]:blur-sm"
-                            }`}
+                        }`}
                     >
                         <SegmentedButton
                             ref={settingsButtonRef}
                             type="button"
-                            active={activeTopTool === "settings"}
+                            active={isSettingsOpen}
                             aria-label={t("table.tool.settings")}
-                            aria-pressed={activeTopTool === "settings"}
+                            aria-pressed={isSettingsOpen}
                             title={t("table.tool.settings")}
                             onClick={handleSettingsClick}
                             className="relative h-full aspect-square px-0"
                         >
                             <Settings size={20} strokeWidth={2} />
                         </SegmentedButton>
-                        {accountsEnabled ? (
-                            <>
-                                <SegmentedButton
-                                    type="button"
-                                    active={activeTopTool === "leaderboard"}
-                                    aria-label={t("leaderboard.tool")}
-                                    aria-pressed={activeTopTool === "leaderboard"}
-                                    title={t("leaderboard.tool")}
-                                    onClick={handleLeaderboardClick}
-                                    className="relative h-full aspect-square px-0"
-                                >
-                                    <ChartNoAxesColumn size={20} strokeWidth={2} />
-                                </SegmentedButton>
-                                <SegmentedButton
-                                    type="button"
-                                    active={activeTopTool === "account"}
-                                    aria-label={t("account.title")}
-                                    aria-pressed={activeTopTool === "account"}
-                                    title={t("account.title")}
-                                    onClick={handleAccountClick}
-                                    className="relative h-full aspect-square px-0"
-                                >
-                                    <UserRound size={20} strokeWidth={2} />
-                                </SegmentedButton>
-                            </>
-                        ) : null}
                     </Segmented>
                     <Popover
                         opened={isSettingsOpen}
@@ -744,35 +741,62 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             <PlatformSettingsPanel
                                 displayName={inputName}
                                 onDisplayNameDraftChange={handleDraftNameChange}
-                                onDisplayNameChange={(name: string, onSuccess?: () => void) => {
-                                    handleDraftNameChange(name);
-                                    onSuccess?.();
-                                }}
-                                showProfile={false}
+                                onDisplayNameChange={commitNicknamePreference}
                                 routed
                             />
                         </Glass>
                     </Popover>
-                </div>
+                    </div>
+                </Navbar>
 
-                <Glass
+                {accountsEnabled && ((page === "join" && !isUrlMode) || page === "groups" || page === "open-play") && (
+                    <div className={`w-full max-w-md px-1 ${privateCards || (page === "groups" && !isSignedIn) ? "mb-1" : "mb-3"}`}>
+                        {isGroupDetail && (
+                            <Button
+                                type="button" clear rounded inline
+                                onClick={() => navigate("/", { state: { homeTab: "groups" } })}
+                                className="mb-3 -ml-2 gap-1 px-2"
+                            >
+                                <ArrowLeft size={20} aria-hidden="true" />
+                                {t("navigation.groups")}
+                            </Button>
+                        )}
+                        <h1 className="text-[34px] font-bold leading-tight tracking-normal text-black dark:text-white">
+                            {isGroupDetail ? "Alpha" : t(page === "groups" ? "navigation.groups" : page === "open-play" ? "navigation.open-play" : "navigation.tables")}
+                        </h1>
+                    </div>
+                )}
+
+                {page === "groups" ? <GroupsList gamePlugin={gamePlugin} displayName={inputName || accountUsername || ""} onDisplayNameChange={commitNicknamePreference} /> : privateCards ? <PrivateTables ready={hasResolvedAccountNickname} /> : <Glass
                     highlight={false}
                     colors={{
                         shadowIos: glassWithoutLightInsetShadow,
                     }}
                     className={`rounded-[28px] ${
-                        (page === "account" || page === "leaderboard") && accountsEnabled
+                        page === "account" && accountsEnabled
                             ? "w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] p-3 sm:w-fit sm:p-4"
-                            : "w-full max-w-md p-5 sm:p-6"
+                            : page === "open-play" ? "w-full max-w-md px-5 py-5 sm:px-6" : "w-full max-w-md p-5 sm:p-6"
                     }`}
                 >
                     {page === "account" && accountsEnabled ? (
                         <AccountScreen
                             onBack={handleAccountBack}
                             afterAuthUrl={accountUrl()}
+                            rootTab={!isUrlMode}
                         />
-                    ) : page === "leaderboard" && accountsEnabled ? (
-                        <LeaderboardScreen onBack={handleLeaderboardBack} />
+                    ) : page === "open-play" ? (
+                        <h2 className="text-xl font-semibold text-black dark:text-white">
+                            {t("navigation.comingSoon")}
+                        </h2>
+                    ) : page === "account" ? (
+                        <section className="grid min-h-48 content-center gap-3 px-3 py-8 text-center">
+                            <h1 className="text-3xl font-semibold text-black dark:text-white">
+                                {t(`navigation.${activeTab}`)}
+                            </h1>
+                            <p className="text-black/55 dark:text-white/55">
+                                {t(page === "account" ? "navigation.accountUnavailable" : "navigation.comingSoon")}
+                            </p>
+                        </section>
                     ) : (
                         isResolvingUrlEntry ? (
                             <UrlEntryLoading
@@ -936,7 +960,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             {isUrlMode && lookupStatus === "missing" && !isCreateMode && (
                                 <p className="px-1 text-sm text-red-500">
                                     {t("join.status.tableNotFound")}
-                                    {!isCreateMode && (
+                                    {!isCreateMode && !accountsEnabled && (
                                         <>
                                             <span className="mx-1 text-black/30 dark:text-white/30">
                                                 ·
@@ -975,47 +999,11 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                         </form>
                         )
                     )}
-                </Glass>
+                </Glass>}
 
-                {page === "join" && state.lastTableEvent && (
-                    <Glass
-                        highlight={false}
-                        colors={{
-                            shadowIos: glassWithoutLightInsetShadow,
-                        }}
-                        className="relative max-w-md w-full mt-3 rounded-2xl p-3 pr-12 text-sm text-black dark:text-white"
-                    >
-                        <span className="pr-3">
-                            {t(
-                                state.lastTableEvent.type === "removed"
-                                    ? "join.status.tableRemoved"
-                                    : state.lastTableEvent.type === "replaced"
-                                    ? "join.status.tableReplaced"
-                                    : "join.status.tableClosed",
-                                { code: state.lastTableEvent.table_code }
-                            )}
-                        </span>
+                {page === "join" && <TableEventNotice />}
 
-                        <Button
-                            type="button"
-                            clear
-                            rounded
-                            aria-label={t("join.action.dismiss")}
-                            title={t("join.action.dismiss")}
-                            onClick={() =>
-                                dispatch({
-                                    type: "SET_LAST_TABLE_EVENT",
-                                    payload: null,
-                                })
-                            }
-                            className="absolute inset-y-1 right-1 w-10"
-                        >
-                            ×
-                        </Button>
-                    </Glass>
-                )}
-
-                {page === "join" && !isUrlMode && (
+                {page === "join" && !isUrlMode && !accountsEnabled && (
                     <OpenTablesList
                         tables={openTables}
                         onJoin={handleJoinFromList}
@@ -1024,7 +1012,11 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                         accountMemberNamesByCode={openTableAccountNames}
                     />
                 )}
+                {privateCards && <p className="mt-auto w-full max-w-[18rem] px-1 pt-6 text-center text-xs leading-4 sm:max-w-md text-black/45 dark:text-white/45">
+                    {t("privateTables.statsNote")}
+                </p>}
             </div>
+            {accountsEnabled && !isGroupDetail && <HomeTabbar activeTab={activeTab} onChange={handleTabChange} />}
         </KonstaApp>
     );
 }

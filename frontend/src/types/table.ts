@@ -41,11 +41,15 @@ export interface TableMember {
  * No derived UI fields should be added here.
  */
 export interface TableView {
+    instance_id?: string;
     /** Unique table identifier. */
     table_code: string;
 
     /** Member ID of the current host. */
-    host_id: string;
+    host_id: string | null;
+    group_id?: string | null;
+    group_public_id?: string | null;
+    group_member_ids?: string[];
 
     /**
      * All members currently associated with the table.

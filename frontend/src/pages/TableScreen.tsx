@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import { Share } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
@@ -16,6 +17,7 @@ import TableFrame, {
     type TableToolRenderContext,
 } from "game-table/components/TableFrame";
 import TableFrameTools from "game-table/components/TableFrameTools";
+import TableInviteDialog from "game-table/components/TableInviteDialog";
 import { useActivity } from "game-table/hooks/useActivity";
 import { useTableChat } from "game-table/hooks/useTableChat";
 import { useTableInvite } from "game-table/hooks/useTableInvite";
@@ -73,6 +75,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     const table = state.tableView;
     const selfId = state.selfMemberId;
     const isHost = table !== null && selfId !== null && table.host_id === selfId;
+    const canManageSeats = isHost || (!!selfId && !!table?.group_member_ids?.includes(selfId));
     const seatCount = table?.seat_count ?? 0;
     const isFourPlayer = seatCount === 4;
     const displayName = table && selfId ? table.members[selfId]?.name ?? "" : "";
@@ -139,7 +142,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     }
 
     const canStartGame =
-        isHost &&
+        canManageSeats &&
         table.state === "open" &&
         table.seats.every((seat) => seat !== null);
 
@@ -159,20 +162,19 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             getRosterActions={getRosterActions}
             tableCode={table.table_code}
             inviteCopied={inviteCopied}
-            fallbackInviteUrl={fallbackInviteUrl}
             onInvite={handleInvite}
-            onCloseInviteFallback={closeInviteFallback}
             renderSettings={() => (
                 <PlatformSettingsPanel
                     displayName={displayName}
                     onDisplayNameChange={updateName}
                     routed
                     gameSettingsNested={settingsNested}
+                    showLanguage={!gamePlugin.features.settings}
                     gameSettings={gamePlugin.features.settings ? (
                         <SettingsPanel
                             value={lobbyConfig}
                             onChange={(next: unknown) => updateGameSettings(next)}
-                            readOnly={!isHost || table.state !== "open"}
+                            readOnly={!canManageSeats || table.state !== "open"}
                             isFourPlayer={isFourPlayer}
                             seatCount={seatCount}
                             onAddSeat={addSeat}
@@ -184,7 +186,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             collapsible={false}
                             embeddedGamePane
                             onNestedNavigationChange={setSettingsNested}
-                            sections={{ profile: false, language: false }}
+                            sections={{ profile: false, language: true }}
                         />
                     ) : undefined}
                 />
@@ -229,7 +231,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         seatCount={seatCount}
                         initialLabels={seatInitialLabels}
                         playerIndex={playerIndex}
-                        isHost={isHost}
+                        isHost={canManageSeats}
                         tableState={table.state}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}
@@ -244,7 +246,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                                 >
                                     {t("table.action.openGame")}
                                 </Button>
-                            ) : isHost ? (
+                            ) : isHost || table.group_id ? (
                                 <Button
                                     type="button"
                                     inline
@@ -269,7 +271,29 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         }
                     />
                 </Glass>
+                <div className="mt-3 flex flex-col items-center">
+                    <p className="font-mono text-sm text-black/55 dark:text-white/55">
+                        {table.table_code}
+                    </p>
+                    <Button
+                        type="button"
+                        inline
+                        clear
+                        rounded
+                        onClick={handleInvite}
+                        className="h-10 px-4 font-semibold"
+                    >
+                        <span className="inline-flex items-center gap-2">
+                            <Share size={18} strokeWidth={2.2} aria-hidden="true" />
+                            {inviteCopied ? t("table.action.copied") : t("table.action.invite")}
+                        </span>
+                    </Button>
+                </div>
             </div>
+            <TableInviteDialog
+                fallbackInviteUrl={fallbackInviteUrl}
+                onCloseInviteFallback={closeInviteFallback}
+            />
         </TableFrame>
     );
 }

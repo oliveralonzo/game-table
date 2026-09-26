@@ -10,13 +10,21 @@ import { useTranslation } from "react-i18next";
 type Props = {
     personColumnLabel: string;
     rows?: number;
+    showHeadToHead?: boolean;
+    percentageFirst?: boolean;
 };
 
 export default function PlayerStatsTableSkeleton({
     personColumnLabel,
     rows = 10,
+    showHeadToHead = false,
+    percentageFirst = false,
 }: Props) {
     const { t } = useTranslation();
+    const columns = (percentageFirst
+        ? ["winPercentage", "won", "lost", "played", "headToHead"]
+        : ["won", "lost", "played", "winPercentage", "headToHead"]
+    ).filter(column => column !== "headToHead" || showHeadToHead);
 
     return (
         <div
@@ -27,10 +35,7 @@ export default function PlayerStatsTableSkeleton({
                 <colgroup>
                     <col className="w-8" />
                     <col className="w-auto" />
-                    <col className="w-10" />
-                    <col className="w-10" />
-                    <col className="w-10" />
-                    <col className="w-10" />
+                    {columns.map(column => <col key={column} className={column === "headToHead" ? "w-20" : "w-10"} />)}
                 </colgroup>
                 <TableHead>
                     <TableRow header>
@@ -40,18 +45,9 @@ export default function PlayerStatsTableSkeleton({
                         <TableCell header scope="col" className="truncate !px-3">
                             {personColumnLabel}
                         </TableCell>
-                        <TableCell header scope="col" className="truncate !px-2 text-right">
-                            {t("leaderboard.column.won")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-2 text-right">
-                            {t("leaderboard.column.lost")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !px-2 text-right">
-                            {t("leaderboard.column.played")}
-                        </TableCell>
-                        <TableCell header scope="col" className="truncate !pl-2 !pr-3 text-right">
-                            {t("leaderboard.column.winPercentage")}
-                        </TableCell>
+                        {columns.map(column => <TableCell key={column} header scope="col" className="truncate !px-2 text-right">
+                            {t(`leaderboard.column.${column}`)}
+                        </TableCell>)}
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -63,18 +59,9 @@ export default function PlayerStatsTableSkeleton({
                             <TableCell className="!px-3">
                                 <div className="h-4 w-full max-w-28 rounded-full bg-black/10 dark:bg-white/10" />
                             </TableCell>
-                            <TableCell className="!px-2">
-                                <div className="ml-auto h-4 w-6 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-2">
-                                <div className="ml-auto h-4 w-6 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!px-2">
-                                <div className="ml-auto h-4 w-6 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
-                            <TableCell className="!pl-2 !pr-3">
-                                <div className="ml-auto h-4 w-8 rounded-full bg-black/10 dark:bg-white/10" />
-                            </TableCell>
+                            {columns.map(column => <TableCell key={column} className="!px-2">
+                                <div className={`ml-auto h-4 rounded-full bg-black/10 dark:bg-white/10 ${column === "headToHead" ? "w-12" : column === "winPercentage" ? "w-8" : "w-6"}`} />
+                            </TableCell>)}
                         </TableRow>
                     ))}
                 </TableBody>

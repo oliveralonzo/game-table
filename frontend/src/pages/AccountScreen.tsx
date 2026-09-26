@@ -1,3 +1,4 @@
+import { HistoryParticipantCell, formatHistoryDate } from "game-table/components/HistoryCells";
 import { useEffect, useState } from "react";
 import {
     SignIn,
@@ -97,6 +98,7 @@ type UsernameAvailabilityState =
 type Props = {
     onBack: () => void;
     afterAuthUrl: string;
+    rootTab?: boolean;
 };
 
 const HISTORY_PAGE_SIZE = 10;
@@ -198,53 +200,6 @@ function ClerkAuthSkeleton() {
     );
 }
 
-function formatHistoryDate(timestamp: number, language: string) {
-    return new Intl.DateTimeFormat(language, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    }).format(new Date(timestamp));
-}
-
-function formatParticipants(
-    participants: AccountHistoryParticipant[],
-    fallback: string
-) {
-    if (participants.length === 0) {
-        return {
-            text: fallback,
-            isPlaceholder: true,
-        };
-    }
-
-    return {
-        text: participants.map((participant) => `@${participant.username}`).join(", "),
-        isPlaceholder: false,
-    };
-}
-
-function HistoryParticipantCell({
-    participants,
-    fallback,
-}: {
-    participants: AccountHistoryParticipant[];
-    fallback: string;
-}) {
-    const value = formatParticipants(participants, fallback);
-
-    return (
-        <div
-            className={`truncate font-medium ${
-                value.isPlaceholder
-                    ? "italic text-black/35 dark:text-white/35"
-                    : "text-black/70 dark:text-white/70"
-            }`}
-        >
-            {value.text}
-        </div>
-    );
-}
-
 function AccountHistorySkeleton({ t }: { t: (key: string) => string }) {
     return (
         <div
@@ -297,7 +252,7 @@ function AccountHistorySkeleton({ t }: { t: (key: string) => string }) {
     );
 }
 
-export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
+export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }: Props) {
     const { t, i18n } = useTranslation();
     const { isLoaded, isSignedIn, getToken } = useAuth();
     const { user } = useUser();
@@ -370,7 +325,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             ? t("account.history.fullTitle")
             : isLoaded && isSignedIn && hasCheckedAccount && !account && !accountCheckFailed
             ? t("account.createUsernameTitle")
-            : t("account.title");
+            : t(rootTab ? "navigation.you" : "account.title");
 
     useEffect(() => {
         if (!isLoaded) {
@@ -767,7 +722,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
             className="mx-auto grid w-full max-w-full gap-5 sm:w-[28rem]"
         >
             <div className="flex items-center justify-between gap-3">
-                <Button
+                {(!rootTab || accountView !== "profile") ? <Button
                     type="button"
                     clear
                     rounded
@@ -777,7 +732,7 @@ export default function AccountScreen({ onBack, afterAuthUrl }: Props) {
                     className="!h-10 !w-10 transition-colors hover:bg-primary/10"
                 >
                     <ArrowLeft size={20} strokeWidth={2.2} />
-                </Button>
+                </Button> : <span aria-hidden="true" className="h-10 w-10" />}
                 <h1 className="min-w-0 flex-1 text-center text-xl font-semibold tracking-normal text-black dark:text-white">
                     {screenTitle}
                 </h1>

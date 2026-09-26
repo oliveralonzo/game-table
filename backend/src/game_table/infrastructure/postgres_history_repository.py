@@ -37,9 +37,11 @@ class PostgresHistoryRepository:
                         rounds_played,
                         team_scores,
                         team_player_counts,
-                        winning_team_index
+                        winning_team_index,
+                        group_id,
+                        started_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (
@@ -50,6 +52,8 @@ class PostgresHistoryRepository:
                         Jsonb(game_history.team_scores),
                         Jsonb(game_history.team_player_counts),
                         game_history.winning_team_index,
+                        game_history.group_id,
+                        game_history.started_at,
                     ),
                 )
 
@@ -63,9 +67,10 @@ class PostgresHistoryRepository:
                             team_index,
                             won,
                             points_for,
-                            points_against
+                            points_against,
+                            group_participation
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (game_history_id, account_id) DO NOTHING
                         """,
                         (
@@ -76,6 +81,7 @@ class PostgresHistoryRepository:
                             result.won,
                             result.points_for,
                             result.points_against,
+                            result.group_participation,
                         ),
                     )
 
@@ -232,7 +238,35 @@ class PostgresHistoryRepository:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     f"""
-                    WITH leaderboard AS (
+                    WITH marked_results AS (
+                        SELECT
+                            account_game_results.account_id,
+                            account_game_results.won,
+                            game_history.completed_at,
+                            game_history.id AS game_history_id,
+                            CASE WHEN LAG(account_game_results.won) OVER (
+                                PARTITION BY account_game_results.account_id
+                                ORDER BY game_history.completed_at DESC, game_history.id DESC
+                            ) IS DISTINCT FROM account_game_results.won THEN 1 ELSE 0 END AS changed
+                        FROM account_game_results
+                        JOIN game_history
+                          ON game_history.id = account_game_results.game_history_id
+                    ), streak_groups AS (
+                        SELECT
+                            account_id,
+                            won,
+                            SUM(changed) OVER (
+                                PARTITION BY account_id
+                                ORDER BY completed_at DESC, game_history_id DESC
+                            ) AS streak_group
+                        FROM marked_results
+                    ), current_streaks AS (
+                        SELECT
+                            account_id,
+                            COUNT(*) FILTER (WHERE streak_group = 1 AND won)::int AS win_streak
+                        FROM streak_groups
+                        GROUP BY account_id
+                    ), leaderboard AS (
                         SELECT
                             accounts.id AS account_id,
                             accounts.username,
@@ -251,8 +285,12 @@ class PostgresHistoryRepository:
                           ON accounts.id = account_game_results.account_id
                         GROUP BY accounts.id, accounts.username
                     )
-                    SELECT *
+                    SELECT
+                        leaderboard.*,
+                        COALESCE(current_streaks.win_streak, 0) AS win_streak
                     FROM leaderboard
+                    LEFT JOIN current_streaks
+                      ON current_streaks.account_id = leaderboard.account_id
                     ORDER BY {order_by}
                     LIMIT %s OFFSET %s
                     """,
@@ -270,6 +308,36 @@ class PostgresHistoryRepository:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
+                    WITH marked_results AS (
+                        SELECT
+                            account_game_results.account_id,
+                            account_game_results.won,
+                            game_history.completed_at,
+                            game_history.id AS game_history_id,
+                            CASE WHEN LAG(account_game_results.won) OVER (
+                                PARTITION BY account_game_results.account_id
+                                ORDER BY game_history.completed_at DESC, game_history.id DESC
+                            ) IS DISTINCT FROM account_game_results.won THEN 1 ELSE 0 END AS changed
+                        FROM account_game_results
+                        JOIN game_history
+                          ON game_history.id = account_game_results.game_history_id
+                        WHERE account_game_results.account_id = ANY(%s)
+                    ), streak_groups AS (
+                        SELECT
+                            account_id,
+                            won,
+                            SUM(changed) OVER (
+                                PARTITION BY account_id
+                                ORDER BY completed_at DESC, game_history_id DESC
+                            ) AS streak_group
+                        FROM marked_results
+                    ), current_streaks AS (
+                        SELECT
+                            account_id,
+                            COUNT(*) FILTER (WHERE streak_group = 1 AND won)::int AS win_streak
+                        FROM streak_groups
+                        GROUP BY account_id
+                    )
                     SELECT
                         accounts.id AS account_id,
                         accounts.username,
@@ -277,14 +345,18 @@ class PostgresHistoryRepository:
                         COALESCE(
                             SUM(CASE WHEN account_game_results.won THEN 1 ELSE 0 END),
                             0
-                        )::int AS games_won
+                        )::int AS games_won,
+                        COALESCE(current_streaks.win_streak, 0) AS win_streak
                     FROM accounts
                     LEFT JOIN account_game_results
                       ON account_game_results.account_id = accounts.id
+                    LEFT JOIN current_streaks
+                      ON current_streaks.account_id = accounts.id
                     WHERE accounts.id = ANY(%s)
-                    GROUP BY accounts.id, accounts.username
+                    GROUP BY accounts.id, accounts.username,
+                        current_streaks.win_streak
                     """,
-                    (account_ids,),
+                    (account_ids, account_ids),
                 )
                 rows = cursor.fetchall()
 
@@ -368,6 +440,7 @@ class PostgresHistoryRepository:
             won=row["won"],
             points_for=row["points_for"],
             points_against=row["points_against"],
+            group_participation=row.get("group_participation"),
         )
 
     @staticmethod
@@ -415,6 +488,7 @@ class PostgresHistoryRepository:
             username=row["username"],
             games_played=row["games_played"],
             games_won=row["games_won"],
+            win_streak=row.get("win_streak", 0),
         )
 
     @staticmethod
@@ -435,4 +509,9 @@ class PostgresHistoryRepository:
 
     @staticmethod
     def _player_records_order_by(sort: str) -> str:
+        if sort == "win_percentage":
+            return (
+                "ROUND(100.0 * games_won / NULLIF(games_played, 0)) DESC, "
+                "games_won DESC, games_played DESC, username ASC"
+            )
         return PostgresHistoryRepository._leaderboard_order_by(sort)
