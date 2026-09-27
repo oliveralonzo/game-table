@@ -399,6 +399,8 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
         if (!accountsEnabled || !isUrlMode || page !== "join" || isCreateMode
             || !hasResolvedAccountNickname || lookupStatus !== "found" || requiresManualUrlSubmit
             || nameErrorKey || joiningCode || autoEntryRef.current === normalizedUrlTableCode) return;
+        // Guests confirm their nickname through the existing join form, even if one is saved locally.
+        if (!accountUsername && !accountMemberName) return;
         if (!inputName.trim() && !accountMemberName) {
             const name = accountUsername || generateNickname(i18n.language);
             setInputName(name);
