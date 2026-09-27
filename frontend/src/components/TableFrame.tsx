@@ -370,7 +370,11 @@ export default function TableFrame({
                 ref={frameRef}
                 className={`relative bg-transparent ${fullBleed ? "flex h-[100svh] flex-col overflow-hidden" : "min-h-[100svh] overflow-visible p-4 pt-20"}`}
             >
-                <Navbar className={`${fixedChrome ? "!fixed" : "!absolute"} left-0 !z-10`} innerClassName="items-start">
+                <Navbar
+                    className={`${fixedChrome ? "!fixed" : "!absolute"} left-0 !z-10 ${fullBleed ? "[&>div:first-child]:hidden" : ""}`}
+                    bgClassName={fullBleed ? "hidden" : undefined}
+                    innerClassName="items-start"
+                >
                     <Logo />
 
                 {isMobileLayout && (
