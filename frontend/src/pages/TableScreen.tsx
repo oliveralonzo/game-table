@@ -17,6 +17,7 @@ import TableFrame, {
     type TableToolRenderContext,
 } from "game-table/components/TableFrame";
 import TableFrameTools from "game-table/components/TableFrameTools";
+import TableSponsor from "game-table/components/TableSponsor";
 import TableInviteDialog from "game-table/components/TableInviteDialog";
 import { useActivity } from "game-table/hooks/useActivity";
 import { useTableChat } from "game-table/hooks/useTableChat";
@@ -38,9 +39,6 @@ type Props = {
 
 export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     const { t } = useTranslation();
-    const showTodaySponsor = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(new Date()) === "2026-09-26";
     const { state } = useTable();
     const {
         assignSeat,
@@ -280,9 +278,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     <p className="font-mono text-sm text-black/55 dark:text-white/55">
                         {table.table_code}
                     </p>
-                    {showTodaySponsor && <p className="mt-1 text-center text-xs text-black/55 dark:text-white/55">
-                        {t("table.label.sponsoredBy", { sponsor: "@RafaMarchena" })}
-                    </p>}
+                    <TableSponsor className="text-center" />
                     <Button
                         type="button"
                         inline

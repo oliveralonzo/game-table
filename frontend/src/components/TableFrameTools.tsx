@@ -2,6 +2,7 @@ import { type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { ChartNoAxesColumn, Share } from "lucide-react";
 import { Button } from "konsta/react";
+import TableSponsor from "game-table/components/TableSponsor";
 import TableInviteDialog from "game-table/components/TableInviteDialog";
 
 import Chat from "game-table/components/Chat";
@@ -95,6 +96,7 @@ export default function TableFrameTools({
                             <ChartNoAxesColumn size={18} strokeWidth={2.2} />
                         </Button> : null}
                     </div>
+                    {tableCode && <TableSponsor className="text-center" />}
                     <Button
                         type="button"
                         clear
