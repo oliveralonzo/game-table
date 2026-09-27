@@ -34,7 +34,8 @@ export function useTableRoomPeople({
     grantHandView,
     revokeHandView,
 }: UseTableRoomPeopleArgs) {
-    const { listAccountStats } = useTableSocket();
+    const { listAccountStats, on, off } = useTableSocket();
+    const [statsRevision, setStatsRevision] = useState<string | null>(null);
     const [statsByAccountId, setStatsByAccountId] = useState<Record<string, {
         winPercentage: number;
         winStreak: number;
@@ -76,13 +77,22 @@ export function useTableRoomPeople({
     const accountIdsKey = accountIds.join("\u0000");
 
     useEffect(() => {
+        const refreshStats = (event: { table_code: string; game_id: string }) => {
+            if (event.table_code !== table?.table_code) return;
+            // Sync can announce the same completed game again; refresh only once.
+            setStatsRevision(`${event.table_code}:${event.game_id}`);
+        };
+        on("table:stats_updated", refreshStats);
+        return () => off("table:stats_updated", refreshStats);
+    }, [on, off, table?.table_code]);
+
+    useEffect(() => {
         if (!accountIdsKey) {
             setStatsByAccountId({});
             return;
         }
 
         let isCurrent = true;
-        setStatsByAccountId({});
         listAccountStats(accountIdsKey.split("\u0000"), (response) => {
             if (!isCurrent || "error" in response) return;
             setStatsByAccountId(Object.fromEntries(
@@ -96,7 +106,7 @@ export function useTableRoomPeople({
         return () => {
             isCurrent = false;
         };
-    }, [accountIdsKey, listAccountStats]);
+    }, [accountIdsKey, listAccountStats, statsRevision]);
     const memberInitialLabels = buildInitialLabelsById(Object.entries(members).map(([id, member]) => ({
         id,
         name: member.name,
