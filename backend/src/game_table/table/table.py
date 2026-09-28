@@ -103,6 +103,9 @@ class Table(Generic[RulesT]):
         self._active_game_id: Optional[str] = None
         self._pending_rules = rules
         self._game_changed_seats: Set[int] = set()
+        self._game_seat_locks: Dict[str, int] = {}
+        self._seat_locks_active = False
+        self._member_session_identities: Dict[str, str] = {}
 
         self._hand_view_permissions: Dict[str, Set[str]] = {}
         self._hand_visibility_enabled: Set[str] = set()
@@ -247,6 +250,25 @@ class Table(Generic[RulesT]):
         if self.group_id is None and self._host_id is None and self._reserved_host_identity is None:
             self._host_id = member_id
 
+    def bind_seat_identity(self, member_id: str, identity: str | None) -> None:
+        self._ensure_member_exists(member_id)
+        if identity:
+            self._member_session_identities[member_id] = identity
+
+    def _seat_identity(self, member_id: str) -> str:
+        account_id = self._members[member_id].account_id
+        return (f"account:{account_id}" if account_id else
+                self._member_session_identities.get(member_id, f"member:{member_id}"))
+
+    def get_game_seat_locks(self) -> Dict[str, int]:
+        return {member_id: self._game_seat_locks[self._seat_identity(member_id)]
+                for member_id in self._members
+                if self._seat_identity(member_id) in self._game_seat_locks}
+
+    def clear_game_seat_locks(self) -> None:
+        self._seat_locks_active = False
+        self._game_seat_locks.clear()
+
     def reserve_host(self, creator_identity: str) -> None:
         if self.group_id is not None or self._members or not creator_identity:
             raise ValueError("Host reservation requires an empty private table and creator identity.")
@@ -292,6 +314,7 @@ class Table(Generic[RulesT]):
             account_username=account_username or old_member.account_username,
         )
         del self._members[old_member_id]
+        self._member_session_identities.pop(old_member_id, None)
 
         if self._host_id == old_member_id:
             self._host_id = new_member_id
@@ -379,6 +402,7 @@ class Table(Generic[RulesT]):
 
         # Remove from members
         del self._members[member_id]
+        self._member_session_identities.pop(member_id, None)
 
         # Host transfer logic (domain-level responsibility)
         if was_host and self._members:
@@ -479,6 +503,13 @@ class Table(Generic[RulesT]):
         existing = self._find_seat_by_member(member_id)
         if existing is not None:
             raise ValueError("Member already occupies a seat.")
+
+        if self._seat_locks_active:
+            identity = self._seat_identity(member_id)
+            original_seat = self._game_seat_locks.get(identity)
+            if original_seat is not None and original_seat != seat_index:
+                raise ValueError("You can only reclaim your original seat until this game ends.")
+            self._game_seat_locks[identity] = seat_index
 
         seat.member_id = member_id
         self._remove_member_from_hand_view_permissions(member_id)
@@ -604,6 +635,9 @@ class Table(Generic[RulesT]):
         self._ensure_no_game_exists("Game already exists.")
 
         self._game_changed_seats.clear()
+        self._game_seat_locks = {self._seat_identity(seat.member_id): index
+                                 for index, seat in enumerate(self._seats) if seat.member_id}
+        self._seat_locks_active = True
         self._active_game_id = game_id
         self._state = TableState.IN_GAME
 
@@ -630,6 +664,7 @@ class Table(Generic[RulesT]):
         self._ensure_game_exists()
 
         self._active_game_id = None
+        self.clear_game_seat_locks()
         self._state = TableState.OPEN
 
 

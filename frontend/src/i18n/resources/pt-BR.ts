@@ -1,5 +1,5 @@
 export const ptBR = {
-    privateTables: { statsNote: "Estas mesas não contam para as classificações dos grupos nem da liga.", create: "Criar mesa", subtitle: "Crie mesas privadas para convidar outras pessoas a participar.", receivedCode: "Recebeu um código?", joinLink: "Entre em uma mesa", joinByCode: "Entrar por código", remove: "Remover {{code}} das minhas mesas", unavailable: "Não foi possível acessar a mesa. Tente novamente." },
+    privateTables: { groupsHaveTables: "Seus grupos têm mesas abertas.", viewGroups: "Ver grupos", statsNote: "Estas mesas não contam para as classificações dos grupos nem da liga.", create: "Criar mesa", subtitle: "Crie mesas privadas para convidar outras pessoas a participar.", receivedCode: "Recebeu um código?", joinLink: "Entre em uma mesa", joinByCode: "Entrar por código", remove: "Remover {{code}} das minhas mesas", unavailable: "Não foi possível acessar a mesa. Tente novamente." },
     groups: {
         settings: { loadError: "Não foi possível carregar as configurações do grupo.", saveError: "Não foi possível salvar as configurações do grupo." },
         tables: { enterError: "Não foi possível entrar na mesa. Tente novamente.", loadError: "Não foi possível atualizar as mesas.", closeError: "Não foi possível fechar a mesa. Ela pode já ter participantes.", createError: "Não foi possível criar a mesa. Tente novamente." },

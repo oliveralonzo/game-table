@@ -75,6 +75,7 @@ class TableSessionService(Generic[RulesT]):
                 account_username=account_username,
             )
 
+        table.bind_seat_identity(member_id, creator_identity)
         self._member_to_table[member_id] = table_code
         self._last_activity[table_code] = time.time()
         return removed_member_id
@@ -339,6 +340,7 @@ class TableSessionService(Generic[RulesT]):
             "group_id": table.group_id,
             "members": members,
             "seats": seats,
+            "game_seat_locks": table.get_game_seat_locks(),
             "seat_count": table.seat_count,
             "state": table.state.value,
             "is_persistent": table.is_persistent,

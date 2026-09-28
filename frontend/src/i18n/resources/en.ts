@@ -1,5 +1,5 @@
 export const en = {
-    privateTables: { statsNote: "These tables don’t count toward group or league standings.", create: "Create table", subtitle: "Create private tables to invite others to join.", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
+    privateTables: { groupsHaveTables: "Your groups have open tables.", viewGroups: "View groups", statsNote: "These tables don’t count toward group or league standings.", create: "Create table", subtitle: "Create private tables to invite others to join.", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
     groups: {
         settings: { loadError: "Could not load group settings.", saveError: "Could not save group settings." },
         tables: { enterError: "Couldn’t enter the table. Try again.", loadError: "Couldn’t refresh the tables.", closeError: "Could not close the table. It may now have participants.", createError: "Couldn’t create the table. Try again." },

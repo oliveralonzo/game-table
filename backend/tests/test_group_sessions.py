@@ -355,3 +355,65 @@ def test_group_chat_denies_guests_and_revoked_members():
         await sockets.revoke('member', 'g')
         assert 'error' in await send('member', payload)
     asyncio.run(run())
+
+
+def test_table_availability_reuses_admission_without_lobby_presence():
+    from game_table.api.ws.group_table_notifications import emit_group_table_availability
+
+    async def run():
+        repo, groups, registry, tables = setup()
+        sio = AsyncServer(async_mode='asgi')
+        sio.manager.is_connected = lambda sid, namespace: True
+        entered, left, events = [], [], []
+        async def enter(sid, room): entered.append((sid, room))
+        async def leave(sid, room): left.append((sid, room))
+        async def emit(event, data, **kwargs): events.append((event, data, kwargs))
+        sio.enter_room, sio.leave_room, sio.emit = enter, leave, emit
+        accounts = Accounts()
+        sockets = GroupSocketSessions(sio, accounts, groups, Auth(), tables=tables)
+        payload = {'token': 'member'}
+        assert await sockets.watch_tables('s', payload) == {'g': False}
+        assert entered == [('s', 'group-tables:g')]
+        assert sockets.rooms == {}
+        assert repo.reads == accounts.reads == 1
+        tables.create_table('member', 'g')
+        await emit_group_table_availability(sio, tables, 'g')
+        assert events[-1] == ('group:table_availability', {'group_id': 'g', 'has_open_tables': True}, {'room': 'group-tables:g'})
+        await sockets.unwatch_tables('s')
+        assert ('s', 'group-tables:g') in left
+        assert await sockets.watch_tables('s', payload) == {'g': True}
+        assert repo.reads == accounts.reads == 1
+        tables.close_empty_table('member', 'g', 'TEST', registry.group_tables['TEST'].instance_id)
+        await emit_group_table_availability(sio, tables, 'g')
+        assert events[-1][1]['has_open_tables'] is False
+        assert repo.reads == accounts.reads == 1
+        await sockets.revoke('member', 'g')
+        assert await sockets.watch_tables('s', payload) == {}
+        assert await sockets.watch_tables('s', {'token': 'outsider'}) == {}
+        assert sockets.discovery.get('s', set()) == set()
+    asyncio.run(run())
+
+
+def test_unwatch_cancels_in_flight_availability_admission():
+    async def run():
+        repo, groups, _, tables = setup()
+        sio = AsyncServer(async_mode='asgi')
+        sio.manager.is_connected = lambda sid, namespace: True
+        entered, left = [], []
+        started, finish = asyncio.Event(), asyncio.Event()
+        async def enter(sid, room):
+            entered.append(room)
+            started.set()
+            await finish.wait()
+        async def leave(sid, room): left.append(room)
+        sio.enter_room, sio.leave_room = enter, leave
+        sockets = GroupSocketSessions(sio, Accounts(), groups, Auth(), tables=tables)
+        pending = asyncio.create_task(sockets.watch_tables('s', {'token': 'member'}))
+        await started.wait()
+        await sockets.unwatch_tables('s')
+        finish.set()
+        with pytest.raises(PermissionError):
+            await pending
+        assert entered == left == ['group-tables:g']
+        assert sockets.discovery.get('s', set()) == set()
+    asyncio.run(run())

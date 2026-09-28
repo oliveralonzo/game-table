@@ -62,6 +62,7 @@ export interface TableView {
      * Each entry is either a member_id or null (empty seat).
      */
     seats: Array<string | null>;
+    game_seat_locks?: Record<string, number>;
 
     /** Current number of seats configured on the table. */
     seat_count: number;

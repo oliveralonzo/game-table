@@ -21,15 +21,17 @@ export default function TableLifecycleAction() {
     const isLastGroupParticipant = !!table?.group_id && !!state.selfMemberId
         && Object.keys(table.members).length === 1 && !!table.members[state.selfMemberId];
     const canClose = isHost || isLastGroupParticipant;
+    const hasGroupPresence = !!table?.group_id && !!state.selfMemberId
+        && !!table.group_member_ids?.includes(state.selfMemberId);
     const returnUrl = table?.group_id
-        ? (state.selfMemberId && table.group_member_ids?.includes(state.selfMemberId) && table.group_public_id
+        ? (hasGroupPresence && table.group_public_id
             ? `/g/${encodeURIComponent(table.group_public_id!)}` : "/")
         : "/";
     const canEndGame = canEndTableGame(table, state.selfMemberId);
     const hasActions = canClose || canEndGame;
 
     const leave = () => {
-        if (!confirm(t("table.dialog.leaveConfirm"))) return;
+        if (!hasGroupPresence && !confirm(t("table.dialog.leaveConfirm"))) return;
         setIsOpen(false);
         leaveTable((message) => alert(message), () => navigate(returnUrl, { replace: true, state: { homeTab: "tables" } }));
     };

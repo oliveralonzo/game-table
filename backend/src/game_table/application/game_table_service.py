@@ -80,10 +80,14 @@ class GameTableService:
         table_code: str,
         game_id: str,
     ) -> None:
+        table = self._table_service.get_table(table_code)
+        if table.active_game_id != game_id:
+            raise ValueError('Game does not match its table history context.')
+        if game_id is not None and self._game_service.is_over(game_id):
+            table.clear_game_seat_locks()
         if self._game_history_recorder is None:
             return
 
-        table = self._table_service.get_table(table_code)
         context = self._history_contexts.get(table)
         if context is not None and context['game_id'] != game_id:
             raise ValueError('Game does not match its table history context.')

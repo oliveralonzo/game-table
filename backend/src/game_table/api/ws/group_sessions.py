@@ -1,6 +1,7 @@
 """Socket admission and group rooms shared by all group endpoints."""
 import asyncio
 from asyncio import to_thread
+from game_table.api.ws.group_table_notifications import discovery_room
 
 
 def group_room(group_id):
@@ -17,6 +18,9 @@ class GroupSocketSessions:
         self.locks = {}
         self.generations = {}
         self.rooms = {}
+        self.discovery = {}
+        self.discovery_requests = {}
+        self.listed_groups = {}
         self.room_epochs = {}
         # Compose with table disconnect cleanup rather than replacing it.
         previous = sio.handlers.get('/', {}).get('disconnect')
@@ -27,6 +31,9 @@ class GroupSocketSessions:
             self.groups.release(f'socket:{sid}')
             self.identities.pop(sid, None)
             self.rooms.pop(sid, None)
+            self.discovery.pop(sid, None)
+            self.discovery_requests.pop(sid, None)
+            self.listed_groups.pop(sid, None)
             self.locks.pop(sid, None)
             if previous:
                 await previous(sid)
@@ -57,6 +64,8 @@ class GroupSocketSessions:
             await self.sio.leave_room(sid, group_room(group_id))
         if generation is not self.generations.get(sid):
             raise PermissionError("Connection ended.")
+        await self.unwatch_tables(sid, invalidate=False)
+        self.listed_groups.pop(sid, None)
         self.identities[sid] = (key, account)
         return account
 
@@ -96,7 +105,43 @@ class GroupSocketSessions:
                 raise PermissionError('Connection ended.')
             for group in groups:
                 self.groups.admit(account.id, group.id, f'socket:{sid}', snapshot=group)
+            self.listed_groups[sid] = groups
             return groups
+
+    async def unwatch_tables(self, sid, *, invalidate=True):
+        if invalidate:
+            self.discovery_requests.pop(sid, None)
+        for group_id in self.discovery.pop(sid, set()):
+            await self.sio.leave_room(sid, discovery_room(group_id))
+
+    async def watch_tables(self, sid, payload):
+        request = object()
+        self.discovery_requests[sid] = request
+        await self._account(sid, payload)
+        groups = self.listed_groups.get(sid)
+        if groups is None:
+            groups = await self.list_groups(sid, payload)
+        generation = self.generations.get(sid)
+        if self.discovery_requests.get(sid) is not request:
+            raise PermissionError("Subscription ended.")
+        await self.unwatch_tables(sid, invalidate=False)
+        for group in groups:
+            # Validate the admitted snapshot, including any explicit revocation.
+            account = self.identities[sid][1]
+            self.groups.admit(account.id, group.id, f'socket:{sid}', snapshot=group)
+            self.groups.get_group(account.id, group.id)
+            await self.sio.enter_room(sid, discovery_room(group.id))
+            if (generation is not self.generations.get(sid)
+                    or self.discovery_requests.get(sid) is not request):
+                await self.sio.leave_room(sid, discovery_room(group.id))
+                raise PermissionError("Connection ended.")
+            try:
+                self.groups.get_group(account.id, group.id)
+            except PermissionError:
+                await self.sio.leave_room(sid, discovery_room(group.id))
+                raise
+            self.discovery.setdefault(sid, set()).add(group.id)
+        return {group.id: self.tables.has_open_group_tables(group.id) for group in groups}
 
     async def leave(self, sid, group_id):
         leave_all = group_id is None
@@ -228,6 +273,10 @@ class GroupSocketSessions:
                     affected.update(self.registry.get_sids_for_client_session(client))
                     await self.expire_presence(client)
         for sid in affected:
+            if sid in self.listed_groups:
+                self.listed_groups[sid] = [g for g in self.listed_groups[sid] if g.id != group_id]
+            self.discovery.get(sid, set()).discard(group_id)
+            await self.sio.leave_room(sid, discovery_room(group_id))
             await self.sio.leave_room(sid, group_room(group_id))
             self.rooms.get(sid, set()).discard(group_id)
             await self.sio.emit('group:access_revoked', {'group_id': group_id}, room=sid)

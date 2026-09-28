@@ -236,6 +236,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         playerIndex={playerIndex}
                         isHost={canManageSeats}
                         tableState={table.state}
+                        lockedSeatIndex={selfId ? table.game_seat_locks?.[selfId] : undefined}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}
                         footerAction={

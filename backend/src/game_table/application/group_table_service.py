@@ -25,6 +25,9 @@ class GroupTableService(TableSessionService):
         self._groups.get_group(account_id, group_id)
         return [self._view(table) for table in self._registry.for_group(group_id)]
 
+    def has_open_group_tables(self, group_id):
+        return bool(self._registry.for_group(group_id))
+
     def create_table(self, account_id: str, group_id: str) -> dict:
         group = self._groups.get_group(account_id, group_id)
         rules = None

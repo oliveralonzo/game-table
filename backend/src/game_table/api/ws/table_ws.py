@@ -1,6 +1,7 @@
 # backend/api/ws/table_ws.py
 
 import asyncio
+from game_table.api.ws.group_table_notifications import emit_group_table_availability
 
 from socketio import AsyncServer
 from game_table.application.account_service import AccountService
@@ -56,6 +57,8 @@ async def leave_member_and_broadcast(
         await emit_table_deleted(sio, table_code)
 
     if group_id:
+        if not table_service.table_exists(table_code):
+            await emit_group_table_availability(sio, table_service, group_id)
         await sio.emit("group:tables_changed", {"group_id": group_id}, room=f"group:{group_id}")
     return table_code
 
@@ -125,6 +128,9 @@ def register_table_events(
         table_code: str,
         member_id: str,
     ) -> None:
+        table_service.get_table(table_code).bind_seat_identity(
+            member_id, f"session:{session_registry.resolve_client_session_id(sid)}",
+        )
         await sio.enter_room(sid, table_code)
         await sio.enter_room(sid, f"member:{member_id}")
         await session_registry.table_entered(sid, table_service.get_table(table_code), member_id)
@@ -143,6 +149,9 @@ def register_table_events(
         except ValueError:
             return False
 
+        table_service.get_table(table_code).bind_seat_identity(
+            member_id, f"session:{session_registry.resolve_client_session_id(sid)}",
+        )
         await sio.enter_room(sid, table_code)
         await sio.enter_room(sid, f"member:{member_id}")
         await session_registry.table_entered(sid, table_service.get_table(table_code), member_id)
@@ -344,6 +353,7 @@ def register_table_events(
 
             await emit_table_deleted(sio, table_code)
             if table.group_id:
+                await emit_group_table_availability(sio, table_service, table.group_id)
                 await sio.emit("group:tables_changed", {"group_id": table.group_id}, room=f"group:{table.group_id}")
             await _broadcast_table_list_update()
 

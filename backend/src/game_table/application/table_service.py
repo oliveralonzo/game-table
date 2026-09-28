@@ -107,7 +107,7 @@ class TableService(TableSessionService[RulesT]):
         return self.table_preview(table)
 
     def join_table(self, member_id, table_code, name, account_id=None, account_username=None, creator_identity=None):
-        replaced = super().join_table(member_id, table_code, name, account_id, account_username)
+        replaced = super().join_table(member_id, table_code, name, account_id, account_username, creator_identity)
         self._get_table(table_code).claim_reserved_host(member_id, creator_identity)
         return replaced
 

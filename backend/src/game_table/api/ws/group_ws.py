@@ -6,6 +6,21 @@ from game_table.api.ws.errors import error_response
 
 
 def register_group_events(sio, account_service, group_service, auth_verifier, settings_provider=None, sessions=None):
+    @sio.on('group:watch_tables')
+    async def watch_tables(sid, data=None):
+        try:
+            if sessions is None or sessions.tables is None:
+                raise RuntimeError('Groups are not configured.')
+            return {'groups': await sessions.watch_tables(sid, data or {})}
+        except Exception as exc:
+            return error_response(exc)
+
+    @sio.on('group:unwatch_tables')
+    async def unwatch_tables(sid, data=None):
+        if sessions:
+            await sessions.unwatch_tables(sid)
+        return {'ok': True}
+
     @sio.on('group:list')
     async def list_groups(sid, data=None):
         try:

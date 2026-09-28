@@ -1,5 +1,6 @@
 """Authenticated group-table creation and discovery."""
 from asyncio import to_thread
+from game_table.api.ws.group_table_notifications import emit_group_table_availability
 from game_table.api.ws.group_sessions import group_room
 from game_table.api.ws.errors import error_response
 
@@ -42,6 +43,7 @@ def register_group_table_events(sio, accounts, tables, auth, sessions=None):
     async def create_table(sid, data=None):
         result = await execute(sid, data, True)
         if 'table' in result:
+            await emit_group_table_availability(sio, tables, (data or {}).get('group_id'))
             await sio.emit('group:tables_changed', {'group_id': (data or {}).get('group_id')},
                            room=group_room((data or {}).get('group_id')))
         return result
@@ -50,6 +52,7 @@ def register_group_table_events(sio, accounts, tables, auth, sessions=None):
     async def close_empty_table(sid, data=None):
         result = await execute(sid, data, False, close=True)
         if result.get('closed'):
+            await emit_group_table_availability(sio, tables, (data or {}).get('group_id'))
             await sio.emit('group:tables_changed', {'group_id': (data or {}).get('group_id')},
                            room=group_room((data or {}).get('group_id')))
         return result

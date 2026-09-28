@@ -25,6 +25,9 @@ class TableServiceRouter:
             return self._groups
         return self._private
 
+    def has_open_group_tables(self, group_id):
+        return bool(self._registry.for_group(group_id))
+
     def create_table(self, *args, **kwargs):
         return self._private.create_table(*args, **kwargs)
 

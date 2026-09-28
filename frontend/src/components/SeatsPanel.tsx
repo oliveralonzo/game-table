@@ -55,6 +55,7 @@ type Props = {
     onUnassignSeat: (index: number) => void;
     footerAction?: ReactNode;
     sizeToContent?: boolean;
+    lockedSeatIndex?: number;
 };
 
 export default function SeatsPanel({
@@ -68,6 +69,7 @@ export default function SeatsPanel({
     onUnassignSeat,
     footerAction,
     sizeToContent = false,
+    lockedSeatIndex,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
@@ -163,15 +165,18 @@ export default function SeatsPanel({
                             const visible = index < seatCount;
                             const claimed = !!seat?.name;
                             const isSelf = playerIndex === index;
-                            const { canInteract } = getSeatPermissions({
+                            const permissions = getSeatPermissions({
                                 claimed,
                                 isSelf,
                                 hasASeat,
                                 isHost,
                                 tableState,
                             });
+                            const canInteract = permissions.canInteract
+                                && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);
                             const initials = initialLabels?.[index] ?? seatInitialLabels[index]?.label ?? "";
-                            const isUnavailableEmptySeat = !claimed && hasASeat;
+                            const isUnavailableEmptySeat = !claimed && (hasASeat
+                                || (lockedSeatIndex !== undefined && lockedSeatIndex !== index));
                             const seatStateClass = isSelf
                                 ? ownSeatClass
                                 : claimed
