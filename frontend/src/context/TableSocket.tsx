@@ -540,19 +540,19 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    function on(
+    const on = useCallback((
         event: string,
         handler: (...args: any[]) => void
-    ) {
+    ) => {
         socketRef.current?.on(event, handler);
-    }
+    }, []);
 
-    function off(
+    const off = useCallback((
         event: string,
         handler: (...args: any[]) => void
-    ) {
+    ) => {
         socketRef.current?.off(event, handler);
-    }
+    }, []);
 
     function clearChatStorage(table_code?: string | null) {
         if (!table_code) return;

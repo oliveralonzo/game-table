@@ -11,7 +11,9 @@ def register_group_events(sio, account_service, group_service, auth_verifier, se
         try:
             if sessions is None or sessions.tables is None:
                 raise RuntimeError('Groups are not configured.')
-            return {'groups': await sessions.watch_tables(sid, data or {})}
+            groups = await sessions.watch_tables(sid, data or {})
+            return {'groups': groups, 'active_counts': {
+                group_id: sessions.active_count(group_id) for group_id in groups}}
         except Exception as exc:
             return error_response(exc)
 

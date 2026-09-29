@@ -18,7 +18,7 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
     const { authUserId, getAuthToken, isAuthLoaded, isSignedIn } = useAuthSession();
     const { listGroups, groupConnectionVersion } = useTableSocket();
     const [retry, setRetry] = useState(0);
-    const { groups, saveGroups } = useGroupsCache();
+    const { groups, saveGroups, liveGroups } = useGroupsCache();
     const [errorUserId, setErrorUserId] = useState<string | null>(null);
     const failed = !!authUserId && errorUserId === authUserId;
 
@@ -106,7 +106,7 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
                 aria-label={t("groups.enterGroup", { name: group.name })}
                 className="block px-5 py-5 text-inherit no-underline focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-black dark:focus-visible:outline-white active:opacity-70 sm:px-6">
                 <h2 className="truncate text-xl font-semibold text-black dark:text-white">{group.name}</h2>
-                <p className="mt-1 text-sm text-black/55 dark:text-white/55">{t("groups.members", { count: group.member_count })}</p>
+                <p className="mt-1 text-sm text-black/55 dark:text-white/55">{liveGroups?.[group.id]?.active_count != null && <>{t("groups.active", { count: liveGroups[group.id].active_count })} | </>}{t("groups.members", { count: group.member_count })}</p>
             </Link>
         </li>)}
     </ul></>);

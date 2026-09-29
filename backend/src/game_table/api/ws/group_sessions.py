@@ -201,6 +201,8 @@ class GroupSocketSessions:
             await self.sio.leave_room(sid, group_room(group_id))
             raise PermissionError('Group presence ended.')
         self.rooms.setdefault(sid, set()).add(group_id)
+        if current != (account_id, group_id):
+            await self.emit_active_count(group_id)
 
     async def table_entered(self, sid, table, member_id):
         member = table.members[member_id]
@@ -229,6 +231,20 @@ class GroupSocketSessions:
                 await self.sio.leave_room(sid, group_room(current[1]))
                 self.rooms.get(sid, set()).discard(current[1])
                 self.groups.release(f'socket:{sid}', current[1])
+
+            await self.emit_active_count(current[1])
+
+    def active_count(self, group_id):
+        if not self.registry:
+            return 0
+        admitted = self.groups.admitted_members(group_id)
+        return len({account for account, group in self.registry.group_presences.values()
+                    if group == group_id and account in admitted})
+
+    async def emit_active_count(self, group_id):
+        await self.sio.emit('group:active_count', {
+            'group_id': group_id, 'active_count': self.active_count(group_id),
+        }, room=discovery_room(group_id))
 
     def presence_snapshot(self, group_id):
         members = self.groups.admitted_members(group_id)

@@ -1,10 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useAuthSession } from "game-table/context/AuthSessionContext";
+import { useTableSocket } from "game-table/context/TableSocket";
 import type { GroupPresenceSnapshot, GroupSummary, GroupMember, GroupTable } from "game-table/context/TableSocket";
 
 import { groupActivityKey, type GroupActivity } from "game-table/types/groupActivity";
 
+type GroupLiveSummary = { has_open_tables: boolean; active_count: number | null };
 type GroupsCache = {
+    liveGroups: Record<string, GroupLiveSummary> | null;
     presence: GroupPresenceSnapshot | null;
     savePresence: (value: GroupPresenceSnapshot | null) => void;
     activity: Record<string, GroupActivity>;
@@ -21,9 +24,63 @@ type GroupsCache = {
 const GroupsCacheContext = createContext<GroupsCache | undefined>(undefined);
 
 // Survives navigation, but not account changes, sign-out, or a page reload.
-export function GroupsCacheProvider({ children }: { children: ReactNode }) {
-    const { authUserId, isSignedIn } = useAuthSession();
+export function GroupsCacheProvider({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
+    const { authUserId, isSignedIn, isAuthLoaded, getAuthToken } = useAuthSession();
     const userId = isSignedIn ? authUserId : null;
+    const { emit, on, off, groupConnectionVersion } = useTableSocket();
+    const [live, setLive] = useState<{ userId: string; groups: Record<string, GroupLiveSummary> } | null>(null);
+    useEffect(() => {
+        setLive(null);
+        if (!enabled || !isAuthLoaded || !userId) return;
+        let current = true;
+        let initialized = false;
+        const pending: Record<string, Partial<GroupLiveSummary>> = {};
+        const revoked = new Set<string>();
+        const update = (groupId: string, value: Partial<GroupLiveSummary>) => {
+            if (!current || revoked.has(groupId)) return;
+            if (!initialized) pending[groupId] = { ...pending[groupId], ...value };
+            setLive(previous => previous?.userId === userId && groupId in previous.groups
+                ? { userId, groups: { ...previous.groups, [groupId]: { ...previous.groups[groupId], ...value } } }
+                : previous);
+        };
+        const availability = (event: { group_id: string; has_open_tables: boolean }) =>
+            update(event.group_id, { has_open_tables: event.has_open_tables });
+        const active = (event: { group_id: string; active_count: number }) =>
+            update(event.group_id, { active_count: event.active_count });
+        const revoke = (event: { group_id: string }) => {
+            revoked.add(event.group_id);
+            setLive(previous => {
+                if (previous?.userId !== userId) return previous;
+                const groups = { ...previous.groups };
+                delete groups[event.group_id];
+                return { userId, groups };
+            });
+        };
+        on("group:table_availability", availability);
+        on("group:active_count", active);
+        on("group:access_revoked", revoke);
+        getAuthToken().then(token => {
+            if (!current || !token) return;
+            emit("group:watch_tables", { token }, (response: {
+                groups?: Record<string, boolean>; active_counts?: Record<string, number>;
+            }) => {
+                if (!current) return;
+                initialized = true;
+                setLive(response?.groups ? { userId, groups: Object.fromEntries(
+                    Object.entries(response.groups).filter(([id]) => !revoked.has(id)).map(([id, has_open_tables]) =>
+                        [id, { has_open_tables, active_count: response.active_counts?.[id] ?? null, ...pending[id] }]),
+                ) } : null);
+            });
+        }).catch(() => { if (current) setLive(null); });
+        return () => {
+            current = false;
+            off("group:table_availability", availability);
+            off("group:active_count", active);
+            off("group:access_revoked", revoke);
+            emit("group:unwatch_tables", {});
+        };
+    }, [enabled, isAuthLoaded, userId, getAuthToken, emit, on, off, groupConnectionVersion]);
+
     const [cache, setCache] = useState<{ userId: string; groups: GroupSummary[] } | null>(null);
     const [tables, setTables] = useState<{ userId: string; entries: Record<string, GroupTable[]> } | null>(null);
     const [rosters, setRosters] = useState<{ userId: string; entries: Record<string, GroupMember[]> } | null>(null);
@@ -96,6 +153,7 @@ export function GroupsCacheProvider({ children }: { children: ReactNode }) {
         cancelTableClose(code);
     }, [userId, cancelTableClose]);
     return <GroupsCacheContext.Provider value={{
+        liveGroups: userId && live?.userId === userId ? live.groups : null,
         presence: userId && presence?.userId === userId ? presence.value : null, savePresence,
         activity: userId && activity?.userId === userId ? activity.entries : {},
         saveActivity, clearGroupActivity,

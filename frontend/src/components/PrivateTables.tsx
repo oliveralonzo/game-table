@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogButton, List, ListInput } from "konsta/react";
+import { useGroupsCache } from "game-table/context/GroupsCacheContext";
 import { useSavedTables, type SavedTable } from "game-table/context/SavedTablesContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { useAuthSession } from "game-table/context/AuthSessionContext";
@@ -15,47 +16,14 @@ import { backendErrorToJoinKey, resolveBackendErrorCode } from "game-table/i18n/
 type PreviewAck = { table: SavedTable | null } | { error: string; message: string; code?: string };
 export default function PrivateTables({ ready }: { ready: boolean }) {
     const { t } = useTranslation();
-    const { getAuthToken, authUserId, isAuthLoaded, isSignedIn } = useAuthSession();
+    const { getAuthToken, isSignedIn } = useAuthSession();
     const navigate = useNavigate();
     const location = useLocation();
     const { tables, save, remove } = useSavedTables();
-    const { emit, on, off, lookupTable, groupConnectionVersion } = useTableSocket();
+    const { emit, lookupTable, groupConnectionVersion } = useTableSocket();
     const { state } = useTable();
-    const [groupAvailability, setGroupAvailability] = useState<{
-        userId: string; groups: Record<string, boolean>;
-    } | null>(null);
-    const hasGroupTables = isSignedIn && groupAvailability?.userId === authUserId
-        && Object.values(groupAvailability.groups).some(Boolean);
-    useEffect(() => {
-        if (!isSignedIn || !authUserId) return;
-        const update = (event: { group_id: string; has_open_tables: boolean }) => {
-            setGroupAvailability(previous => previous?.userId === authUserId
-                && event.group_id in previous.groups
-                ? { ...previous, groups: { ...previous.groups, [event.group_id]: event.has_open_tables } }
-                : previous);
-        };
-        const revoke = (event: { group_id: string }) => update({ ...event, has_open_tables: false });
-        on("group:table_availability", update);
-        on("group:access_revoked", revoke);
-        return () => {
-            off("group:table_availability", update);
-            off("group:access_revoked", revoke);
-        };
-    }, [on, off, authUserId, isSignedIn]);
-    useEffect(() => {
-        if (!isAuthLoaded || !isSignedIn || !authUserId) {
-            setGroupAvailability(null);
-            return;
-        }
-        let current = true;
-        getAuthToken().then(token => {
-            if (!current || !token) return;
-            emit("group:watch_tables", { token }, (response: { groups?: Record<string, boolean> }) => {
-                if (current) setGroupAvailability(response?.groups ? { userId: authUserId, groups: response.groups } : null);
-            });
-        }).catch(() => { if (current) setGroupAvailability(null); });
-        return () => { current = false; emit("group:unwatch_tables", {}); };
-    }, [authUserId, isAuthLoaded, isSignedIn, getAuthToken, groupConnectionVersion, emit]);
+    const { liveGroups } = useGroupsCache();
+    const hasGroupTables = isSignedIn && Object.values(liveGroups ?? {}).some(group => group.has_open_tables);
     const [entering, setEntering] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(() => location.state?.tableEntryError ? t(location.state.tableEntryError, { code: location.state.tableEntryCode }) : null);
     const [checkingCode, setCheckingCode] = useState(false);
