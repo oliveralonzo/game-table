@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { useBranding } from "game-table/context/BrandingContext";
@@ -9,7 +8,6 @@ type Props = {
 };
 
 export default function Logo({ className = "" }: Props) {
-    const { t } = useTranslation();
     const navigate = useNavigate();
     const { state } = useTable();
     const { leaveTable } = useTableSocket();
@@ -20,9 +18,6 @@ export default function Logo({ className = "" }: Props) {
             navigate("/");
             return;
         }
-
-        const shouldLeave = confirm(t("table.dialog.leaveConfirm"));
-        if (!shouldLeave) return;
 
         leaveTable(
             (message) => alert(message),

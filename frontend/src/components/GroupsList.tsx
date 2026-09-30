@@ -101,13 +101,33 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
     </section>);
     return renderList(<>
         <ul className="divide-y divide-black/10 dark:divide-white/10">
-        {groups?.map(group => <li key={group.id}>
+        {groups?.map(group => {
+            const activeCount = liveGroups?.[group.id]?.active_count;
+            return <li key={group.id}>
             <Link to={`/g/${encodeURIComponent(group.public_id)}`}
                 aria-label={t("groups.enterGroup", { name: group.name })}
                 className="block px-5 py-5 text-inherit no-underline focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-black dark:focus-visible:outline-white active:opacity-70 sm:px-6">
                 <h2 className="truncate text-xl font-semibold text-black dark:text-white">{group.name}</h2>
-                <p className="mt-1 text-sm text-black/55 dark:text-white/55">{liveGroups?.[group.id]?.active_count != null && <>{t("groups.active", { count: liveGroups[group.id].active_count })} | </>}{t("groups.members", { count: group.member_count })}</p>
+                <p className="mt-1 flex items-center gap-1 text-sm text-black/55 dark:text-white/55">
+                    <span className="inline-flex items-center gap-1.5" aria-busy={activeCount == null}>
+                        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${activeCount != null && activeCount > 0 ? "bg-green-600 dark:bg-green-400" : "bg-black/20 dark:bg-white/25"}`} />
+                        <span className="inline-grid tabular-nums">
+                            {/* Reserve the localized count width, including singular and plural forms. */}
+                            {[0, 1, Math.max(group.member_count, activeCount ?? 0)].map((count, index) => (
+                                <span key={index} aria-hidden="true" className="invisible col-start-1 row-start-1 whitespace-nowrap">{t("groups.active", { count })}</span>
+                            ))}
+                            {activeCount == null ? (
+                                <span aria-hidden="true" className="col-start-1 row-start-1 h-3 self-center rounded bg-black/10 motion-safe:animate-pulse dark:bg-white/10" />
+                            ) : (
+                                <span className="col-start-1 row-start-1 whitespace-nowrap">{t("groups.active", { count: activeCount })}</span>
+                            )}
+                        </span>
+                    </span>
+                    <span aria-hidden="true">|</span>
+                    <span>{t("groups.members", { count: group.member_count })}</span>
+                </p>
             </Link>
-        </li>)}
+        </li>;
+        })}
     </ul></>);
 }

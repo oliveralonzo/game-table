@@ -8,7 +8,7 @@ import { useTable } from "game-table/context/TableState";
 import { canEndTableGame } from "game-table/utils/tablePermissions";
 import { useTableSocket } from "game-table/context/TableSocket";
 
-export default function TableLifecycleAction() {
+export default function TableLifecycleAction({ onBackToLobby }: { onBackToLobby?: () => void } = {}) {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { state } = useTable();
@@ -28,16 +28,22 @@ export default function TableLifecycleAction() {
             ? `/g/${encodeURIComponent(table.group_public_id!)}` : "/")
         : "/";
     const canEndGame = canEndTableGame(table, state.selfMemberId);
-    const hasActions = canClose || canEndGame;
+    const hasActions = !onBackToLobby && (canClose || canEndGame);
+    const actionLabel = onBackToLobby ? t("table.action.viewSeats")
+        : hasActions ? t("table.action.tableActions") : t("table.action.leaveTable");
 
     const leave = () => {
-        if (!hasGroupPresence && !confirm(t("table.dialog.leaveConfirm"))) return;
+        if (onBackToLobby) {
+            onBackToLobby();
+            return;
+        }
         setIsOpen(false);
         leaveTable((message) => alert(message), () => navigate(returnUrl, { replace: true, state: { homeTab: "tables" } }));
     };
 
     const close = () => {
-        if (!table || !confirm(t("table.dialog.closeConfirm"))) return;
+        if (!table) return;
+        if (table.active_game_id && !confirm(t("table.dialog.closeConfirm"))) return;
         setIsOpen(false);
         if (table.group_id) {
             beginTableClose({
@@ -68,8 +74,8 @@ export default function TableLifecycleAction() {
                 inline
                 rounded
                 clear
-                aria-label={hasActions ? t("table.action.tableActions") : t("table.action.leaveTable")}
-                title={hasActions ? t("table.action.tableActions") : t("table.action.leaveTable")}
+                aria-label={actionLabel}
+                title={actionLabel}
                 onClick={() => hasActions ? setIsOpen((open) => !open) : leave()}
                 className="h-full aspect-square px-0 text-black/65 transition-opacity hover:opacity-70 active:opacity-55 dark:text-white/70 [--color-ios-hover-highlight:transparent]"
             >

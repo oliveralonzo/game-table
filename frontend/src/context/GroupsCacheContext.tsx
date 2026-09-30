@@ -30,7 +30,8 @@ export function GroupsCacheProvider({ children, enabled = true }: { children: Re
     const { emit, on, off, groupConnectionVersion } = useTableSocket();
     const [live, setLive] = useState<{ userId: string; groups: Record<string, GroupLiveSummary> } | null>(null);
     useEffect(() => {
-        setLive(null);
+        // Keep the last known summary while reconnecting for the same account.
+        setLive(previous => enabled && isAuthLoaded && previous?.userId === userId ? previous : null);
         if (!enabled || !isAuthLoaded || !userId) return;
         let current = true;
         let initialized = false;
@@ -66,12 +67,13 @@ export function GroupsCacheProvider({ children, enabled = true }: { children: Re
             }) => {
                 if (!current) return;
                 initialized = true;
-                setLive(response?.groups ? { userId, groups: Object.fromEntries(
+                if (!response?.groups) return;
+                setLive({ userId, groups: Object.fromEntries(
                     Object.entries(response.groups).filter(([id]) => !revoked.has(id)).map(([id, has_open_tables]) =>
                         [id, { has_open_tables, active_count: response.active_counts?.[id] ?? null, ...pending[id] }]),
-                ) } : null);
+                ) });
             });
-        }).catch(() => { if (current) setLive(null); });
+        }).catch(() => { /* Retain the last known summary until a later reconnect. */ });
         return () => {
             current = false;
             off("group:table_availability", availability);
