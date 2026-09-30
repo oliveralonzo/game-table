@@ -31,6 +31,8 @@ export const en = {
     "games": "Games played",
     "players": "Players",
     "view": "View all activity",
+    "seasons": "Seasons",
+    "allSeasons": "All",
     "allTime": "All time",
     "monthly": "Monthly",
     "month": "Month",

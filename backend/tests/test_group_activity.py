@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import asyncio
 import pytest
 
-from game_table.application.group_activity_service import GroupActivityService, month_bounds
+from game_table.application.group_activity_service import GroupActivityService, month_bounds, month_key
 from game_table.group.group_activity import GroupActivitySnapshot
 from game_table.api.ws.group_activity_ws import register_group_activity_events
 
@@ -26,7 +26,7 @@ class Repository:
 
     def read(self, group, account, start, end):
         self.calls.append((group, account, start, end))
-        return GroupActivitySnapshot(ms('2026-07-01'), ms('2026-07-01'),
+        return GroupActivitySnapshot(ms('2026-07-01T04:00:00'), ms('2026-07-01T04:00:00'),
             [dict(account_id=id, username=id) for id in ['a', 'b', 'c', 'd', 'idle']], list(self.games))
 
 
@@ -101,8 +101,8 @@ def test_pagination_and_minimum_percentage_eligibility():
 
 
 def test_month_boundary_and_leap_year():
-    assert month_bounds('2024-02') == (ms('2024-02-01'), ms('2024-03-01'))
-    assert month_bounds('2025-12') == (ms('2025-12-01'), ms('2026-01-01'))
+    assert month_bounds('2024-02') == (ms('2024-02-01T04:00:00'), ms('2024-03-01T04:00:00'))
+    assert month_bounds('2025-12') == (ms('2025-12-01T04:00:00'), ms('2026-01-01T04:00:00'))
 
 
 @pytest.mark.parametrize('season', ['2026-13', 'bad', None, '0000-01', '9999-12', '2026-09-01'])
@@ -370,3 +370,25 @@ def test_player_record_percentage_uses_rounded_percentages_without_minimum_games
             games.append(value)
     result = service(Repository(games)).player_records('owner', 'g', 'a', sort='win_percentage')
     assert [p['username'] for p in result['records']] == ['unranked', 'higher-volume', 'lower-volume']
+
+
+@pytest.mark.parametrize('instant, expected', [
+    ('2026-10-01T03:59:59.999', '2026-09'),
+    ('2026-10-01T04:00:00', '2026-10'),
+    ('2027-01-01T03:59:59.999', '2026-12'),
+    ('2027-01-01T04:00:00', '2027-01'),
+])
+def test_current_season_changes_at_dominican_midnight(instant, expected):
+    repo = Repository()
+    reader = GroupActivityService(Groups(), repo, lambda: ms(instant))
+    result = reader.read('owner', 'g')
+    assert month_key(ms(instant)) == expected
+    assert result['current_season'] == expected
+    assert result['season'] == expected
+    assert result['seasons'][0] == expected
+    assert repo.calls[0][2:] == month_bounds(expected)
+
+
+def test_october_bounds_start_and_end_at_dominican_midnight():
+    assert month_bounds('2026-10') == (
+        ms('2026-10-01T04:00:00'), ms('2026-11-01T04:00:00'))

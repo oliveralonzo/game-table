@@ -4,7 +4,7 @@ import { useGroupActivity } from "game-table/hooks/useGroupActivity";
 import GroupHistoryPreview from "game-table/components/GroupHistoryPreview";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Card, List, ListInput, Segmented, SegmentedButton } from "konsta/react";
+import { Button, Card, Segmented, SegmentedButton } from "konsta/react";
 import LeaderboardContent, { LEADERBOARD_PAGE_SIZE, type LeaderboardSort } from "game-table/components/LeaderboardContent";
 import { useLocation, useNavigate } from "react-router-dom";
 import PlayerStatsTableSkeleton from "game-table/components/PlayerStatsTableSkeleton";
@@ -91,28 +91,67 @@ export default function GroupStatsPreview({ onBack, groupName, groupId }: { onBa
     useEffect(() => { if (data) setSeasons(data.seasons); }, [data]);
     const activeSeason = playerReference ? params.get("season") ?? season : season;
     const selectedSeason = activeSeason === "current" ? data?.current_season ?? new Date().toISOString().slice(0, 7) : activeSeason;
+    const availableSeasons = seasons.length ? seasons : [selectedSeason === "all"
+        ? data?.current_season ?? new Date().toISOString().slice(0, 7) : selectedSeason];
+    const seasonsByYear = new Map<string, string[]>();
+    for (const month of availableSeasons) {
+        const year = month.slice(0, 4);
+        seasonsByYear.set(year, [...(seasonsByYear.get(year) ?? []), month]);
+    }
+    const selectSeason = (value: string) => {
+        if (playerReference) {
+            params.set("season", value);
+            navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: location.state });
+        } else {
+            setSeason(value);
+            setHistoryPage(1);
+        }
+    };
+    const seasonButtonClass = "h-9 !px-3 first:aria-[pressed=false]:!pl-0 !text-xs uppercase tracking-wide !text-black/50 dark:!text-white/50 !bg-transparent aria-pressed:!bg-black/10 aria-pressed:!text-black dark:aria-pressed:!bg-white/15 dark:aria-pressed:!text-white";
+    const seasonRow = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        const row = seasonRow.current;
+        const selected = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
+        if (!row || !selected) return;
+        const bounds = row.getBoundingClientRect();
+        const target = selected.getBoundingClientRect();
+        if (target.left < bounds.left) row.scrollLeft += target.left - bounds.left;
+        else if (target.right > bounds.right) row.scrollLeft += target.right - bounds.right;
+    }, [selectedSeason, seasons, i18n.language]);
     return <>
         <Button clear inline rounded onClick={playerReference ? backToActivity : onBack} className="mb-3 h-11 !px-1"><ArrowLeft size={18} className="mr-1" />{playerReference ? t("groups.stats.activity") : groupName}</Button>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="px-1 text-black/55 dark:text-white/55">{playerReference
             ? `@${selectedPlayer?.username ?? playerReference}`
             : t("groups.stats.activity")}</p>
-        <List strong inset className="!mx-0 !mt-4 !mb-5">
-            <ListInput title="" label={t("groups.stats.season")} type="select"
-                value={selectedSeason}
-                onChange={event => {
-                    if (playerReference) {
-                        params.set("season", event.target.value);
-                        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: location.state });
-                    } else {
-                        setSeason(event.target.value);
-                        setHistoryPage(1);
-                    }
-                }}>
-                <option value="all">{t("groups.stats.allTime")}</option>
-                {(seasons.length ? seasons : [selectedSeason === "all" ? new Date().toISOString().slice(0, 7) : selectedSeason]).map(month => <option key={month} value={month}>{groupMonthLabel(i18n.language, month)}</option>)}
-            </ListInput>
-        </List>
+        <div ref={seasonRow} role="group" aria-label={t("groups.stats.seasons")}
+            className="mt-4 mb-5 grid grid-flow-col auto-cols-max grid-rows-[auto_auto] gap-x-2 gap-y-1 overflow-x-auto py-1">
+            <div className="row-span-2 grid grid-rows-subgrid">
+                <div className="text-xs font-medium text-black/55 dark:text-white/55">{t("groups.stats.seasons")}</div>
+                <div className="flex gap-1">
+                    <Button inline rounded clear className={seasonButtonClass}
+                        aria-pressed={selectedSeason === "all"} onClick={() => selectSeason("all")}>
+                        {t("groups.stats.allSeasons")}
+                    </Button>
+                </div>
+            </div>
+            {[...seasonsByYear].map(([year, months]) => (
+                <div key={year} className="relative row-span-2 grid grid-rows-subgrid">
+                    <div className="sticky left-0 justify-self-start text-xs font-medium text-black/40 dark:text-white/40">{year}</div>
+                    <div className="flex gap-1">
+                        {months.map(month => {
+                            const label = new Intl.DateTimeFormat(i18n.language, { month: "short", timeZone: "UTC" })
+                                .format(new Date(`${month}-01T00:00:00Z`));
+                            return <Button key={month} inline rounded clear className={seasonButtonClass}
+                                aria-pressed={selectedSeason === month} aria-label={groupMonthLabel(i18n.language, month)}
+                                onClick={() => selectSeason(month)}>
+                                {label.charAt(0).toLocaleUpperCase(i18n.language) + label.slice(1)}
+                            </Button>;
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
         <div hidden={!!playerReference}>
         <Segmented strong rounded className="mb-5">
             <SegmentedButton active={view === "standings"} onClick={() => setView("standings")}>{t("groups.stats.standings")}</SegmentedButton>

@@ -1,17 +1,19 @@
 """Group-only standings, highlights and paged history from recorded results."""
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from time import time
 
 from game_table.group.group_activity import GroupActivityRepository
 
 PAGE_SIZE = 10
 MIN_PERCENTAGE_GAMES = 10
+SEASON_TIMEZONE = ZoneInfo("America/Santo_Domingo")
 
 
 def month_key(timestamp):
-    return datetime.fromtimestamp(timestamp / 1000, timezone.utc).strftime('%Y-%m')
+    return datetime.fromtimestamp(timestamp / 1000, SEASON_TIMEZONE).strftime('%Y-%m')
 
 
 def month_bounds(season):
@@ -20,8 +22,8 @@ def month_bounds(season):
     year, month = map(int, season.split('-'))
     if not 1 <= year < 9999:
         raise ValueError('Invalid season.')
-    start = datetime(year, month, 1, tzinfo=timezone.utc)
-    end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=timezone.utc)
+    start = datetime(year, month, 1, tzinfo=SEASON_TIMEZONE)
+    end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=SEASON_TIMEZONE)
     return int(start.timestamp() * 1000), int(end.timestamp() * 1000)
 
 

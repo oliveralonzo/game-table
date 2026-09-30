@@ -31,6 +31,8 @@ export const es = {
     "games": "Partidas jugadas",
     "players": "Jugadores",
     "view": "Ver toda la actividad",
+    "seasons": "Temporadas",
+    "allSeasons": "Todas",
     "allTime": "Todo el tiempo",
     "monthly": "Mensual",
     "month": "Mes",

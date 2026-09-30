@@ -31,6 +31,8 @@ export const ptBR = {
     "games": "Partidas jogadas",
     "players": "Jogadores",
     "view": "Ver toda a atividade",
+    "seasons": "Temporadas",
+    "allSeasons": "Todas",
     "allTime": "Todo o período",
     "monthly": "Mensal",
     "month": "Mês",

@@ -119,7 +119,7 @@ export default function GroupsList({ groupId, gamePlugin, displayName, onDisplay
                             {activeCount == null ? (
                                 <span aria-hidden="true" className="col-start-1 row-start-1 h-3 self-center rounded bg-black/10 motion-safe:animate-pulse dark:bg-white/10" />
                             ) : (
-                                <span className="col-start-1 row-start-1 whitespace-nowrap">{t("groups.active", { count: activeCount })}</span>
+                                <span className="col-start-1 row-start-1 whitespace-nowrap text-right">{t("groups.active", { count: activeCount })}</span>
                             )}
                         </span>
                     </span>
