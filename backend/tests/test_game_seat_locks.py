@@ -1,4 +1,4 @@
-"""One hand per identity during a game, with free seating between games."""
+"""One hand per identity during a game, with remembered seating until explicitly reset."""
 from types import SimpleNamespace
 
 import pytest
@@ -19,10 +19,9 @@ def populated_table():
 
 def test_lock_starts_at_attach_and_original_seat_can_be_reclaimed():
     table = populated_table()
-    table.unassign_seat(0)
-    table.unassign_seat(1)
-    table.assign_seat('a', 1)
-    table.assign_seat('b', 0)
+    table.reset_seating()
+    for member, seat in [('a', 1), ('b', 0), ('c', 2), ('d', 3)]:
+        table.assign_seat(member, seat)
     table.attach_game('game-1')
     table.unassign_seat(0)
     table.unassign_seat(1)
@@ -78,12 +77,11 @@ def test_game_end_unlocks_and_next_game_locks_new_seats():
     table.attach_game('game-1')
     table.clear_game_seat_locks()
     assert table.active_game_id == 'game-1'
-    table.unassign_seat(0)
-    table.unassign_seat(1)
-    table.assign_seat('a', 1)
-    table.assign_seat('b', 0)
-    assert table.get_game_seat_locks() == {}
     table.release_game()
+    table.reset_seating()
+    for member, seat in [('a', 1), ('b', 0), ('c', 2), ('d', 3)]:
+        table.assign_seat(member, seat)
+    assert table.get_game_seat_locks() == {}
     table.attach_game('game-2')
     table.unassign_seat(0)
     table.unassign_seat(1)

@@ -333,7 +333,10 @@ export const es = {
             },
         },
         seat: {
-            pickForMe: "Elegir un asiento por mí",
+            randomlyAssigned: "Asignado al azar",
+            pickForMe: "Cualquier asiento",
+            returnSeat: "Volver a mi asiento",
+            takeSeat: "Tomar asiento",
 
             bottom: "Abajo",
             right: "Derecha",

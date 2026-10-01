@@ -46,6 +46,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         removeMember,
         revokeHandView,
         unassignSeat,
+        resetSeating,
         addSeat,
         removeSeat,
         startGameForTable,
@@ -179,6 +180,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             readOnly={!canManageSeats || table.state !== "open"}
                             isFourPlayer={isFourPlayer}
                             seatCount={seatCount}
+                            onResetSeating={canManageSeats && !table.active_game_id ? resetSeating : undefined}
                             onAddSeat={addSeat}
                             onRemoveSeat={removeSeat}
                             title={t("table.label.game")}
@@ -218,7 +220,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                 <h1 className="text-[34px] font-bold leading-tight tracking-normal text-black dark:text-white">
                     {t("table.label.seats")}
                 </h1>
-
             </div>
 
             <div className="min-w-0">
@@ -237,7 +238,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         playerIndex={playerIndex}
                         isHost={canManageSeats}
                         tableState={table.state}
-                        seatSelection={isFourPlayer ? gamePlugin.resolveSeatSelection?.(lobbyConfig) ?? "both" : "seats"}
+                        showSeatActions
                         lockedSeatIndex={selfId ? table.game_seat_locks?.[selfId] : undefined}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}

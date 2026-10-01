@@ -102,7 +102,7 @@ class TableSessionService(Generic[RulesT]):
         self._last_activity[table_code] = time.time()
 
 
-    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> None:
+    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> int:
         """
         Assign acting member to a seat.
 
@@ -119,10 +119,18 @@ class TableSessionService(Generic[RulesT]):
 
         table_code, table = self._get_table_for_member(member_id)
 
-        table.assign_seat(member_id=member_id, seat_index=seat_index, selection_method=selection_method)
+        assigned_index = table.assign_seat(member_id=member_id, seat_index=seat_index, selection_method=selection_method)
 
         self._last_activity[table_code] = time.time()
+        return assigned_index
 
+
+    def reset_seating(self, member_id: str) -> None:
+        table_code, table = self._get_table_for_member(member_id)
+        if table.host_id != member_id:
+            raise PermissionError("Only the host may reset seating.")
+        table.reset_seating()
+        self._last_activity[table_code] = time.time()
 
     def get_pending_rules(self, table_code: str) -> RulesT | None:
         """
@@ -343,6 +351,8 @@ class TableSessionService(Generic[RulesT]):
             "seats": seats,
             "seat_selection_methods": [seat.selection_method for seat in table.seats],
             "game_seat_locks": table.get_game_seat_locks(),
+            "previous_seats": table.get_previous_seats(),
+            "has_seating_history": table.has_seating_history,
             "seat_count": table.seat_count,
             "state": table.state.value,
             "is_persistent": table.is_persistent,

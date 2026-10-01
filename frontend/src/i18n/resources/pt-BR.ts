@@ -117,7 +117,10 @@ export const ptBR = {
         dialog: { inviteLink: "Link de convite", inviteCopyInstruction: "Copie o texto abaixo para compartilhar.", inviteShareText: "Entre na minha mesa", leaveConfirm: "Sair desta mesa?", closeConfirm: "Encerrar esta mesa?", endGameConfirm: "Encerrar este jogo?" },
         roster: { title: "Pessoas", players: "Jogadores", viewers: "Espectadores", you: "Você", host: "ANFITRIÃO", player: "JOGADOR", viewer: "ESPECTADOR", viewingHand: "Vendo a mão de {{name}}", handViewers: "{{count}} assistindo", winPercentage: "{{percentage}}%", winPercentageLabel: "Percentual de vitórias: {{percentage}}%", winStreakLabel: "Sequência de {{count}} vitórias", seat: { bottom: "Inferior", right: "Direita", top: "Superior", left: "Esquerda", seated: "Sentado" } },
         seat: {
-            pickForMe: "Escolher um assento para mim",
+            randomlyAssigned: "Atribuído aleatoriamente",
+            pickForMe: "Qualquer assento",
+            returnSeat: "Voltar ao meu assento",
+            takeSeat: "Tomar assento",
  bottom: "Assento inferior", right: "Assento à direita", top: "Assento superior", left: "Assento à esquerda" },
         reaction: { open: "Abrir reações", close: "Fechar reações", send: "Enviar {{reaction}}" },
     },

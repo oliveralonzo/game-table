@@ -333,7 +333,10 @@ export const en = {
             },
         },
         seat: {
-            pickForMe: "Choose a seat for me",
+            randomlyAssigned: "Randomly assigned",
+            pickForMe: "Any seat",
+            returnSeat: "Return to seat",
+            takeSeat: "Take a seat",
 
             bottom: "Bottom seat",
             right: "Right seat",

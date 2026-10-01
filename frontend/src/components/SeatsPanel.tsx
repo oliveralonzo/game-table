@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { Shuffle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { buildSeatInitialLabels } from "game-table/utils/playerInitialLabels";
 import { getRelativeSeatOffset } from "game-table/utils/seatLayoutUtils";
@@ -57,7 +58,7 @@ type Props = {
     footerAction?: ReactNode;
     sizeToContent?: boolean;
     lockedSeatIndex?: number;
-    seatSelection?: "both" | "seats" | "table";
+    showSeatActions?: boolean;
 };
 
 export default function SeatsPanel({
@@ -72,7 +73,7 @@ export default function SeatsPanel({
     footerAction,
     sizeToContent = false,
     lockedSeatIndex,
-    seatSelection = "both",
+    showSeatActions = false,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
@@ -85,10 +86,11 @@ export default function SeatsPanel({
             tableState,
         });
         return canClaimSeat && (lockedSeatIndex === undefined || lockedSeatIndex === index)
+
             ? [index]
             : [];
     });
-    const canPickSeat = seatSelection !== "seats" && availableSeatIndices.length > 0;
+    const canPickSeat = availableSeatIndices.length > 0;
     const seatButtonBaseClass =
         "group absolute z-0 h-[30%] w-[30%] touch-pan-y rounded-full ring-1 transition-[opacity,filter,transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] [container-type:size]";
     const emptySeatClass =
@@ -167,10 +169,9 @@ export default function SeatsPanel({
                                 tableState,
                             });
                             const canInteract = permissions.canInteract
-                                && (claimed || seatSelection !== "table")
                                 && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);
                             const initials = initialLabels?.[index] ?? seatInitialLabels[index]?.label ?? "";
-                            const isUnavailableEmptySeat = !claimed && (hasASeat || seatSelection === "table"
+                            const isUnavailableEmptySeat = !claimed && (hasASeat
                                 || (lockedSeatIndex !== undefined && lockedSeatIndex !== index));
                             const seatStateClass = isSelf
                                 ? ownSeatClass
@@ -185,7 +186,7 @@ export default function SeatsPanel({
                                     ? "text-black/55 dark:text-black/70"
                                     : "text-black";
                             const interactionClass = canInteract
-                                ? "cursor-pointer hover:scale-105 hover:ring-black/40 active:scale-95 dark:hover:ring-white/50"
+                                ? "cursor-pointer hover:scale-105 hover:ring-black/40 active:scale-95 dark:hover:ring-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A97142]"
                                 : "cursor-default";
                             const showRemoveCue = claimed && canInteract;
 
@@ -193,7 +194,7 @@ export default function SeatsPanel({
                                 <button
                                     key={index}
                                     type="button"
-                                    aria-label={label}
+                                    aria-label={seat?.selectionMethod === "random" ? `${label}, ${t("table.seat.randomlyAssigned")}` : label}
                                     aria-pressed={isSelf}
                                     aria-hidden={!visible}
                                     aria-disabled={!canInteract}
@@ -210,10 +211,15 @@ export default function SeatsPanel({
                                 >
                                     {initials && (
                                         <span
-                                            className={`pointer-events-none absolute left-1/2 top-1/2 text-[30cqw] ${seat?.selectionMethod === "random" ? "font-normal" : "font-bold"} leading-none ${initialsClass}`}
+                                            className={`pointer-events-none absolute left-1/2 top-1/2 text-[30cqw] font-normal leading-none ${initialsClass}`}
                                             style={initialsStyle}
                                         >
                                             {initials}
+                                            {seat?.selectionMethod === "random" && (
+                                                <sup className="absolute -right-[1.15em] -top-[0.1em] text-[0.4em]" aria-hidden="true">
+                                                    <Shuffle className="h-[1em] w-[1em]" strokeWidth={2} />
+                                                </sup>
+                                            )}
                                         </span>
                                     )}
                                     {showRemoveCue && (
@@ -225,19 +231,24 @@ export default function SeatsPanel({
                                 </button>
                             );
                         })}
-                        <button
-                            type="button"
-                            aria-label={t("table.seat.pickForMe")}
-                            disabled={!canPickSeat}
-                            className={`relative z-10 flex h-full w-full items-center justify-center rounded-2xl bg-[#A97142] transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A97142] ${canPickSeat ? "cursor-pointer hover:brightness-105 active:brightness-95" : "cursor-default"}`}
-                            onClick={() => {
-                                if (!canPickSeat) return;
-                                const index = availableSeatIndices[Math.floor(Math.random() * availableSeatIndices.length)];
-                                onAssignSeat(index, "random");
-                            }}
-                        >
-                            <span className="h-[88%] w-[88%] rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300" />
-                        </button>
+                        <div className="relative z-10 flex h-full w-full items-center justify-center rounded-2xl bg-[#A97142]">
+                            <div className="flex h-[88%] w-[88%] items-center justify-center rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300">
+                                {showSeatActions && !hasASeat && (
+                                    <button
+                                        type="button"
+                                        className="group/table absolute inset-0 flex h-full w-full items-center justify-center rounded-2xl bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A97142] enabled:cursor-pointer disabled:cursor-default"
+                                        disabled={!canPickSeat}
+                                        onClick={() => {
+                                            if (canPickSeat) onAssignSeat(availableSeatIndices[0], "random");
+                                        }}
+                                    >
+                                        <span className="pointer-events-none inline-flex min-h-10 items-center justify-center rounded-full bg-black/5 px-4 py-2 text-sm font-medium text-black/65 transition-colors group-enabled/table:group-hover/table:bg-black/10 group-enabled/table:group-active/table:bg-black/15 group-disabled/table:opacity-40">
+                                            {t("table.seat.pickForMe")}
+                                        </span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

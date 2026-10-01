@@ -8,7 +8,7 @@ class TableServiceRouter:
     }
     _BY_MEMBER = {
         'leave_table', 'update_name', 'transfer_host', 'remove_member',
-        'add_seat', 'remove_seat', 'assign_seat', 'unassign_seat', 'update_rules',
+        'add_seat', 'remove_seat', 'assign_seat', 'unassign_seat', 'reset_seating', 'update_rules',
         'prepare_game_start', 'validate_game_end', 'attach_game', 'detach_game', 'block_game', 'resume_game',
         'mark_persistent', 'unmark_persistent', 'enable_hand_visibility',
         'disable_hand_visibility', 'grant_hand_view', 'revoke_hand_view',

@@ -574,7 +574,7 @@ def register_table_events(
             member_id = session_registry.resolve_member_id(sid)
             table_code = table_service.get_table_code_for_member(member_id)
 
-            table_service.assign_seat(
+            seat_index = table_service.assign_seat(
                 member_id=member_id,
                 seat_index=seat_index,
                 selection_method=data.get("selection_method", "manual"),
@@ -587,6 +587,17 @@ def register_table_events(
                 "seat_index": seat_index,
             }
 
+        except Exception as exc:
+            return _error_response(exc)
+
+    @sio.on("table:reset_seating")
+    async def reset_seating(sid, data=None):
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            table_code = table_service.get_table_code_for_member(member_id)
+            table_service.reset_seating(member_id=member_id)
+            await _broadcast_table_state_update(table_code)
+            return {"reset": True}
         except Exception as exc:
             return _error_response(exc)
 

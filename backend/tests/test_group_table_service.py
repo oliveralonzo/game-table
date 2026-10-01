@@ -12,6 +12,9 @@ from game_table.table.table import Table
 
 
 class Groups:
+    def is_member(self, account_id, group_id):
+        return account_id in ("owner", "member") and group_id != "deleted"
+
     def get_group(self, account_id, group_id):
         if group_id == 'deleted':
             raise ValueError('Group does not exist.')
@@ -29,7 +32,7 @@ def test_group_creation_starts_empty_without_host_or_automatic_join():
     assert table.host_id is None
     assert table.members == {}
     assert result == {'table_code': 'BABA-1234', 'instance_id': table.instance_id, 'host_id': None, 'group_id': 'g', 'state': 'open',
-                      'seat_count': 4, 'seats': [None] * 4, 'members': []}
+                      'seat_count': 4, 'seats': [None] * 4, 'seat_selection_methods': [None] * 4, 'members': []}
     assert service.list_tables('owner', 'g') == [result]
     assert service.list_tables('owner', 'other') == []
 
@@ -121,3 +124,39 @@ def test_empty_group_closure_requires_membership_matching_lifetime_and_no_people
         service.close_empty_table('member', 'g', 'BABA-1234', preview['instance_id'])
     service.close_empty_table('member', 'g', 'BABA-1234', replacement['instance_id'])
     assert not registry.contains('BABA-1234')
+
+
+def test_group_reset_seating_requires_current_membership():
+    registry = TableRegistry()
+    service = GroupTableService(Groups(), registry, lambda: 'BABA-1234')
+    service.create_table('member', 'g')
+    service.get_table('BABA-1234').set_pending_rules({'seat_selection': 'table'})
+    service.join_table('member-session', 'BABA-1234', 'Member', account_id='member')
+    service.join_table('guest-session', 'BABA-1234', 'Guest')
+    service.assign_seat('guest-session', 0, 'random')
+    with pytest.raises(PermissionError):
+        service.reset_seating('guest-session')
+    service.reset_seating('member-session')
+    view = service.get_table_view('BABA-1234')
+    assert view['seats'] == [None] * 4
+    assert view['has_seating_history'] is False
+
+
+def test_group_members_can_change_seating_configuration_without_a_host():
+    registry = TableRegistry()
+    service = GroupTableService(Groups(), registry, lambda: 'BABA-1234')
+    service.create_table('member', 'g')
+    service.join_table('member-session', 'BABA-1234', 'Member', account_id='member')
+    service.join_table('guest-session', 'BABA-1234', 'Guest')
+    service.update_rules('member-session', {'seat_selection': 'table'})
+    index = service.assign_seat('guest-session', 0, 'random')
+    with pytest.raises(PermissionError):
+        service.update_rules('guest-session', {'seat_selection': 'seats'})
+    with pytest.raises(PermissionError):
+        service.remove_seat('guest-session')
+    service.update_rules('member-session', {'seat_selection': 'seats'})
+    assert service.get_table('BABA-1234').seats[index].member_id == 'guest-session'
+    service.update_rules('member-session', {'seat_selection': 'table'})
+    service.remove_seat('member-session')
+    assert service.get_table('BABA-1234').seat_count == 3
+    assert service.get_table('BABA-1234').has_seating_history is True

@@ -123,6 +123,9 @@ class GroupTableService(TableSessionService):
     def remove_seat(self, member_id: str) -> None:
         self._require_group_member(member_id).remove_seat()
 
+    def reset_seating(self, member_id: str) -> None:
+        self._require_group_member(member_id).reset_seating()
+
     def unassign_seat(self, member_id: str, seat_index: int) -> None:
         _, table = self._get_table_for_member(member_id)
         occupant = table.get_seat_occupant(seat_index)

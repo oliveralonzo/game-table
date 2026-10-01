@@ -62,6 +62,8 @@ export interface TableView {
      * Each entry is either a member_id or null (empty seat).
      */
     seats: Array<string | null>;
+    previous_seats?: Record<string, number>;
+    has_seating_history?: boolean;
     seat_selection_methods?: Array<"manual" | "random" | null>;
     game_seat_locks?: Record<string, number>;
 

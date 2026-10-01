@@ -25,6 +25,7 @@ Design:
 
 
 from uuid import uuid4
+from secrets import choice
 from enum import Enum
 from typing import Dict, Generic, List, Optional, Set, TypeVar
 
@@ -104,6 +105,9 @@ class Table(Generic[RulesT]):
         self._pending_rules = rules
         self._game_changed_seats: Set[int] = set()
         self._game_seat_locks: Dict[str, int] = {}
+        self._random_seats: Dict[str, int] = {}
+        self._previous_seats: Dict[str, int] = {}
+        self._previous_seat_methods: Dict[str, str] = {}
         self._seat_locks_active = False
         self._member_session_identities: Dict[str, str] = {}
 
@@ -253,7 +257,14 @@ class Table(Generic[RulesT]):
     def bind_seat_identity(self, member_id: str, identity: str | None) -> None:
         self._ensure_member_exists(member_id)
         if identity:
+            old_identity = self._seat_identity(member_id)
             self._member_session_identities[member_id] = identity
+            new_identity = self._seat_identity(member_id)
+            if old_identity in self._random_seats:
+                self._random_seats.setdefault(new_identity, self._random_seats[old_identity])
+            if old_identity in self._previous_seats:
+                self._previous_seats.setdefault(new_identity, self._previous_seats[old_identity])
+                self._previous_seat_methods.setdefault(new_identity, self._previous_seat_methods.get(old_identity, "manual"))
 
     def _seat_identity(self, member_id: str) -> str:
         account_id = self._members[member_id].account_id
@@ -264,6 +275,23 @@ class Table(Generic[RulesT]):
         return {member_id: self._game_seat_locks[self._seat_identity(member_id)]
                 for member_id in self._members
                 if self._seat_identity(member_id) in self._game_seat_locks}
+
+    def get_previous_seats(self) -> Dict[str, int]:
+        return {member_id: self._previous_seats[self._seat_identity(member_id)]
+                for member_id in self._members
+                if self._seat_identity(member_id) in self._previous_seats}
+
+    @property
+    def has_seating_history(self) -> bool:
+        return bool(self._previous_seats)
+
+    def reset_seating(self) -> None:
+        self._ensure_no_game_exists("End the game before resetting seating.")
+        for index in range(self.seat_count):
+            self.unassign_seat(index)
+        self._random_seats.clear()
+        self._previous_seats.clear()
+        self._previous_seat_methods.clear()
 
     def clear_game_seat_locks(self) -> None:
         self._seat_locks_active = False
@@ -477,7 +505,7 @@ class Table(Generic[RulesT]):
         self._seats.pop()
 
 
-    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> None:
+    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> int:
         """
         Assign a member to a seat.
 
@@ -494,6 +522,23 @@ class Table(Generic[RulesT]):
             raise ValueError("Invalid seat selection method.")
         if member_id not in self._members:
             raise ValueError("Member does not exist.")
+
+        identity = self._seat_identity(member_id)
+        random_seat = self._random_seats.get(identity)
+        game_seat = self._game_seat_locks.get(identity) if self._seat_locks_active else None
+        if game_seat is not None:
+            if selection_method == "manual" and seat_index != game_seat:
+                raise ValueError("You can only reclaim your original seat until this game ends.")
+            seat_index = game_seat
+            selection_method = self._previous_seat_methods.get(identity, selection_method)
+        elif selection_method == "random":
+            if random_seat is not None and 0 <= random_seat < self.seat_count and self._seats[random_seat].member_id is None:
+                seat_index = random_seat
+            else:
+                available = [seat.index for seat in self._seats if seat.member_id is None]
+                if not available:
+                    raise ValueError("No available seats.")
+                seat_index = choice(available)
 
         self._ensure_seat_index_valid(seat_index)
 
@@ -516,6 +561,10 @@ class Table(Generic[RulesT]):
 
         seat.member_id = member_id
         seat.selection_method = selection_method
+        if selection_method == "random":
+            self._random_seats[identity] = seat_index
+        self._previous_seats[identity] = seat_index
+        self._previous_seat_methods[identity] = selection_method
         self._remove_member_from_hand_view_permissions(member_id)
 
         # If game was blocked due to empty seat,
@@ -523,6 +572,8 @@ class Table(Generic[RulesT]):
         if self._state == TableState.GAME_BLOCKED:
             if self._all_seats_filled():
                 self._state = TableState.IN_GAME
+
+        return seat_index
 
 
     def get_seat_occupant(self, seat_index: int) -> str | None:
@@ -580,7 +631,7 @@ class Table(Generic[RulesT]):
         Rules:
         - Only host may update config.
         - Config may only be updated while table is OPEN.
-        - Table treats rules as an opaque value.
+        - Seat-selection changes preserve occupied seats.
         """
 
         self._ensure_host(acting_member_id, "Only host may update config.")
