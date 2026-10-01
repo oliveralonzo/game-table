@@ -250,7 +250,7 @@ type TableSocketAPI = {
     transferHost: (member_id: string) => void;
     addSeat: () => void;
     removeSeat: () => void;
-    assignSeat: (seat_index: number) => void;
+    assignSeat: (seat_index: number, selection_method?: "manual" | "random") => void;
     unassignSeat: (seat_index: number) => void;
     updateGameSettings: (settings: unknown) => void;
     startGameForTable: (
@@ -783,8 +783,8 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         emit("table:remove_seat");
     }
 
-    function assignSeat(seat_index: number) {
-        emit("table:assign_seat", { seat_index });
+    function assignSeat(seat_index: number, selection_method: "manual" | "random" = "manual") {
+        emit("table:assign_seat", { seat_index, selection_method });
     }
 
     function unassignSeat(seat_index: number) {

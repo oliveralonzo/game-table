@@ -577,6 +577,7 @@ def register_table_events(
             table_service.assign_seat(
                 member_id=member_id,
                 seat_index=seat_index,
+                selection_method=data.get("selection_method", "manual"),
             )
 
             await _broadcast_table_state_update(table_code)
@@ -660,18 +661,6 @@ def register_table_events(
             game_id = game_table_service.start_game_for_table(member_id)
 
             await _broadcast_table_state_update(table_code)
-            table_view = _get_table_view(table_code)
-            seats = table_view.get("seats", [])
-            host_id = table_view.get("host_id")
-            shuffler_seat = seats.index(host_id) if host_id in seats else None
-            await sio.emit(
-                "game:round_transition",
-                {
-                    "phase": "shuffle",
-                    "shuffler_seat": shuffler_seat,
-                },
-                room=table_code,
-            )
 
             return {
                 "started": True,

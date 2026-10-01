@@ -32,6 +32,7 @@ export const ptBR = {
     "players": "Jogadores",
     "view": "Ver toda a atividade",
     "seasons": "Temporadas",
+    "minimumStreak": "Requer uma sequência de {{count}}",
     "minimumGames": "Requer {{count}} jogos",
     "allSeasons": "Todas",
     "allTime": "Todo o período",

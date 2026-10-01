@@ -82,9 +82,10 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
     const displayName = table && selfId ? table.members[selfId]?.name ?? "" : "";
     const lobbyConfig = gamePlugin.resolveSettings(table?.pending_rules);
 
-    const seats = table?.seats.map((memberId: string | null) => ({
+    const seats = table?.seats.map((memberId: string | null, index: number) => ({
         name: memberId ? table.members[memberId]?.name ?? null : null,
         ready: false,
+        selectionMethod: table.seat_selection_methods?.[index],
     })) ?? [];
     const playerIndexRaw = table && selfId
         ? table.seats.findIndex((memberId) => memberId === selfId)

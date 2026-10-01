@@ -32,6 +32,7 @@ export const es = {
     "players": "Jugadores",
     "view": "Ver toda la actividad",
     "seasons": "Temporadas",
+    "minimumStreak": "Requiere una racha de {{count}}",
     "minimumGames": "Requiere {{count}} juegos",
     "allSeasons": "Todas",
     "allTime": "Todo el tiempo",

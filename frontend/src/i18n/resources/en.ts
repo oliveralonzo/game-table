@@ -32,6 +32,7 @@ export const en = {
     "players": "Players",
     "view": "View all activity",
     "seasons": "Seasons",
+    "minimumStreak": "Requires a streak of {{count}}",
     "minimumGames": "Requires {{count}} games",
     "allSeasons": "All",
     "allTime": "All time",

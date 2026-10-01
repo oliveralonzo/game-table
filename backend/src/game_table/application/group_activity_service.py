@@ -159,8 +159,9 @@ class GroupActivityService:
         highlight_entries = sorted(player_entries, key=lambda p: (
             p['games_played'] < MIN_PERCENTAGE_GAMES,
             -p['head_to_head']['ahead'], p['head_to_head']['behind'], p['username']))
-        def highlight(field, minimum=1):
-            eligible = [p for p in highlight_entries if p['games_played'] >= minimum]
+        def highlight(field, minimum=1, minimum_value=0):
+            eligible = [p for p in highlight_entries
+                        if p['games_played'] >= minimum and p[field] >= minimum_value]
             def displayed_value(player):
                 if field == 'win_percentage':
                     # Round halves up, matching the whole percentages displayed by the UI.
@@ -185,7 +186,7 @@ class GroupActivityService:
         return dict(group_id=group_id, season=season, current_season=current, seasons=seasons,
             players=player_entries, teams=sorted(teams.values(), key=lambda p: p['username']),
             highlights=dict(best_percentage=highlight('win_percentage', MIN_PERCENTAGE_GAMES),
-                head_to_head=hth_highlight, most_wins=highlight('games_won'),
-                win_streak=highlight('best_win_streak')),
+                head_to_head=hth_highlight, most_wins=highlight('games_won', MIN_PERCENTAGE_GAMES),
+                win_streak=highlight('best_win_streak', minimum_value=3)),
             history=dict(entries=history[(page-1)*PAGE_SIZE:page*PAGE_SIZE], page=page,
                          total_pages=total_pages, total_games=len(history)))

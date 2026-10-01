@@ -8,6 +8,7 @@ type TableState = "open" | "in_game" | "game_blocked";
 type SeatView = {
     name: string | null;
     ready: boolean;
+    selectionMethod?: "manual" | "random" | null;
 };
 
 type SeatPermissions = {
@@ -51,7 +52,7 @@ type Props = {
     playerIndex: number | null;
     isHost: boolean;
     tableState: TableState;
-    onAssignSeat: (index: number) => void;
+    onAssignSeat: (index: number, selectionMethod?: "manual" | "random") => void;
     onUnassignSeat: (index: number) => void;
     footerAction?: ReactNode;
     sizeToContent?: boolean;
@@ -203,13 +204,13 @@ export default function SeatsPanel({
                                         if (claimed) {
                                             onUnassignSeat(index);
                                         } else {
-                                            onAssignSeat(index);
+                                            onAssignSeat(index, "manual");
                                         }
                                     }}
                                 >
                                     {initials && (
                                         <span
-                                            className={`pointer-events-none absolute left-1/2 top-1/2 text-[30cqw] font-medium leading-none ${initialsClass}`}
+                                            className={`pointer-events-none absolute left-1/2 top-1/2 text-[30cqw] ${seat?.selectionMethod === "random" ? "font-normal" : "font-bold"} leading-none ${initialsClass}`}
                                             style={initialsStyle}
                                         >
                                             {initials}
@@ -232,7 +233,7 @@ export default function SeatsPanel({
                             onClick={() => {
                                 if (!canPickSeat) return;
                                 const index = availableSeatIndices[Math.floor(Math.random() * availableSeatIndices.length)];
-                                onAssignSeat(index);
+                                onAssignSeat(index, "random");
                             }}
                         >
                             <span className="h-[88%] w-[88%] rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300" />

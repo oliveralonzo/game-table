@@ -20,6 +20,7 @@ class TableSessionService(Generic[RulesT]):
         return {
             'table_code': table.table_code, 'instance_id': table.instance_id,
             'group_id': table.group_id, 'host_id': table.host_id, 'state': table.state.value,
+            'seat_selection_methods': [seat.selection_method for seat in table.seats],
             'seat_count': table.seat_count, 'seats': [seat.member_id for seat in table.seats],
             'members': [{'member_id': key, 'name': member.name, 'account_username': member.account_username}
                         for key, member in table.members.items()],
@@ -101,7 +102,7 @@ class TableSessionService(Generic[RulesT]):
         self._last_activity[table_code] = time.time()
 
 
-    def assign_seat(self, member_id: str, seat_index: int) -> None:
+    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> None:
         """
         Assign acting member to a seat.
 
@@ -118,7 +119,7 @@ class TableSessionService(Generic[RulesT]):
 
         table_code, table = self._get_table_for_member(member_id)
 
-        table.assign_seat(member_id=member_id, seat_index=seat_index)
+        table.assign_seat(member_id=member_id, seat_index=seat_index, selection_method=selection_method)
 
         self._last_activity[table_code] = time.time()
 
@@ -340,6 +341,7 @@ class TableSessionService(Generic[RulesT]):
             "group_id": table.group_id,
             "members": members,
             "seats": seats,
+            "seat_selection_methods": [seat.selection_method for seat in table.seats],
             "game_seat_locks": table.get_game_seat_locks(),
             "seat_count": table.seat_count,
             "state": table.state.value,

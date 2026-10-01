@@ -387,6 +387,7 @@ class Table(Generic[RulesT]):
             if self._active_game_id is not None:
                 self._game_changed_seats.add(seat_index)
             self._seats[seat_index].member_id = None
+            self._seats[seat_index].selection_method = None
 
             # If game running, block it
             if self._state == TableState.IN_GAME:
@@ -476,7 +477,7 @@ class Table(Generic[RulesT]):
         self._seats.pop()
 
 
-    def assign_seat(self, member_id: str, seat_index: int) -> None:
+    def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> None:
         """
         Assign a member to a seat.
 
@@ -489,6 +490,8 @@ class Table(Generic[RulesT]):
         it may resume.
         """
 
+        if selection_method not in ("manual", "random"):
+            raise ValueError("Invalid seat selection method.")
         if member_id not in self._members:
             raise ValueError("Member does not exist.")
 
@@ -512,6 +515,7 @@ class Table(Generic[RulesT]):
             self._game_seat_locks[identity] = seat_index
 
         seat.member_id = member_id
+        seat.selection_method = selection_method
         self._remove_member_from_hand_view_permissions(member_id)
 
         # If game was blocked due to empty seat,
@@ -552,6 +556,7 @@ class Table(Generic[RulesT]):
             self._game_changed_seats.add(seat_index)
 
         seat.member_id = None
+        seat.selection_method = None
 
         # Remove permission grants from this player
         if former_player_id in self._hand_view_permissions:
@@ -956,3 +961,4 @@ class Seat:
     def __init__(self, index: int):
         self.index = index
         self.member_id: Optional[str] = None
+        self.selection_method: Optional[str] = None

@@ -61,7 +61,7 @@ def test_roster_guests_teams_streaks_and_history():
     assert len(teams) == 2
     assert teams[('a', 'b')]['games_played'] == 3
     assert teams[('a', 'b')]['games_won'] == 2
-    assert result['highlights']['win_streak'] == {'value': 2, 'usernames': ['a', 'b']}
+    assert result['highlights']['win_streak'] == {'value': None, 'usernames': []}
     assert result['highlights']['best_percentage']['value'] is None
     assert result['history']['entries'][0]['winners'][1] == {'username': 'b', 'is_guest': True}
     assert result['history']['entries'][1]['score'] == '100–80'
@@ -392,3 +392,25 @@ def test_current_season_changes_at_dominican_midnight(instant, expected):
 def test_october_bounds_start_and_end_at_dominican_midnight():
     assert month_bounds('2026-10') == (
         ms('2026-10-01T04:00:00'), ms('2026-11-01T04:00:00'))
+
+
+def test_most_wins_highlight_requires_ten_games_but_standings_do_not():
+    games = [game(str(i)) for i in range(1, 10)]
+    result = service(Repository(games)).read('owner', 'g')
+    assert result['highlights']['most_wins'] == {'value': None, 'usernames': []}
+    assert next(p for p in result['players'] if p['account_id'] == 'a')['games_won'] == 9
+    games.append(game('10'))
+    result = service(Repository(games)).read('owner', 'g')
+    assert result['highlights']['most_wins'] == {'value': 10, 'usernames': ['a', 'b']}
+
+
+def test_streak_highlight_requires_three_consecutive_wins_without_ten_game_minimum():
+    games = [game('1'), game('2')]
+    assert service(Repository(games)).read('owner', 'g')['highlights']['win_streak'] == {
+        'value': None, 'usernames': []}
+    games.append(game('3'))
+    assert service(Repository(games)).read('owner', 'g')['highlights']['win_streak'] == {
+        'value': 3, 'usernames': ['a', 'b']}
+    games.append(game('4', winner=1))
+    assert service(Repository(games)).read('owner', 'g')['highlights']['win_streak'] == {
+        'value': 3, 'usernames': ['a', 'b']}
