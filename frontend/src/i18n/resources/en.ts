@@ -32,6 +32,7 @@ export const en = {
     "players": "Players",
     "view": "View all activity",
     "seasons": "Seasons",
+    "minimumGames": "Requires {{count}} games",
     "allSeasons": "All",
     "allTime": "All time",
     "monthly": "Monthly",
@@ -331,6 +332,8 @@ export const en = {
             },
         },
         seat: {
+            pickForMe: "Choose a seat for me",
+
             bottom: "Bottom seat",
             right: "Right seat",
             top: "Top seat",

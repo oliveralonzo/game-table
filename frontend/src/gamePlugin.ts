@@ -22,6 +22,7 @@ export type FrontendGamePlugin = {
     SettingsPanel: ComponentType<Record<string, unknown>>;
     defaultSettings: unknown;
     resolveSettings: (settings: unknown) => unknown;
+    resolveSeatSelection?: (settings: unknown) => "both" | "seats" | "table";
     translations?: GameTranslations;
     Provider?: ComponentType<PropsWithChildren>;
 };

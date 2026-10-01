@@ -56,6 +56,7 @@ type Props = {
     footerAction?: ReactNode;
     sizeToContent?: boolean;
     lockedSeatIndex?: number;
+    seatSelection?: "both" | "seats" | "table";
 };
 
 export default function SeatsPanel({
@@ -70,9 +71,23 @@ export default function SeatsPanel({
     footerAction,
     sizeToContent = false,
     lockedSeatIndex,
+    seatSelection = "both",
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
+    const availableSeatIndices = seats.slice(0, seatCount).flatMap((seat, index) => {
+        const { canClaimSeat } = getSeatPermissions({
+            claimed: !!seat.name,
+            isSelf: playerIndex === index,
+            hasASeat,
+            isHost,
+            tableState,
+        });
+        return canClaimSeat && (lockedSeatIndex === undefined || lockedSeatIndex === index)
+            ? [index]
+            : [];
+    });
+    const canPickSeat = seatSelection !== "seats" && availableSeatIndices.length > 0;
     const seatButtonBaseClass =
         "group absolute z-0 h-[30%] w-[30%] touch-pan-y rounded-full ring-1 transition-[opacity,filter,transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] [container-type:size]";
     const emptySeatClass =
@@ -121,28 +136,6 @@ export default function SeatsPanel({
 
     return (
         <section className={sizeToContent ? "flex flex-col gap-4" : "flex h-full flex-col justify-between"}>
-            {/*
-                Previous seat selection kept for the branded rebuild.
-
-                const visibleSeats = seats.slice(0, seatCount);
-                const hasASeat = playerIndex !== null;
-                const isFourPlayer = seatCount === 4;
-
-                visibleSeats.map((seat, index) => {
-                    const claimed = seat.name !== null;
-                    const isSelf = playerIndex === index;
-                    const { canClaimSeat, canUnassignSeat, canInteract } =
-                        getSeatPermissions({
-                            claimed,
-                            isSelf,
-                            hasASeat,
-                            tableState,
-                        });
-
-                    return claimed ? seat.name : `Player ${index + 1}`;
-                });
-            */}
-
             {/* Equal top/side padding sets the illustration's size. Bottom
                 padding reserves the seat overhang before the action button. */}
             <div className={sizeToContent
@@ -173,9 +166,10 @@ export default function SeatsPanel({
                                 tableState,
                             });
                             const canInteract = permissions.canInteract
+                                && (claimed || seatSelection !== "table")
                                 && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);
                             const initials = initialLabels?.[index] ?? seatInitialLabels[index]?.label ?? "";
-                            const isUnavailableEmptySeat = !claimed && (hasASeat
+                            const isUnavailableEmptySeat = !claimed && (hasASeat || seatSelection === "table"
                                 || (lockedSeatIndex !== undefined && lockedSeatIndex !== index));
                             const seatStateClass = isSelf
                                 ? ownSeatClass
@@ -230,9 +224,19 @@ export default function SeatsPanel({
                                 </button>
                             );
                         })}
-                        <div className="relative z-10 flex h-full w-full items-center justify-center rounded-2xl bg-[#A97142]">
-                            <div className="h-[88%] w-[88%] rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300" />
-                        </div>
+                        <button
+                            type="button"
+                            aria-label={t("table.seat.pickForMe")}
+                            disabled={!canPickSeat}
+                            className={`relative z-10 flex h-full w-full items-center justify-center rounded-2xl bg-[#A97142] transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A97142] ${canPickSeat ? "cursor-pointer hover:brightness-105 active:brightness-95" : "cursor-default"}`}
+                            onClick={() => {
+                                if (!canPickSeat) return;
+                                const index = availableSeatIndices[Math.floor(Math.random() * availableSeatIndices.length)];
+                                onAssignSeat(index);
+                            }}
+                        >
+                            <span className="h-[88%] w-[88%] rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300" />
+                        </button>
                     </div>
                 </div>
             </div>

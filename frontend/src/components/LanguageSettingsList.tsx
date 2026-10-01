@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { List, ListItem, Radio } from "konsta/react";
+import { useId } from "react";
+import { List } from "konsta/react";
+import SettingsSelectionItem from "game-table/components/SettingsSelectionItem";
 import {
     saveLanguagePreference,
     type SupportedLanguage,
@@ -12,6 +14,7 @@ type Props = {
 export default function LanguageSettingsList({
     radioName = "language",
 }: Props) {
+    const groupId = useId();
     const { i18n, t } = useTranslation();
     const currentLanguage: SupportedLanguage = i18n.resolvedLanguage
         ?.toLowerCase()
@@ -33,23 +36,13 @@ export default function LanguageSettingsList({
             className="m-0 overflow-hidden"
         >
             {languageOptions.map((language) => (
-                <ListItem
+                <SettingsSelectionItem
                     key={language.code}
                     title={language.label}
-                    link
-                    chevron={false}
-                    onClick={() => saveLanguagePreference(language.code)}
-                    after={(
-                        <Radio
-                            component="div"
-                            name={radioName}
-                            value={language.code}
-                            checked={language.code === currentLanguage}
-                            onChange={() => saveLanguagePreference(language.code)}
-                        />
-                    )}
-                    strongTitle={false}
-                    titleFontSizeIos="text-[17px]"
+                    type="radio"
+                    name={`${radioName}-${groupId}`}
+                    checked={language.code === currentLanguage}
+                    onChange={() => saveLanguagePreference(language.code)}
                 />
             ))}
         </List>

@@ -35,6 +35,8 @@ export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data
             records.set(value, [...(records.get(value) ?? []), record.username]);
         }
         return { label: t(`groups.stats.${label}`),
+            needsMinimumGames: !!highlight && (field === "best_percentage" || field === "head_to_head")
+                && highlight.usernames.length === 0,
             records: [...records].map(([value, usernames]) => ({ value, usernames })),
             value: highlight?.value == null ? "—" : field === "best_percentage" ? `${Math.round(highlight.value * 100)}%` : highlight.value,
             usernames: highlight?.usernames ?? [],
@@ -47,6 +49,7 @@ export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data
                     <div className="px-4 py-3 space-y-2 sm:py-4 sm:space-y-3">{(item.records.length ? item.records : [item]).map((record, index) => <div key={index}>
                         <div className="text-2xl sm:text-[30px] font-bold tabular-nums leading-tight">{record.value}</div>
                         <div className="mt-0.5 text-sm text-black/55 dark:text-white/55 sm:mt-1">{item.label}</div>
+                        {item.needsMinimumGames && <p className="mt-1 text-xs text-black/40 dark:text-white/40 sm:mt-2">{t("groups.stats.minimumGames", { count: 10 })}</p>}
                         {record.usernames.length > 0 && <ul className="mt-1 space-y-0.5 break-words text-sm font-medium sm:mt-2 sm:space-y-1">{record.usernames.map(username => <li key={username}>@{username}</li>)}</ul>}
                     </div>)}</div>
                 </Card>)}

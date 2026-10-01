@@ -32,6 +32,7 @@ export const es = {
     "players": "Jugadores",
     "view": "Ver toda la actividad",
     "seasons": "Temporadas",
+    "minimumGames": "Requiere {{count}} juegos",
     "allSeasons": "Todas",
     "allTime": "Todo el tiempo",
     "monthly": "Mensual",
@@ -331,6 +332,8 @@ export const es = {
             },
         },
         seat: {
+            pickForMe: "Elegir un asiento por mí",
+
             bottom: "Abajo",
             right: "Derecha",
             top: "Arriba",
