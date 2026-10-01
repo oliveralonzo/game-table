@@ -133,6 +133,8 @@ class GroupTableService(TableSessionService):
             return
         if occupant != member_id:
             self._require_group_member(member_id)
+            if not any(seat.member_id == member_id for seat in table.seats):
+                raise PermissionError('Spectators cannot unseat players.')
         table.unassign_seat(seat_index)
 
     def get_table_view(self, table_code: str) -> dict:
@@ -146,6 +148,14 @@ class GroupTableService(TableSessionService):
         if view['group_member_ids']:
             view['group_public_id'] = self._group_public_ids.get(table.instance_id)
         return view
+
+    def get_history_participant(self, member_id: str) -> dict:
+        participant = super().get_history_participant(member_id)
+        _, table = self._get_table_for_member(member_id)
+        is_member = (self._sessions.is_member(participant['account_id'], table.group_id)
+                     if self._sessions else member_id in self._group_member_ids)
+        participant['group_participation'] = 'member' if is_member else 'guest'
+        return participant
 
     def prepare_game_start(self, member_id: str):
         table = self._require_group_member(member_id)

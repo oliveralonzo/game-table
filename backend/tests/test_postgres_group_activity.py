@@ -28,7 +28,7 @@ def repository(request):
         cursor.execute("CREATE TEMP TABLE groups (id text, created_at bigint, deleted_at bigint) ON COMMIT DROP")
         cursor.execute("CREATE TEMP TABLE accounts (id text, username text) ON COMMIT DROP")
         cursor.execute("CREATE TEMP TABLE group_memberships (group_id text, account_id text, joined_at bigint, left_at bigint) ON COMMIT DROP")
-        cursor.execute("CREATE TEMP TABLE game_history (id text, group_id text, started_at bigint, completed_at bigint, team_scores jsonb, team_player_counts jsonb, winning_team_index int) ON COMMIT DROP")
+        cursor.execute("CREATE TEMP TABLE game_history (id text, group_id text, started_at bigint, completed_at bigint, team_scores jsonb, team_player_counts jsonb, winning_team_index int, forfeited_seats jsonb NOT NULL DEFAULT '[]'::jsonb) ON COMMIT DROP")
         cursor.execute("CREATE TEMP TABLE account_game_results (game_history_id text, account_id text, team_index int, seat_index int, group_participation text) ON COMMIT DROP")
         cursor.execute("INSERT INTO groups VALUES ('g', %s, NULL), ('other', %s, NULL), ('deleted', %s, %s)", (start, start, start, end))
         cursor.execute("INSERT INTO accounts VALUES ('owner', 'oliver'), ('guest', 'guest'), ('later', 'later')")
@@ -38,7 +38,7 @@ def repository(request):
             ('before', 'g', start-1, start+1), ('after', 'g', end, end+1),
             ('other', 'other', start, start+1), ('private', None, start, start+1),
         ]:
-            cursor.execute("INSERT INTO game_history VALUES (%s,%s,%s,%s,%s,%s,0)", (id, group, began, ended, Jsonb([100,90]), Jsonb([1,1])))
+            cursor.execute("INSERT INTO game_history VALUES (%s,%s,%s,%s,%s,%s,0,'[]'::jsonb)", (id, group, began, ended, Jsonb([100,90]), Jsonb([1,1])))
             cursor.execute("INSERT INTO account_game_results VALUES (%s,'owner',0,0,'member'), (%s,'guest',1,1,'guest')", (id, id))
     yield PostgresGroupActivityRepository(session)
 
@@ -124,3 +124,29 @@ def test_live_session_access_reads_history_and_saves_defaults_without_reauthoriz
     with pytest.raises(PermissionError):
         groups.update_defaults('owner', 'g', {}, 4)
     assert repository.read('deleted', 'owner', None, None, authorized=True) is None
+
+
+
+def test_forfeits_persist_and_are_visible_without_account_results(repository):
+    from game_table.application.history_service import HistoryService
+    from game_table.infrastructure.postgres_history_repository import PostgresHistoryRepository
+    with repository._connection_factory() as connection:
+        connection.execute("ALTER TABLE game_history ADD PRIMARY KEY (id), ADD table_code text, ADD rounds_played int")
+        connection.execute("ALTER TABLE account_game_results ADD PRIMARY KEY (game_history_id, account_id), ADD won boolean, ADD points_for int, ADD points_against int")
+    writer = PostgresHistoryRepository(repository._connection_factory)
+    start, end = month_bounds('2026-09')
+    service = HistoryService(writer, clock_ms=lambda: end-1)
+    forfeits = [{'seat_index': 1, 'team_index': 1}]
+    service.record_completed_game(
+        table_code='T', rounds_played=1, team_scores=[100,90], team_player_counts=[1,1],
+        winning_team_index=0, group_id='g', started_at=start, history_id='forfeit',
+        account_participants=[dict(account_id='owner', seat_index=0, team_index=0, group_participation='member')],
+        forfeited_seats=forfeits,
+    )
+    saved = next(g for g in repository.read('g', 'owner', None, None).games if g['id'] == 'forfeit')
+    assert saved['forfeited_seats'] == forfeits
+    assert [p['account_id'] for p in saved['participants']] == ['owner']
+    account_history = writer.list_history_for_account('owner', limit=10, offset=0)
+    entry = next(e.to_dict() for e in account_history if e.game_history_id == 'forfeit')
+    assert entry['opponents'] == [dict(account_id=None, username=None, seat_index=1, team_index=1, forfeited=True)]
+    assert [r.account_id for r in writer.list_results_for_game('forfeit')] == ['owner']

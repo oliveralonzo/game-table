@@ -152,6 +152,14 @@ class TableSessionService(Generic[RulesT]):
         if table.active_game_id is None:
             raise ValueError("No active game.")
 
+    def get_history_participant(self, member_id: str) -> dict:
+        _, table = self._get_table_for_member(member_id)
+        seat_index = self.get_seat_index_for_member(member_id)
+        if seat_index is None:
+            raise ValueError("Only seated players can participate in a game.")
+        return dict(member_id=member_id, account_id=table.members[member_id].account_id,
+                    seat_index=seat_index, identity=table.get_member_identity(member_id))
+
     def get_seat_account_participants(self, table_code: str) -> list[dict]:
         table = self._get_table(table_code)
         participants = []

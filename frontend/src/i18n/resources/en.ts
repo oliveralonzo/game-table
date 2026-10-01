@@ -137,7 +137,7 @@ export const en = {
             previous: "Previous page",
             next: "Next page",
             empty: "Completed signed-in games will appear here.",
-            guestFallback: "Not signed in",
+            forfeit: "Forfeit", guestFallback: "Not signed in",
             noPartnerFallback: "None",
             win: "Win",
             loss: "Loss",

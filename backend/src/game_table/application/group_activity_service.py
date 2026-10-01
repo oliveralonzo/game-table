@@ -137,7 +137,9 @@ class GroupActivityService:
             for index, count in enumerate(game['team_player_counts']):
                 team = sorted((p for p in participants if p['team_index'] == index), key=lambda p: p['account_id'])
                 side = [dict(username=p['username'], is_guest=p['group_participation'] != 'member') for p in team]
-                side.extend(dict(username=None, is_guest=True) for _ in range(max(0, count - len(team))))
+                forfeits = [p for p in game.get('forfeited_seats', []) if p['team_index'] == index]
+                side.extend(dict(username=None, is_guest=False, forfeited=True) for _ in forfeits)
+                side.extend(dict(username=None, is_guest=True) for _ in range(max(0, count - len(side))))
                 sides.append(side)
                 # An incomplete or guest-containing side has history, but no member-team ranking.
                 if count < 2 or len(team) != count or any(p['group_participation'] != 'member' for p in team):

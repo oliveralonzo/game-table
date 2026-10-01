@@ -37,7 +37,7 @@ function getSeatPermissions({
         (tableState === "open" || tableState === "game_blocked");
 
     const canUnassignSeat =
-        claimed && (isHost || isSelf);
+        claimed && (isSelf || (isHost && hasASeat));
 
     return {
         canClaimSeat,

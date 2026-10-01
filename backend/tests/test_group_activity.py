@@ -414,3 +414,19 @@ def test_streak_highlight_requires_three_consecutive_wins_without_ten_game_minim
     games.append(game('4', winner=1))
     assert service(Repository(games)).read('owner', 'g')['highlights']['win_streak'] == {
         'value': 3, 'usernames': ['a', 'b']}
+
+
+
+def test_forfeits_are_distinct_from_missing_accounts_and_do_not_affect_player_stats():
+    value = game()
+    value['participants'] = [p for p in value['participants'] if p['account_id'] != 'b']
+    value['forfeited_seats'] = [{'seat_index': 2, 'team_index': 0}]
+    result = service(Repository([value])).read('owner', 'g')
+    assert result['history']['entries'][0]['winners'] == [
+        {'username': 'a', 'is_guest': False},
+        {'username': None, 'is_guest': False, 'forfeited': True},
+    ]
+    players = {p['username']: p for p in result['players']}
+    assert players['b']['games_played'] == 0
+    assert players['a']['games_played'] == 1
+    assert len(result['teams']) == 1

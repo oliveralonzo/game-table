@@ -39,9 +39,10 @@ class PostgresHistoryRepository:
                         team_player_counts,
                         winning_team_index,
                         group_id,
-                        started_at
+                        started_at,
+                        forfeited_seats
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (
@@ -54,6 +55,7 @@ class PostgresHistoryRepository:
                         game_history.winning_team_index,
                         game_history.group_id,
                         game_history.started_at,
+                        Jsonb(game_history.forfeited_seats),
                     ),
                 )
 
@@ -112,6 +114,7 @@ class PostgresHistoryRepository:
                         game_history.rounds_played,
                         game_history.team_scores,
                         game_history.team_player_counts,
+                        game_history.forfeited_seats,
                         game_history.winning_team_index,
                         account_game_results.seat_index,
                         account_game_results.team_index,
@@ -148,6 +151,7 @@ class PostgresHistoryRepository:
                         game_history.rounds_played,
                         game_history.team_scores,
                         game_history.team_player_counts,
+                        game_history.forfeited_seats,
                         game_history.winning_team_index,
                         account_game_results.seat_index,
                         account_game_results.team_index,
@@ -445,7 +449,9 @@ class PostgresHistoryRepository:
 
     @staticmethod
     def _history_entry_from_row(row: dict[str, Any]) -> AccountHistoryEntry:
-        participants = row.get("participants") or []
+        participants = list(row.get("participants") or [])
+        participants.extend(dict(p, account_id=None, username=None, forfeited=True)
+                            for p in row.get("forfeited_seats") or [])
         team_index = row["team_index"]
         team_player_counts = row.get("team_player_counts") or []
         team_player_count = (

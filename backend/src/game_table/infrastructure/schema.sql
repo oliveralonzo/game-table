@@ -50,3 +50,5 @@ ALTER TABLE game_history ADD COLUMN IF NOT EXISTS group_id TEXT;
 ALTER TABLE game_history ADD COLUMN IF NOT EXISTS started_at BIGINT;
 ALTER TABLE account_game_results ADD COLUMN IF NOT EXISTS group_participation TEXT
     CHECK (group_participation IN ('member', 'guest'));
+
+ALTER TABLE game_history ADD COLUMN IF NOT EXISTS forfeited_seats JSONB NOT NULL DEFAULT '[]'::jsonb;

@@ -158,7 +158,7 @@ export function useTableRoomPeople({
     const getRosterActions = (person: RosterPerson): RosterAction[] => {
         const actions: RosterAction[] = [];
 
-        if ((isHost || (!!selfId && table?.group_member_ids?.includes(selfId))) && person.hasSeat && typeof person.seatIndex === "number") {
+        if (selfIsSeated && (isHost || (!!selfId && table?.group_member_ids?.includes(selfId))) && person.hasSeat && typeof person.seatIndex === "number") {
             actions.push({
                 id: "unseat",
                 label: t("table.action.unseat"),

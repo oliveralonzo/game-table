@@ -23,7 +23,7 @@ def service():
     ('remove_seat', (), 'Only host may modify seat count.'),
     ('prepare_game_start', (), 'Only host may start the game.'),
     ('attach_game', ('game',), 'Only host may attach the game.'),
-    ('unassign_seat', (0,), 'Only host may unassign other members.'),
+    ('unassign_seat', (0,), 'Only a seated host may unassign other members.'),
 ])
 def test_private_service_rejects_nonhost_without_mutating(service, action, args, message):
     before = service.get_table_view('T1')

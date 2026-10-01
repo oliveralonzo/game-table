@@ -41,6 +41,7 @@ class GameTableService:
             'group_id': table.group_id,
             'started_at': self._clock_ms(),
             'participants': tuple(dict(p) for p in data.get('participants', [])),
+            'played_seats': {},
         }
         if table.group_id is not None and 'participants' not in data:
             raise ValueError('Group game start requires a participant snapshot.')
@@ -57,6 +58,32 @@ class GameTableService:
 
         self._history_contexts[table] = dict(context, game_id=game_id)
         return game_id
+
+    def record_game_action(self, member_id: str, game_id: str) -> None:
+        """Call only after a successful player action, before publishing completion.
+
+        Presence changes do not affect attribution. A second identity acting in
+        the same seat permanently forfeits that seat's account result.
+        """
+        table_code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(table_code)
+        context = self._history_contexts.get(table)
+        if context is None or context['game_id'] != game_id or table.active_game_id != game_id:
+            raise ValueError('Game does not match its table history context.')
+        if 'completed_participants' in context:
+            raise ValueError('Completed game participation is frozen.')
+        participant = self._table_service.get_history_participant(member_id)
+        seat = participant['seat_index']
+        previous = context['played_seats'].get(seat)
+        if previous is None:
+            # Preserve start-time group eligibility for original players.
+            original = next((p for p in context['participants']
+                             if p['seat_index'] == seat and p['account_id'] == participant['account_id']), None)
+            if original is not None and 'group_participation' in original:
+                participant['group_participation'] = original['group_participation']
+            context['played_seats'][seat] = participant
+        elif previous['identity'] != participant['identity']:
+            previous['forfeited'] = True
 
     def end_game_for_table(self, member_id: str) -> None:
         table_code = self._table_service.get_table_code_for_member(member_id)
@@ -93,12 +120,8 @@ class GameTableService:
             raise ValueError('Game does not match its table history context.')
         if table.group_id is not None and context is None:
             raise ValueError('Group game history requires its start-time snapshot.')
-        if context and context['group_id'] is not None:
-            # Seats that changed hands earn neither original nor replacement credit.
-            seat_account_participants = [dict(p) for p in context['participants']
-                                         if p['seat_index'] not in table.game_changed_seats]
-        else:
-            seat_account_participants = self._table_service.get_seat_account_participants(table_code)
+        seat_account_participants = ([dict(p) for p in context['played_seats'].values()]
+                                     if context else [])
         result = self._game_service.get_result(game_id)
         if context is not None and result is not None:
             if 'completed_participants' not in context:

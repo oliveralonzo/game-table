@@ -26,7 +26,7 @@ class PostgresGroupActivityRepository:
                         ) member), '[]'::jsonb) AS members,
                         COALESCE((SELECT jsonb_agg(to_jsonb(game) ORDER BY game.completed_at, game.id) FROM (
                             SELECT h.id, h.started_at, h.completed_at, h.team_scores,
-                                   h.team_player_counts, h.winning_team_index,
+                                   h.team_player_counts, h.winning_team_index, h.forfeited_seats,
                                 COALESCE((SELECT jsonb_agg(jsonb_build_object(
                                     'account_id', r.account_id, 'username', a.username,
                                     'team_index', r.team_index, 'seat_index', r.seat_index,

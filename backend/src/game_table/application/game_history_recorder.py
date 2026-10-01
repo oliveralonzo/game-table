@@ -36,7 +36,12 @@ class GameHistoryRecorder:
             seat_account_participants,
         )
 
-        if not account_participants and group_id is None:
+        forfeited_seats = [
+            {'seat_index': p['seat_index'], 'team_index': result['seat_team_indices'][p['seat_index']]}
+            for p in seat_account_participants
+            if p.get('forfeited') and p['seat_index'] in result['seat_team_indices']
+        ]
+        if not account_participants and not forfeited_seats and group_id is None:
             return
 
         self._history_service.record_completed_game(
@@ -48,6 +53,7 @@ class GameHistoryRecorder:
             team_player_counts=result["team_player_counts"],
             winning_team_index=result["winning_team_index"],
             account_participants=account_participants,
+            forfeited_seats=forfeited_seats,
         )
         if game_id is not None:
             self._recorded_game_ids.add(game_id)
@@ -62,7 +68,7 @@ class GameHistoryRecorder:
 
         for participant in seat_account_participants:
             account_id = participant.get("account_id")
-            if not account_id:
+            if not account_id or participant.get("forfeited"):
                 continue
 
             seat_index = int(participant["seat_index"])

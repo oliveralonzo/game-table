@@ -137,7 +137,7 @@ export const es = {
             previous: "Página anterior",
             next: "Página siguiente",
             empty: "Los juegos completados con cuenta aparecerán aquí.",
-            guestFallback: "Sin cuenta",
+            forfeit: "Abandono", guestFallback: "Sin cuenta",
             noPartnerFallback: "Nadie",
             win: "Ganado",
             loss: "Perdido",

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 export function formatHistoryDate(timestamp: number, language: string, timeZone?: string) {
     return new Intl.DateTimeFormat(language, {
         timeZone,
@@ -8,9 +10,10 @@ export function formatHistoryDate(timestamp: number, language: string, timeZone?
 }
 
 function formatParticipants(
-    participants: { username: string | null; is_guest?: boolean }[],
+    participants: { username: string | null; is_guest?: boolean; forfeited?: boolean }[],
     fallback: string,
-    guestLabel?: string
+    guestLabel: string | undefined,
+    forfeitLabel: string
 ) {
     if (participants.length === 0) {
         return {
@@ -20,7 +23,7 @@ function formatParticipants(
     }
 
     return {
-        text: participants.map(participant => participant.username
+        text: participants.map(participant => participant.forfeited ? forfeitLabel : participant.username
             ? `@${participant.username}${participant.is_guest && guestLabel ? ` (${guestLabel})` : ""}`
             : fallback).join(", "),
         isPlaceholder: participants.every(participant => !participant.username),
@@ -32,11 +35,12 @@ export function HistoryParticipantCell({
     fallback,
     guestLabel,
 }: {
-    participants: { username: string | null; is_guest?: boolean }[];
+    participants: { username: string | null; is_guest?: boolean; forfeited?: boolean }[];
     fallback: string;
     guestLabel?: string;
 }) {
-    const value = formatParticipants(participants, fallback, guestLabel);
+    const { t } = useTranslation();
+    const value = formatParticipants(participants, fallback, guestLabel, t("account.history.forfeit"));
 
     return (
         <div

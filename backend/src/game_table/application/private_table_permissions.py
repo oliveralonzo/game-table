@@ -10,7 +10,10 @@ class PrivateTablePermissions:
         return actor_id == table.host_id
 
     def can_unseat(self, table: Table, actor_id: str, occupant_id: str) -> bool:
-        return actor_id == occupant_id or actor_id == table.host_id
+        return actor_id == occupant_id or (
+            actor_id == table.host_id
+            and any(seat.member_id == actor_id for seat in table.seats)
+        )
 
     def can_start_game(self, table: Table, actor_id: str) -> bool:
         return actor_id == table.host_id

@@ -84,6 +84,8 @@ def setup(private=False, database=True):
 def test_group_context_is_captured_at_start_and_membership_changes_do_not_rewrite_it():
     s = setup()
     id = s.service.start_game_for_table('m0')
+    for member in ('m0', 'm1', 'm2', 'm3'):
+        s.service.record_game_action(member, id)
     s.groups.members.remove('b')
     s.groups.members.add('guest')
     s.games.completed = True
@@ -101,32 +103,43 @@ def test_group_context_is_captured_at_start_and_membership_changes_do_not_rewrit
 def test_changed_seat_gives_neither_original_nor_replacement_credit(removal):
     s = setup()
     id = s.service.start_game_for_table('m0')
+    for member in ('m0', 'm1', 'm2', 'm3'):
+        s.service.record_game_action(member, id)
     if removal == 'unseat':
         s.tables.unassign_seat('m0', 2)
     else:
         s.tables.leave_table('m2')
     s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='replacement')
     s.tables.assign_seat('replacement', 2)
+    s.service.record_game_action('replacement', id)
     s.games.completed = True
     s.service.record_completed_game_for_table('CODE-1234', id)
     assert {r.account_id for r in s.repo.results} == {'a','guest','c'}
     assert s.repo.games[0].team_player_counts == [2,2]
+    assert s.repo.games[0].forfeited_seats == [{'seat_index': 2, 'team_index': 0}]
 
 
-def test_returning_to_seat_does_not_restore_credit_but_account_reconnect_preserves_it():
+def test_returning_to_seat_and_account_reconnect_preserve_credit():
     s = setup()
     id = s.service.start_game_for_table('m0')
+    for member in ('m0', 'm1', 'm2', 'm3'):
+        s.service.record_game_action(member, id)
     s.tables.unassign_seat('m0', 2)
     s.tables.assign_seat('m2', 2)
     s.tables.join_table('new-device', 'CODE-1234', 'A', account_id='a')
+    s.service.record_game_action('m2', id)
+    s.service.record_game_action('new-device', id)
     s.games.completed = True
     s.service.record_completed_game_for_table('CODE-1234', id)
-    assert {r.account_id for r in s.repo.results} == {'a','guest','c'}
+    assert {r.account_id for r in s.repo.results} == {'a','guest','b','c'}
+    assert s.repo.games[0].forfeited_seats == []
 
 
 def test_private_history_keeps_null_group_and_real_start_without_database_requirement():
     s = setup(private=True)
     id = s.service.start_game_for_table('m0')
+    for member in ('m0', 'm1', 'm2', 'm3'):
+        s.service.record_game_action(member, id)
     s.games.completed = True
     s.service.end_game_for_table('m0')
     assert s.repo.games[0].group_id is None
@@ -157,6 +170,8 @@ def test_only_members_start_and_completed_games_can_be_restarted():
 def test_failed_save_keeps_game_attached_for_retry_and_preserves_completion_snapshot():
     s = setup()
     id = s.service.start_game_for_table('m0')
+    for member in ('m0', 'm1', 'm2', 'm3'):
+        s.service.record_game_action(member, id)
     s.games.completed = True
     s.repo.fail = True
     with pytest.raises(RuntimeError):
@@ -174,7 +189,7 @@ def test_group_game_without_eligible_accounts_still_has_group_history():
     s = setup()
     id = s.service.start_game_for_table('m0')
     for seat in range(4):
-        s.tables.unassign_seat('m0', seat)
+        s.tables.unassign_seat(f'm{seat}', seat)
     s.games.completed = True
     s.service.record_completed_game_for_table('CODE-1234', id)
     assert len(s.repo.games) == 1
@@ -193,7 +208,7 @@ def test_failed_attach_does_not_leave_a_game_or_context():
 def test_member_can_start_a_table_of_anonymous_guests_without_player_credit():
     s = setup()
     for seat in range(4):
-        s.tables.unassign_seat('m0', seat)
+        s.tables.unassign_seat(f'm{seat}', seat)
         s.tables.join_table(f'anon{seat}', 'CODE-1234', f'Guest {seat}')
         s.tables.assign_seat(f'anon{seat}', seat)
     id = s.service.start_game_for_table('m0')
@@ -236,3 +251,88 @@ def test_unseated_member_cannot_end_blocked_game_but_another_seated_member_can()
     s.service.end_game_for_table('m2')
     assert s.games.removed == [game_id]
     assert not s.repo.games
+
+
+@pytest.mark.parametrize('private', [False, True])
+@pytest.mark.parametrize('returning', [False, True])
+def test_departure_after_last_play_and_same_account_return_preserve_result(private, returning):
+    s = setup(private=private)
+    game = s.service.start_game_for_table('m0')
+    s.service.record_game_action('m2', game)
+    s.tables.leave_table('m2')
+    if returning:
+        s.tables.join_table('returned', 'CODE-1234', 'Returned', account_id='b')
+        s.tables.assign_seat('returned', 2)
+        s.service.record_game_action('returned', game)
+    s.games.completed = True
+    s.service.record_completed_game_for_table('CODE-1234', game)
+    assert [r.account_id for r in s.repo.results] == ['b']
+    assert s.repo.games[0].forfeited_seats == []
+
+
+@pytest.mark.parametrize('private', [False, True])
+@pytest.mark.parametrize('replacement_acts', [False, True])
+def test_replacement_only_forfeits_after_acting_and_return_cannot_undo_it(private, replacement_acts):
+    s = setup(private=private)
+    game = s.service.start_game_for_table('m0')
+    s.service.record_game_action('m2', game)
+    s.tables.unassign_seat('m0', 2)
+    s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='other')
+    s.tables.assign_seat('replacement', 2)
+    if replacement_acts:
+        s.service.record_game_action('replacement', game)
+    s.tables.unassign_seat('replacement', 2)
+    s.tables.assign_seat('m2', 2)
+    s.service.record_game_action('m2', game)
+    s.games.completed = True
+    s.service.record_completed_game_for_table('CODE-1234', game)
+    assert [r.account_id for r in s.repo.results] == ([] if replacement_acts else ['b'])
+    assert s.repo.games[0].forfeited_seats == ([{'seat_index': 2, 'team_index': 0}] if replacement_acts else [])
+
+
+@pytest.mark.parametrize('private', [False, True])
+def test_replacement_before_first_action_earns_result_and_nonplayers_do_not(private):
+    s = setup(private=private)
+    game = s.service.start_game_for_table('m0')
+    s.tables.unassign_seat('m0', 2)
+    s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='new')
+    s.tables.assign_seat('replacement', 2)
+    s.service.record_game_action('replacement', game)
+    s.games.completed = True
+    s.service.record_completed_game_for_table('CODE-1234', game)
+    assert [r.account_id for r in s.repo.results] == ['new']
+    assert s.repo.games[0].forfeited_seats == []
+
+
+def test_aborted_game_and_new_game_do_not_leak_participation():
+    s = setup()
+    first = s.service.start_game_for_table('m0')
+    s.service.record_game_action('m2', first)
+    s.service.end_game_for_table('m0')
+    assert s.repo.games == []
+    second = s.service.start_game_for_table('m0')
+    s.service.record_game_action('m0', second)
+    s.games.completed = True
+    s.service.record_completed_game_for_table('CODE-1234', second)
+    assert [r.account_id for r in s.repo.results] == ['a']
+
+
+def test_completion_retry_preserves_forfeit_and_rejects_new_actions():
+    s = setup()
+    game = s.service.start_game_for_table('m0')
+    s.service.record_game_action('m2', game)
+    s.tables.unassign_seat('m0', 2)
+    s.tables.join_table('replacement', 'CODE-1234', 'Replacement')
+    s.tables.assign_seat('replacement', 2)
+    s.service.record_game_action('replacement', game)
+    s.games.completed = True
+    s.repo.fail = True
+    with pytest.raises(RuntimeError):
+        s.service.record_completed_game_for_table('CODE-1234', game)
+    with pytest.raises(ValueError, match='frozen'):
+        s.service.record_game_action('m0', game)
+    s.tables.unassign_seat('replacement', 2)
+    s.repo.fail = False
+    s.service.record_completed_game_for_table('CODE-1234', game)
+    assert s.repo.results == []
+    assert s.repo.games[0].forfeited_seats == [{'seat_index': 2, 'team_index': 0}]

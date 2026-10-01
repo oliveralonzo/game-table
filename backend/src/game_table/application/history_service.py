@@ -46,8 +46,9 @@ class HistoryService:
         group_id: str | None = None,
         started_at: int | None = None,
         history_id: str | None = None,
+        forfeited_seats: list[dict] | None = None,
     ) -> GameHistory:
-        if not account_participants and group_id is None:
+        if not account_participants and not forfeited_seats and group_id is None:
             raise ValueError("At least one account participant is required.")
 
         for participant in account_participants:
@@ -65,6 +66,7 @@ class HistoryService:
             team_scores=team_scores,
             team_player_counts=team_player_counts,
             winning_team_index=winning_team_index,
+            forfeited_seats=forfeited_seats,
         )
         account_results = [
             self._result_for_participant(game_history, participant)

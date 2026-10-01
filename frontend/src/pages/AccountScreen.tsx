@@ -65,8 +65,9 @@ type AccountHistoryEntry = {
 };
 
 type AccountHistoryParticipant = {
-    account_id: string;
-    username: string;
+    account_id: string | null;
+    username: string | null;
+    forfeited?: boolean;
     seat_index: number;
     team_index: number;
 };

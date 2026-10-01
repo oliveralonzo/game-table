@@ -271,6 +271,11 @@ class Table(Generic[RulesT]):
         return (f"account:{account_id}" if account_id else
                 self._member_session_identities.get(member_id, f"member:{member_id}"))
 
+    def get_member_identity(self, member_id: str) -> str:
+        """Stable account/session identity, including across seat reclamation."""
+        self._ensure_member_exists(member_id)
+        return self._seat_identity(member_id)
+
     def get_game_seat_locks(self) -> Dict[str, int]:
         return {member_id: self._game_seat_locks[self._seat_identity(member_id)]
                 for member_id in self._members

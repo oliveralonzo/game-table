@@ -12,7 +12,7 @@ class TableServiceRouter:
         'prepare_game_start', 'validate_game_end', 'attach_game', 'detach_game', 'block_game', 'resume_game',
         'mark_persistent', 'unmark_persistent', 'enable_hand_visibility',
         'disable_hand_visibility', 'grant_hand_view', 'revoke_hand_view',
-        'get_table_code_for_member', 'get_seat_index_for_member',
+        'get_table_code_for_member', 'get_seat_index_for_member', 'get_history_participant',
     }
 
     def __init__(self, private_tables, group_tables, registry):

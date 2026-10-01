@@ -275,7 +275,7 @@ class TableService(TableSessionService[RulesT]):
         Rules:
         - Acting member must belong to a table.
         - Members may unassign themselves.
-        - Host may unassign any seat.
+        - A seated host may unassign any seat.
         - Domain enforces:
             - Valid seat index
             - Game state transitions (block)
@@ -289,7 +289,7 @@ class TableService(TableSessionService[RulesT]):
         if occupant_id is None:
             return  # no-op
         if not self._permissions.can_unseat(table, member_id, occupant_id):
-            raise PermissionError("Only host may unassign other members.")
+            raise PermissionError("Only a seated host may unassign other members.")
 
         table.unassign_seat(seat_index)
 
