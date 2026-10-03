@@ -7,7 +7,7 @@ import type { SavedTable } from "game-table/context/SavedTablesContext";
 import { Plus } from "lucide-react";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 
-type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods"> & { host_id?: string | null };
+type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods" | "seat_orders"> & { host_id?: string | null };
 export default function TableCard({ table, onEnter, pending = false, closing = false, onClosed, onRemove, removeLabel }: {
     table: Preview; onEnter: () => void; pending?: boolean; closing?: boolean;
     onClosed?: (code: string) => void; onRemove?: () => void; removeLabel?: string;
@@ -26,7 +26,7 @@ export default function TableCard({ table, onEnter, pending = false, closing = f
             viewerRoster={roster.filter(person => !person.hasSeat)} seatCount={table.seat_count} showSeatLocation={false} />
             : <p className="px-safe-4 py-3 text-sm text-black/45 dark:text-white/45">{t("groups.preview.empty")}</p>}
     >
-        <SeatsPanel seats={table.seats.map((id, index) => ({ selectionMethod: table.seat_selection_methods?.[index], name: table.members.find(member => member.member_id === id)?.name ?? null, ready: false }))}
+        <SeatsPanel seats={table.seats.map((id, index) => ({ seatingOrder: table.seat_orders?.[index], selectionMethod: table.seat_selection_methods?.[index], name: table.members.find(member => member.member_id === id)?.name ?? null, ready: false }))}
             seatCount={table.seat_count} playerIndex={null} isHost={false} tableState="open"
             onAssignSeat={() => {}} onUnassignSeat={() => {}} />
     </GroupTablePreviewCard>;

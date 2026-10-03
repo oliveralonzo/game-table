@@ -9,6 +9,7 @@ type TableState = "open" | "in_game" | "game_blocked";
 type SeatView = {
     name: string | null;
     ready: boolean;
+    seatingOrder?: number | null;
     selectionMethod?: "manual" | "random" | null;
 };
 
@@ -90,7 +91,7 @@ export default function SeatsPanel({
             ? [index]
             : [];
     });
-    const canPickSeat = availableSeatIndices.length > 0;
+    const canPickSeat = availableSeatIndices.length > 1;
     const seatButtonBaseClass =
         "group absolute z-0 h-[30%] w-[30%] touch-pan-y rounded-full ring-1 transition-[opacity,filter,transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] [container-type:size]";
     const emptySeatClass =
@@ -194,7 +195,7 @@ export default function SeatsPanel({
                                 <button
                                     key={index}
                                     type="button"
-                                    aria-label={seat?.selectionMethod === "random" ? `${label}, ${t("table.seat.randomlyAssigned")}` : label}
+                                    aria-label={seat?.selectionMethod === "random" ? `${label}, ${t("table.seat.randomlyAssigned")}` : seat?.seatingOrder != null ? `${label}, ${t("table.seat.seatingOrder", { order: seat.seatingOrder })}` : label}
                                     aria-pressed={isSelf}
                                     aria-hidden={!visible}
                                     aria-disabled={!canInteract}
@@ -215,11 +216,11 @@ export default function SeatsPanel({
                                             style={initialsStyle}
                                         >
                                             {initials}
-                                            {seat?.selectionMethod === "random" && (
-                                                <sup className="absolute -right-[1.15em] -top-[0.1em] text-[0.4em]" aria-hidden="true">
-                                                    <Shuffle className="h-[1em] w-[1em]" strokeWidth={2} />
-                                                </sup>
-                                            )}
+                                            {seat?.selectionMethod === "random" ? (
+                                                <Shuffle aria-hidden="true" className="inline-block h-[0.4em] w-[0.4em] align-super" strokeWidth={2} />
+                                            ) : seat?.seatingOrder != null ? (
+                                                <span aria-hidden="true">{["", "¹", "²", "³", "⁴"][seat.seatingOrder]}</span>
+                                            ) : null}
                                         </span>
                                     )}
                                     {showRemoveCue && (
@@ -232,29 +233,26 @@ export default function SeatsPanel({
                             );
                         })}
                         <div className="relative z-10 flex h-full w-full items-center justify-center rounded-2xl bg-[#A97142]">
-                            <div className="flex h-[88%] w-[88%] items-center justify-center rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300">
-                                {showSeatActions && !hasASeat && (
-                                    <button
-                                        type="button"
-                                        className="group/table absolute inset-0 flex h-full w-full items-center justify-center rounded-2xl bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#A97142] enabled:cursor-pointer disabled:cursor-default"
-                                        disabled={!canPickSeat}
-                                        onClick={() => {
-                                            if (canPickSeat) onAssignSeat(availableSeatIndices[0], "random");
-                                        }}
-                                    >
-                                        <span className="pointer-events-none inline-flex min-h-10 items-center justify-center rounded-full bg-black/5 px-4 py-2 text-sm font-medium text-black/65 transition-colors group-enabled/table:group-hover/table:bg-black/10 group-enabled/table:group-active/table:bg-black/15 group-disabled/table:opacity-40">
-                                            {t("table.seat.pickForMe")}
-                                        </span>
-                                    </button>
-                                )}
-                            </div>
+                            <div className="h-[88%] w-[88%] rounded-2xl bg-white shadow-[0_0_25px_0_rgba(0,0,0,0.2)] dark:bg-gray-300" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex items-start justify-end gap-3">
-                {footerAction}
+            <div className="flex items-center justify-between gap-3">
+                {showSeatActions && tableState === "open" && (
+                    <button
+                        type="button"
+                        className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-black/5 px-4 text-sm font-semibold text-black/65 transition-colors enabled:cursor-pointer enabled:hover:bg-black/10 enabled:active:bg-black/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500 disabled:cursor-default disabled:opacity-40 dark:bg-white/10 dark:text-white/70 dark:enabled:hover:bg-white/15 dark:enabled:active:bg-white/20"
+                        disabled={!canPickSeat}
+                        onClick={() => {
+                            if (canPickSeat) onAssignSeat(availableSeatIndices[0], "random");
+                        }}
+                    >
+                        {t("table.seat.pickForMe")}
+                    </button>
+                )}
+                <div className="ml-auto">{footerAction}</div>
             </div>
         </section>
     );

@@ -87,6 +87,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         name: memberId ? table.members[memberId]?.name ?? null : null,
         ready: false,
         selectionMethod: table.seat_selection_methods?.[index],
+        seatingOrder: table.seat_orders?.[index],
     })) ?? [];
     const playerIndexRaw = table && selfId
         ? table.seats.findIndex((memberId) => memberId === selfId)
@@ -238,7 +239,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         playerIndex={playerIndex}
                         isHost={canManageSeats}
                         tableState={table.state}
-                        showSeatActions
+                        showSeatActions={!table.active_game_id}
                         lockedSeatIndex={selfId ? table.game_seat_locks?.[selfId] : undefined}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}

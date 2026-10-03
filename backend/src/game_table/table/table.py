@@ -106,6 +106,8 @@ class Table(Generic[RulesT]):
         self._game_changed_seats: Set[int] = set()
         self._game_seat_locks: Dict[str, int] = {}
         self._random_seats: Dict[str, int] = {}
+        self._seating_sequence = 0
+        self._previous_seating_sequences: Dict[str, int] = {}
         self._previous_seats: Dict[str, int] = {}
         self._previous_seat_methods: Dict[str, str] = {}
         self._seat_locks_active = False
@@ -260,6 +262,8 @@ class Table(Generic[RulesT]):
             old_identity = self._seat_identity(member_id)
             self._member_session_identities[member_id] = identity
             new_identity = self._seat_identity(member_id)
+            if old_identity in self._previous_seating_sequences:
+                self._previous_seating_sequences.setdefault(new_identity, self._previous_seating_sequences[old_identity])
             if old_identity in self._random_seats:
                 self._random_seats.setdefault(new_identity, self._random_seats[old_identity])
             if old_identity in self._previous_seats:
@@ -281,6 +285,12 @@ class Table(Generic[RulesT]):
                 for member_id in self._members
                 if self._seat_identity(member_id) in self._game_seat_locks}
 
+    def get_seating_orders(self) -> list[int | None]:
+        occupied = sorted((seat for seat in self._seats if seat.member_id is not None),
+                          key=lambda seat: seat.seating_sequence)
+        orders = {seat.index: order for order, seat in enumerate(occupied, 1)}
+        return [orders.get(seat.index) for seat in self._seats]
+
     def get_previous_seats(self) -> Dict[str, int]:
         return {member_id: self._previous_seats[self._seat_identity(member_id)]
                 for member_id in self._members
@@ -294,6 +304,7 @@ class Table(Generic[RulesT]):
         self._ensure_no_game_exists("End the game before resetting seating.")
         for index in range(self.seat_count):
             self.unassign_seat(index)
+        self._previous_seating_sequences.clear()
         self._random_seats.clear()
         self._previous_seats.clear()
         self._previous_seat_methods.clear()
@@ -529,6 +540,7 @@ class Table(Generic[RulesT]):
             raise ValueError("Member does not exist.")
 
         identity = self._seat_identity(member_id)
+        random_requested = selection_method == "random"
         random_seat = self._random_seats.get(identity)
         game_seat = self._game_seat_locks.get(identity) if self._seat_locks_active else None
         if game_seat is not None:
@@ -564,9 +576,22 @@ class Table(Generic[RulesT]):
                 raise ValueError("You can only reclaim your original seat until this game ends.")
             self._game_seat_locks[identity] = seat_index
 
+        returning_to_unchanged_seat = (
+            self._previous_seats.get(identity) == seat_index
+            and self._previous_seating_sequences.get(identity) == seat.seating_sequence
+        )
+        if returning_to_unchanged_seat:
+            selection_method = (
+                "random" if random_requested and game_seat is None
+                else self._previous_seat_methods.get(identity, selection_method)
+            )
+        else:
+            self._seating_sequence += 1
+            seat.seating_sequence = self._seating_sequence
+        self._previous_seating_sequences[identity] = seat.seating_sequence
         seat.member_id = member_id
         seat.selection_method = selection_method
-        if selection_method == "random":
+        if random_requested:
             self._random_seats[identity] = seat_index
         self._previous_seats[identity] = seat_index
         self._previous_seat_methods[identity] = selection_method
@@ -1018,3 +1043,4 @@ class Seat:
         self.index = index
         self.member_id: Optional[str] = None
         self.selection_method: Optional[str] = None
+        self.seating_sequence = 0

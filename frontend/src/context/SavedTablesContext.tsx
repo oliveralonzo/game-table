@@ -6,6 +6,7 @@ import type { TableState } from "game-table/types/table";
 export type SavedTable = {
     table_code: string; instance_id: string; host_id: string | null; state: TableState;
     seats: (string | null)[]; seat_count: number;
+    seat_orders?: (number | null)[];
     seat_selection_methods?: ("manual" | "random" | null)[];
     members: { member_id: string; name: string; account_username?: string | null }[];
 };
@@ -59,6 +60,7 @@ export function SavedTablesProvider({ children, enabled }: { children: ReactNode
         save({ table_code: view.table_code, instance_id: view.instance_id, host_id: view.host_id,
             state: view.state, seats: view.seats, seat_count: view.seat_count,
             seat_selection_methods: view.seat_selection_methods,
+            seat_orders: view.seat_orders,
             members: Object.entries(view.members).map(([member_id, member]) => ({
                 member_id, name: member.name, account_username: member.account_username,
             })),

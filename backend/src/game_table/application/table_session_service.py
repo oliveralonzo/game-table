@@ -20,6 +20,7 @@ class TableSessionService(Generic[RulesT]):
         return {
             'table_code': table.table_code, 'instance_id': table.instance_id,
             'group_id': table.group_id, 'host_id': table.host_id, 'state': table.state.value,
+            'seat_orders': table.get_seating_orders(),
             'seat_selection_methods': [seat.selection_method for seat in table.seats],
             'seat_count': table.seat_count, 'seats': [seat.member_id for seat in table.seats],
             'members': [{'member_id': key, 'name': member.name, 'account_username': member.account_username}
@@ -357,6 +358,7 @@ class TableSessionService(Generic[RulesT]):
             "group_id": table.group_id,
             "members": members,
             "seats": seats,
+            "seat_orders": table.get_seating_orders(),
             "seat_selection_methods": [seat.selection_method for seat in table.seats],
             "game_seat_locks": table.get_game_seat_locks(),
             "previous_seats": table.get_previous_seats(),

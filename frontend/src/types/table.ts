@@ -64,6 +64,7 @@ export interface TableView {
     seats: Array<string | null>;
     previous_seats?: Record<string, number>;
     has_seating_history?: boolean;
+    seat_orders?: (number | null)[];
     seat_selection_methods?: Array<"manual" | "random" | null>;
     game_seat_locks?: Record<string, number>;
 
