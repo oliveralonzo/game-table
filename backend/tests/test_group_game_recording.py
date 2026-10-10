@@ -161,6 +161,14 @@ def test_only_members_start_and_completed_games_can_be_restarted():
         s.service.end_game_for_table('m1')
     assert not s.repo.games
     s.games.completed = True
+    with pytest.raises(ValueError, match='post-game'):
+        s.service.start_game_for_table('m0')
+    transition_id = s.tables.get_table_view('CODE-1234')['post_game_transition']['id']
+    for player in ('m0', 'm2'):
+        s.service.respond_post_game(player, transition_id, keep_playing=True)
+        s.service.respond_post_game(player, transition_id, team_preference='same_team')
+    for player in ('m1', 'm3'):
+        s.service.respond_post_game(player, transition_id, keep_playing=True)
     next_id = s.service.start_game_for_table('m0')
     assert next_id != id
     assert len(s.repo.games) == 1
@@ -237,7 +245,8 @@ def test_group_game_end_requires_both_membership_and_a_seat(completed, actor, al
     table = s.tables.get_table('CODE-1234')
     assert table.active_game_id is None
     assert len(table.members) == 5
-    assert table.seats[0].member_id == 'm0'
+    assert table.seats[0].member_id == (None if completed else 'm0')
+    assert (table.post_game_transition is not None) == completed
     assert s.games.removed == [game_id]
     assert len(s.repo.games) == int(completed)
 

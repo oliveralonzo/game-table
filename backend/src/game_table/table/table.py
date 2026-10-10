@@ -25,6 +25,8 @@ Design:
 
 
 from uuid import uuid4
+from game_table.table.player_queue import PlayerQueue
+from game_table.table.post_game_transition import PostGameTransition
 from secrets import choice
 from enum import Enum
 from typing import Dict, Generic, List, Optional, Set, TypeVar
@@ -94,6 +96,11 @@ class Table(Generic[RulesT]):
         self.instance_id = str(uuid4())
         self.table_code: str = table_code
 
+        self._player_queue = PlayerQueue()
+        self._post_game_transition: PostGameTransition | None = None
+        self._post_game_transition_id: str | None = None
+        self._post_game_seats_applied = False
+        self._post_game_clock = None
         self._state: TableState = TableState.OPEN
 
         self._members: Dict[str, "Member"] = {}
@@ -289,7 +296,8 @@ class Table(Generic[RulesT]):
         occupied = sorted((seat for seat in self._seats if seat.member_id is not None),
                           key=lambda seat: seat.seating_sequence)
         orders = {seat.index: order for order, seat in enumerate(occupied, 1)}
-        return [orders.get(seat.index) for seat in self._seats]
+        return [(seat.forced_seating_order or orders.get(seat.index))
+                if seat.member_id is not None else None for seat in self._seats]
 
     def get_previous_seats(self) -> Dict[str, int]:
         return {member_id: self._previous_seats[self._seat_identity(member_id)]
@@ -301,6 +309,7 @@ class Table(Generic[RulesT]):
         return bool(self._previous_seats)
 
     def reset_seating(self) -> None:
+        self._ensure_post_game_seating_open()
         self._ensure_no_game_exists("End the game before resetting seating.")
         for index in range(self.seat_count):
             self.unassign_seat(index)
@@ -350,6 +359,9 @@ class Table(Generic[RulesT]):
         old_member = self._members[old_member_id]
         if old_member.account_id != account_id:
             raise ValueError("Member does not represent account.")
+        self._player_queue.replace(old_member_id, new_member_id)
+        if self._post_game_transition is not None:
+            self._post_game_transition.replace_player(old_member_id, new_member_id)
 
         self._members[new_member_id] = Member(
             member_id=new_member_id,
@@ -423,6 +435,9 @@ class Table(Generic[RulesT]):
 
         self._ensure_member_exists(member_id)
 
+        if self._post_game_transition is not None:
+            self._post_game_transition.withdraw(member_id)
+        self._player_queue.leave(member_id)
         was_host = member_id == self._host_id
 
         # If seated, unassign seat
@@ -453,6 +468,7 @@ class Table(Generic[RulesT]):
         if was_host and self._members:
             # Deterministic transfer: first remaining member
             self._host_id = next(iter(self._members.keys()))
+        self._refresh_post_game_after_departure()
 
 
     def transfer_host(self, acting_member_id: str, new_host_id: str) -> None:
@@ -486,6 +502,7 @@ class Table(Generic[RulesT]):
         - Table must be OPEN.
         - Cannot exceed MAX_SEATS.
         """
+        self._ensure_post_game_seating_open()
 
 
         self._ensure_state(TableState.OPEN, "Seats can only be modified while table is open.")
@@ -506,6 +523,7 @@ class Table(Generic[RulesT]):
         - Cannot modify seats while a game exists.
         - If seat is occupied, member is automatically unassigned.
         """
+        self._ensure_post_game_seating_open()
 
 
         self._ensure_no_game_exists("Cannot modify seats while a game exists.")
@@ -533,6 +551,7 @@ class Table(Generic[RulesT]):
         - If a blocked game becomes fully seated again,
         it may resume.
         """
+        self._ensure_post_game_seating_open()
 
         if selection_method not in ("manual", "random"):
             raise ValueError("Invalid seat selection method.")
@@ -588,7 +607,21 @@ class Table(Generic[RulesT]):
         else:
             self._seating_sequence += 1
             seat.seating_sequence = self._seating_sequence
+        # The last player has no seat choice, even when reclaiming a random seat.
+        # Capture this marker now so later departures cannot change it.
+        taking_fourth_seat = self.seat_count == 4 and sum(
+            existing.member_id is None for existing in self._seats
+        ) == 1
+        if taking_fourth_seat:
+            if returning_to_unchanged_seat:
+                self._seating_sequence += 1
+                seat.seating_sequence = self._seating_sequence
+            seat.forced_seating_order = 4
+            selection_method = "manual"
+        elif not returning_to_unchanged_seat:
+            seat.forced_seating_order = None
         self._previous_seating_sequences[identity] = seat.seating_sequence
+        self._player_queue.leave(member_id)
         seat.member_id = member_id
         seat.selection_method = selection_method
         if random_requested:
@@ -624,6 +657,7 @@ class Table(Generic[RulesT]):
         - If a game is active, it becomes blocked.
         - If a player leaves their seat, their hand view grants are removed.
         """
+        self._ensure_post_game_seating_open()
 
         self._ensure_seat_index_valid(seat_index)
 
@@ -689,6 +723,7 @@ class Table(Generic[RulesT]):
         Returns:
         - Number of seated players.
         """
+        self._ensure_post_game_seating_open()
 
         self._ensure_state(TableState.OPEN, "Game can only be started while table is open.")
         self._ensure_no_game_exists("Game already exists.")
@@ -716,10 +751,13 @@ class Table(Generic[RulesT]):
         - active_game_id is set.
         - Table transitions to IN_GAME.
         """
+        self._ensure_post_game_seating_open()
 
         self._ensure_state(TableState.OPEN, "Game can only be attached while table is open.")
         self._ensure_no_game_exists("Game already exists.")
 
+        self._post_game_transition = None
+        self._post_game_transition_id = None
         self._game_changed_seats.clear()
         self._game_seat_locks = {self._seat_identity(seat.member_id): index
                                  for index, seat in enumerate(self._seats) if seat.member_id}
@@ -731,6 +769,74 @@ class Table(Generic[RulesT]):
     @property
     def game_changed_seats(self) -> frozenset[int]:
         return frozenset(self._game_changed_seats)
+
+    def get_queue(self):
+        return self._player_queue.snapshot()
+
+    def join_queue(self, member_id):
+        self._ensure_member_exists(member_id)
+        if self._find_seat_by_member(member_id) is not None:
+            raise ValueError('Seated players cannot challenge.')
+        self._player_queue.join(member_id)
+
+    def leave_queue(self, member_id):
+        self._ensure_member_exists(member_id)
+        self._player_queue.leave(member_id)
+        if (self._post_game_transition is not None
+                and member_id in self._post_game_transition.snapshot()['challengers']):
+            self._post_game_transition.withdraw(member_id)
+            self._refresh_post_game_after_departure()
+
+    def _refresh_post_game_after_departure(self):
+        transition = self._post_game_transition
+        if transition is not None and transition.seating_blocked and self._post_game_clock is not None:
+            transition.expire(now=self._post_game_clock())
+            self.consume_queue_offers()
+            if not transition.seating_blocked:
+                self.apply_post_game_seats()
+
+    def consume_queue_offers(self):
+        if self._post_game_transition is None:
+            return
+        view = self._post_game_transition.snapshot()
+        for player in view['challengers']:
+            if view['players'][player]['decision'] not in ('waiting', 'ready'):
+                self._player_queue.leave(player)
+
+    @property
+    def post_game_transition(self) -> PostGameTransition | None:
+        return self._post_game_transition
+
+    def get_post_game_transition_view(self) -> dict | None:
+        if self._post_game_transition is None:
+            return None
+        return dict(self._post_game_transition.snapshot(), id=self._post_game_transition_id)
+
+    def begin_post_game_transition(self, transition: PostGameTransition, *, clock=None) -> None:
+        self._ensure_no_game_exists('Close the game before player checks.')
+        self._ensure_post_game_seating_open()
+        if len(transition.proposed_seats) != self.seat_count:
+            raise ValueError('Transition must match the table seat count.')
+        self.reset_seating()
+        self._post_game_clock = clock
+        self._post_game_transition = transition
+        self._post_game_transition_id = str(uuid4())
+        self._post_game_seats_applied = False
+
+    def apply_post_game_seats(self) -> None:
+        transition = self._post_game_transition
+        if transition is None or transition.seating_blocked:
+            raise ValueError('Player checks are not complete.')
+        if self._post_game_seats_applied:
+            return
+        for index, member_id in enumerate(transition.proposed_seats):
+            if member_id is not None and member_id in self._members:
+                self.assign_seat(member_id, index)
+        self._post_game_seats_applied = True
+
+    def _ensure_post_game_seating_open(self) -> None:
+        if self._post_game_transition is not None and self._post_game_transition.seating_blocked:
+            raise ValueError('Seating is blocked during post-game player checks.')
 
     def detach_game(self, acting_member_id: str) -> None:
         """
@@ -1044,3 +1150,4 @@ class Seat:
         self.member_id: Optional[str] = None
         self.selection_method: Optional[str] = None
         self.seating_sequence = 0
+        self.forced_seating_order: Optional[int] = None

@@ -25,20 +25,23 @@ function getSeatPermissions({
     hasASeat,
     isHost,
     tableState,
+    seatingBlocked = false,
 }: {
     claimed: boolean;
     isSelf: boolean;
     hasASeat: boolean;
     isHost: boolean;
     tableState: TableState;
+    seatingBlocked?: boolean;
 }): SeatPermissions {
     const canClaimSeat =
+        !seatingBlocked &&
         !claimed &&
         !hasASeat &&
         (tableState === "open" || tableState === "game_blocked");
 
     const canUnassignSeat =
-        claimed && (isSelf || (isHost && hasASeat));
+        !seatingBlocked && claimed && (isSelf || (isHost && hasASeat));
 
     return {
         canClaimSeat,
@@ -60,6 +63,7 @@ type Props = {
     sizeToContent?: boolean;
     lockedSeatIndex?: number;
     showSeatActions?: boolean;
+    seatingBlocked?: boolean;
 };
 
 export default function SeatsPanel({
@@ -75,6 +79,7 @@ export default function SeatsPanel({
     sizeToContent = false,
     lockedSeatIndex,
     showSeatActions = false,
+    seatingBlocked = false,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
@@ -85,6 +90,7 @@ export default function SeatsPanel({
             hasASeat,
             isHost,
             tableState,
+            seatingBlocked,
         });
         return canClaimSeat && (lockedSeatIndex === undefined || lockedSeatIndex === index)
 
@@ -168,6 +174,7 @@ export default function SeatsPanel({
                                 hasASeat,
                                 isHost,
                                 tableState,
+                                seatingBlocked,
                             });
                             const canInteract = permissions.canInteract
                                 && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);
@@ -240,7 +247,7 @@ export default function SeatsPanel({
             </div>
 
             <div className="flex items-center justify-between gap-3">
-                {showSeatActions && tableState === "open" && (
+                {showSeatActions && !seatingBlocked && tableState === "open" && (
                     <button
                         type="button"
                         className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-black/5 px-4 text-sm font-semibold text-black/65 transition-colors enabled:cursor-pointer enabled:hover:bg-black/10 enabled:active:bg-black/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500 disabled:cursor-default disabled:opacity-40 dark:bg-white/10 dark:text-white/70 dark:enabled:hover:bg-white/15 dark:enabled:active:bg-white/20"

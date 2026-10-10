@@ -9,6 +9,7 @@ import LobbyRoster, {
 type Props = {
     seatedRoster: RosterPerson[];
     viewerRoster: RosterPerson[];
+    queuedRoster?: RosterPerson[];
     seatCount: number;
     showSeatLocation?: boolean;
     showHandViewStatus?: boolean;
@@ -19,6 +20,7 @@ type Props = {
 export default function PeoplePanel({
     seatedRoster,
     viewerRoster,
+    queuedRoster = [],
     seatCount,
     showSeatLocation = true,
     showHandViewStatus = false,
@@ -42,6 +44,18 @@ export default function PeoplePanel({
                     getActions={getActions}
                 />
             )}
+            {queuedRoster.length > 0 ? (
+                <LobbyRoster
+                    title={t('table.queue.title')}
+                    people={queuedRoster}
+                    seatCount={seatCount}
+                    flush
+                    className={hasPlayers ? 'mt-3' : ''}
+                    showSeatLocation={false}
+                    showHandViewStatus={showHandViewStatus}
+                    getActions={getActions}
+                />
+            ) : null}
             {middleAction}
             {hasViewers && (
                 <LobbyRoster

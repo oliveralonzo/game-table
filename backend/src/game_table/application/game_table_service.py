@@ -8,6 +8,7 @@ from time import time
 from weakref import WeakKeyDictionary
 
 from game_table.application.game_service_port import GameServicePort
+from game_table.table.post_game_transition import PostGameTransition
 
 
 class GameTableService:
@@ -18,7 +19,11 @@ class GameTableService:
         game_activity_service=None,
         game_history_recorder=None,
         clock_ms=None,
+        post_game_response_seconds=30,
     ):
+        if post_game_response_seconds <= 0:
+            raise ValueError("Response window must be positive.")
+        self._post_game_response_seconds = post_game_response_seconds
         self._game_service = game_service
         self._table_service = table_service
         self._game_activity_service = game_activity_service
@@ -91,16 +96,96 @@ class GameTableService:
         game_id = table.active_game_id
         completed = game_id is not None and self._game_service.is_over(game_id)
         self._table_service.validate_game_end(member_id, completed=completed)
+        transition = self._build_post_game_transition(table, game_id) if completed else None
         self.record_completed_game_for_table(table_code, game_id)
         if table.group_id is not None:
             self._table_service.detach_game(member_id, completed=completed)
         else:
             self._table_service.detach_game(member_id)
 
+        if transition is not None:
+            table.begin_post_game_transition(transition, clock=lambda: self._clock_ms() / 1000)
+        self._apply_post_game_seats_if_ready(table)
         self._game_service.remove_game(game_id)
         self._history_contexts.pop(table, None)
         if self._game_activity_service is not None:
             self._game_activity_service.clear_game(game_id)
+
+    def _build_post_game_transition(self, table, game_id):
+        get_result = getattr(self._game_service, 'get_result', None)
+        result = get_result(game_id) if get_result is not None else None
+        if result is None or 'seat_team_indices' not in result:
+            return None  # A game without a decisive result has no winner priority.
+        seats = tuple(seat.member_id for seat in table.seats)
+        seat_teams = result['seat_team_indices']
+        teams = tuple(str(seat_teams[i]) for i in range(len(seats)))
+        winners = frozenset(player for i, player in enumerate(seats)
+                            if player is not None and seat_teams[i] == result['winning_team_index'])
+        return PostGameTransition(seats, teams, winners, now=self._clock_ms() / 1000,
+                                  response_seconds=self._post_game_response_seconds, challengers=tuple(table.get_queue()))
+
+    def set_queue_membership(self, member_id, *, queued):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        if queued:
+            table.join_queue(member_id)
+        else:
+            table.leave_queue(member_id)
+        self.expire_post_game_for_table(code)
+
+    def respond_post_game(self, member_id, transition_id, *, keep_playing=None, team_preference=None, selected_player=None):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        view = table.get_post_game_transition_view()
+        if view is None or view['id'] != transition_id:
+            raise ValueError('Post-game offer is no longer current.')
+        transition = table.post_game_transition
+        if not transition.seating_blocked:
+            raise ValueError('Post-game player checks have finished.')
+        self.expire_post_game_for_table(code)
+        try:
+            if sum(value is not None for value in (keep_playing, team_preference, selected_player)) != 1:
+                raise ValueError('Provide exactly one player response.')
+            if selected_player is not None:
+                transition.choose_player(member_id, selected_player, now=self._clock_ms() / 1000)
+            elif team_preference is not None and keep_playing is None:
+                transition.choose_team(member_id, team_preference, now=self._clock_ms() / 1000)
+            elif team_preference is None and keep_playing is not None:
+                transition.respond_keep_playing(member_id, keep_playing, now=self._clock_ms() / 1000)
+            else:
+                raise ValueError('Provide exactly one player response.')
+        finally:
+            table.consume_queue_offers()
+            self._apply_post_game_seats_if_ready(table)
+
+    def _apply_post_game_seats_if_ready(self, table):
+        transition = table.post_game_transition
+        if transition is not None and not transition.seating_blocked:
+            table.apply_post_game_seats()
+
+    def expire_post_game_for_table(self, table_code):
+        table = self._table_service.get_table(table_code)
+        transition = table.post_game_transition
+        if transition is None or not transition.seating_blocked:
+            return
+        for player in transition.snapshot()['players']:
+            if player not in table.members:
+                transition.withdraw(player)
+        transition.expire(now=self._clock_ms() / 1000)
+        table.consume_queue_offers()
+        self._apply_post_game_seats_if_ready(table)
+
+    def post_game_deadline(self, table_code):
+        table = self._table_service.get_table(table_code)
+        view = table.get_post_game_transition_view()
+        if view is None or not view['seating_blocked']:
+            return None
+        return min((p['deadline'] for p in view['players'].values()
+                    if p['deadline'] is not None), default=self._clock_ms() / 1000)
+
+    def post_game_wait_seconds(self, table_code):
+        deadline = self.post_game_deadline(table_code)
+        return None if deadline is None else max(0, deadline - self._clock_ms() / 1000)
 
     def record_completed_game_for_table(
         self,

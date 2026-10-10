@@ -24,7 +24,7 @@ export const ptBR = {
 
             "mostPlayed": "Mais partidas jogadas",
             "mostWins": "Mais vitórias",
-            "headToHead": "Confronto direto",
+            "headToHead": "Duelos > 50%",
             "streakLeader": "Melhor sequência",
 
     "title": "Estatísticas",
@@ -91,9 +91,9 @@ export const ptBR = {
     leaderboard: {
         title: "Ranking", tool: "Ranking", empty: "As partidas concluídas com a conta conectada aparecerão aqui.", signInRequired: "Entre para ver o ranking.",
         rank: { notRankedShort: "NR", notRankedExplanation: "NR significa ainda não classificado. Jogue pelo menos {{count}} partidas para entrar no ranking por porcentagem de vitórias." },
-        sort: { label: "Ordenar por", won: "Vitórias", played: "Jogadas", winPercentage: "%" },
+        sort: { headToHead: "Duelos", label: "Ordenar por", won: "Vitórias", played: "Jogadas", winPercentage: "%" },
         column: {
-            headToHead: "H-T-H", rank: "#", username: "Nome de usuário", won: "V", lost: "D", played: "J", winPercentage: "%" },
+            headToHead: "D↑", rank: "#", username: "Nome de usuário", won: "V", lost: "D", played: "J", winPercentage: "%" },
         streak: { label: "Sequência de {{count}} vitórias" },
         action: { previous: "Anterior", next: "Próxima" },
     },
@@ -110,6 +110,8 @@ export const ptBR = {
         openTables: { heading: "Mesas disponíveis", empty: "Nenhuma mesa disponível", host: "Anfitrião: {{host}}", joined_one: "{{count}} participante", joined_other: "{{count}} participantes", seats_one: "{{count}} assento", seats_other: "{{count}} assentos", gameInProgress: " | partida em andamento" },
     },
     table: {
+        queue: {"waitingTurn": "Aguardando sua vez…","title": "Na fila", "join": "Entrar na fila", "leave": "Sair da fila", "position": "Posição {{count}} na fila", "error": "Não foi possível atualizar a fila. Tente novamente.", "readyQuestion": "É sua vez. Pronto para jogar?", "ready": "Estou pronto", "skip": "Passar minha vez", "waitingChallengers": "Aguardando os desafiantes…", "choosePlayer": "Quem deve continuar?", "selected": "{{name}} escolheu você para continuar. Vai jogar?", "chooseCountdown_one": "Escolha em {{count}} segundo", "chooseCountdown_other": "Escolha em {{count}} segundos"},
+        postGame: {"keepPlayingQuestion": "Vai continuar jogando?", "keepPlaying": "Continuar jogando", "leave": "Vou sair", "partnerQuestion": "Trocar de parceiro?", "samePartner": "Mesmo parceiro", "changePartner": "Trocar de parceiro", "waitingWinners": "Aguardando os vencedores…", "waitingPlayers": "Aguardando os outros jogadores…", "expired": "Seu tempo acabou.", "watching": "Você está assistindo agora.", "saveError": "Não foi possível salvar sua resposta. Tente novamente.", "spotExpires_one": "Sua vaga expira em {{count}} segundo", "spotExpires_other": "Sua vaga expira em {{count}} segundos", "chooseWithin_one": "Escolha em {{count}} segundo", "chooseWithin_other": "Escolha em {{count}} segundos"},
         tool: { people: "Pessoas", chat: "Chat", settings: "Ajustes" },
         action: { copied: "Copiado", done: "Concluído", invite: "Convidar", leaveTable: "Sair da mesa", closeTable: "Encerrar mesa", endGame: "Encerrar jogo", openGame: "Abrir jogo", startGame: "Iniciar jogo", waiting: "Aguardando", generateName: "Gerar apelido", tableActions: "Ações da mesa", manageSeats: "Gerenciar assentos", viewSeats: "Ver assentos", showReview: "Mostrar mão", hideReview: "Ocultar mão", memberActions: "Ações do participante", unseat: "Remover do assento", removeFromTable: "Remover da mesa", shareHand: "Compartilhar mão", stopSharingHand: "Parar de compartilhar", sharingHand: "Compartilhando…", stoppingHandShare: "Interrompendo…" },
         label: { sponsoredBy: "Mesa patrocinada por {{sponsor}}", code: "Código", seats: "Assentos", table: "Mesa", profile: "Perfil", general: "Geral", game: "Jogo", displayName: "Apelido" },

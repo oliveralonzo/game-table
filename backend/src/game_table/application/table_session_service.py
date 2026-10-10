@@ -368,6 +368,8 @@ class TableSessionService(Generic[RulesT]):
             "is_persistent": table.is_persistent,
             "pending_rules": table.pending_rules,
             "active_game_id": table.active_game_id,
+            "queue": table.get_queue(),
+            "post_game_transition": table.get_post_game_transition_view(),
             "has_game": table.active_game_id is not None,
             "hand_view_grants": table.get_hand_view_grants(),
         }

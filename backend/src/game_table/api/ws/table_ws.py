@@ -78,6 +78,7 @@ def register_table_events(
     """
     disconnect_cleanup_tasks: dict[str, asyncio.Task] = {}
     intentional_unload_sessions: set[str] = set()
+    post_game_tasks: dict[str, asyncio.Task] = {}
 
     def _get_table_view(table_code: str) -> dict:
         return _get_serialized_table_view(
@@ -661,6 +662,79 @@ def register_table_events(
         except Exception as exc:
             return _error_response(exc)
 
+    async def _run_post_game_deadlines(table_code, table):
+        try:
+            while (table_service.table_exists(table_code)
+                   and table_service.get_table(table_code) is table):
+                before = table.get_post_game_transition_view()
+                game_table_service.expire_post_game_for_table(table_code)
+                if table.get_post_game_transition_view() != before:
+                    await _broadcast_table_state_update(table_code)
+                delay = game_table_service.post_game_wait_seconds(table_code)
+                if delay is None:
+                    return
+                await asyncio.sleep(max(0.01, delay))
+        finally:
+            if post_game_tasks.get(table_code) is asyncio.current_task():
+                post_game_tasks.pop(table_code, None)
+
+    def _schedule_post_game_deadline(table_code):
+        previous = post_game_tasks.pop(table_code, None)
+        if previous is not None:
+            previous.cancel()
+        if game_table_service.post_game_wait_seconds(table_code) is not None:
+            post_game_tasks[table_code] = asyncio.create_task(
+                _run_post_game_deadlines(table_code, table_service.get_table(table_code)))
+
+    async def _respond_post_game(sid, data, *, team_choice=False, player_choice=False):
+        table_code = None
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            table_code = table_service.get_table_code_for_member(member_id)
+            response = ({'selected_player': data['selected_player']} if player_choice else
+                        {'team_preference': data['team_preference']} if team_choice
+                        else {'keep_playing': data['keep_playing']})
+            game_table_service.respond_post_game(member_id, data['transition_id'], **response)
+            return {'updated': True}
+        except Exception as exc:
+            return _error_response(exc)
+        finally:
+            # Expiry can resolve offers even when a late response is rejected.
+            if table_code is not None and table_service.table_exists(table_code):
+                await _broadcast_table_state_update(table_code)
+                _schedule_post_game_deadline(table_code)
+
+    @sio.on('table:post_game_keep_playing')
+    async def post_game_keep_playing(sid, data):
+        return await _respond_post_game(sid, data)
+
+    @sio.on('table:post_game_team_choice')
+    async def post_game_team_choice(sid, data):
+        return await _respond_post_game(sid, data, team_choice=True)
+
+    @sio.on('table:post_game_player_choice')
+    async def post_game_player_choice(sid, data):
+        return await _respond_post_game(sid, data, player_choice=True)
+
+    async def _queue_membership(sid, queued):
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            code = table_service.get_table_code_for_member(member_id)
+            game_table_service.set_queue_membership(member_id, queued=queued)
+            await _broadcast_table_state_update(code)
+            _schedule_post_game_deadline(code)
+            return {'updated': True}
+        except Exception as exc:
+            return _error_response(exc)
+
+    @sio.on('table:queue_join')
+    async def queue_join(sid, data=None):
+        return await _queue_membership(sid, True)
+
+    @sio.on('table:queue_leave')
+    async def queue_leave(sid, data=None):
+        return await _queue_membership(sid, False)
+
     # ---------------------------- Game Control ---------------------------- #
 
     @sio.on("table:start_game")
@@ -679,6 +753,9 @@ def register_table_events(
             }
 
         except Exception as exc:
+            if "table_code" in locals() and table_service.table_exists(table_code):
+                await _broadcast_table_state_update(table_code)
+                _schedule_post_game_deadline(table_code)
             return _error_response(exc)
 
     @sio.on("table:end_game")
@@ -688,6 +765,7 @@ def register_table_events(
             table_code = table_service.get_table_code_for_member(member_id)
 
             game_table_service.end_game_for_table(member_id)
+            _schedule_post_game_deadline(table_code)
 
             await _broadcast_table_state_update(table_code)
 

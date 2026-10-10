@@ -9,6 +9,9 @@ export default function GroupHistoryPreview({ data, loading, onPageChange }: {
     data?: GroupActivity["history"]; loading: boolean; onPageChange: (page: number) => void;
 }) {
     const { t, i18n } = useTranslation();
+    const timeZoneLabel = new Intl.DateTimeFormat(i18n.language, { timeZoneName: "short" })
+        .formatToParts(new Date())
+        .find(part => part.type === "timeZoneName")?.value;
     const visibleGames = data?.entries ?? [];
     const page = data?.page ?? 1;
     const totalPages = data?.total_pages ?? 1;
@@ -23,13 +26,13 @@ export default function GroupHistoryPreview({ data, loading, onPageChange }: {
                     <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-left">{t("groups.stats.winners")}</TableCell>
                     <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-left">{t("groups.stats.losers")}</TableCell>
                     <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-right">{t("account.history.column.score")}</TableCell>
-                    <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-right">{t("account.history.column.date")}</TableCell>
+                    <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-right">{t("account.history.column.date")}{timeZoneLabel ? ` (${timeZoneLabel})` : ""}</TableCell>
                 </TableRow></TableHead>
                 <TableBody>{visibleGames.map(game => <TableRow key={game.id}>
                     <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.winners} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
                     <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.others} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
                     <TableCell className="whitespace-nowrap !px-3 text-right font-semibold tabular-nums">{game.score}</TableCell>
-                    <TableCell className="whitespace-nowrap !px-3 text-right text-xs text-black/45 dark:text-white/45">{formatHistoryDate(game.date, i18n.language, "UTC")}</TableCell>
+                    <TableCell className="whitespace-nowrap !px-3 text-right text-xs text-black/45 dark:text-white/45">{formatHistoryDate(game.date, i18n.language)}</TableCell>
                 </TableRow>)}
                 {Array.from({ length: PAGE_SIZE - visibleGames.length }, (_, index) => <TableRow key={`empty-${index}`} aria-hidden="true">
                     {Array.from({ length: 4 }, (_, column) => <TableCell key={column} className="!px-3"><span>&nbsp;</span></TableCell>)}

@@ -24,7 +24,7 @@ export const es = {
 
             "mostPlayed": "Más partidas jugadas",
             "mostWins": "Más victorias",
-            "headToHead": "Mano a mano",
+            "headToHead": "Duelos > 50%",
             "streakLeader": "Mejor racha",
 
     "title": "Estadísticas",
@@ -172,14 +172,14 @@ export const es = {
             notRankedShort: "NR",
             notRankedExplanation: "NR significa sin clasificación. Juega al menos {{count}} partidas para clasificar por porcentaje de victorias.",
         },
-        sort: {
+        sort: { headToHead: "Duelos",
             label: "Ordenar por",
             won: "Ganados",
             played: "Jugados",
             winPercentage: "%",
         },
         column: {
-            headToHead: "M-A-M",
+            headToHead: "D↑",
             rank: "#",
             username: "Usuario",
             won: "G",
@@ -260,6 +260,8 @@ export const es = {
         },
     },
     table: {
+        queue: {"waitingTurn": "Esperando tu turno…","title": "Retando", "join": "Retar", "leave": "Dejar de retar", "position": "Lugar {{count}} en la fila", "error": "No se pudo actualizar la fila. Inténtalo de nuevo.", "readyQuestion": "Te toca. ¿Listo para jugar?", "ready": "Estoy listo", "skip": "Pasar mi turno", "waitingChallengers": "Esperando a los retadores…", "choosePlayer": "¿Quién sigue jugando?", "selected": "{{name}} te eligió para seguir jugando. ¿Sigues?", "chooseCountdown_one": "Elige en {{count}} segundo", "chooseCountdown_other": "Elige en {{count}} segundos"},
+        postGame: {"keepPlayingQuestion": "¿Sigues jugando?", "keepPlaying": "Seguir jugando", "leave": "Me voy", "partnerQuestion": "¿Cambiar de frente?", "samePartner": "Mismo frente", "changePartner": "Cambiar de frente", "waitingWinners": "Esperando a los ganadores…", "waitingPlayers": "Esperando a los demás…", "expired": "Se venció tu tiempo.", "watching": "Ahora estás mirando.", "saveError": "No se pudo guardar tu respuesta. Inténtalo de nuevo.", "spotExpires_one": "Tu lugar vence en {{count}} segundo", "spotExpires_other": "Tu lugar vence en {{count}} segundos", "chooseWithin_one": "Elige en {{count}} segundo", "chooseWithin_other": "Elige en {{count}} segundos"},
         tool: {
             people: "En la Mesa",
             chat: "Chat",

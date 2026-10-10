@@ -11,7 +11,12 @@ class GameServicePort(Protocol):
         """Return whether the game has ended."""
 
     def get_result(self, game_id: str) -> dict | None:
-        """Return plain result data when the game is complete."""
+        """Return plain result data when the game is complete.
+
+        For post-game seat priority, include `winning_team_index` and
+        `seat_team_indices` (a mapping of seat index to team index). Games
+        without this result mapping retain their existing close behavior.
+        """
 
     def remove_game(self, game_id: str) -> None:
         """Remove the game from active storage."""

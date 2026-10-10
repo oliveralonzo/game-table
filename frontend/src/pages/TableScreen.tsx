@@ -1,3 +1,4 @@
+import PostGameDialog from 'game-table/components/PostGameDialog';
 /**
  * TableScreen.tsx
  * Author: Oliver Alonzo
@@ -52,6 +53,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         startGameForTable,
         updateGameSettings,
         updateName,
+        respondPostGame,
     } = useTableSocket();
     const tableCodeForActivity = state.tableView?.table_code;
     const selfMemberIdForActivity = state.selfMemberId;
@@ -76,6 +78,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
 
     const table = state.tableView;
     const selfId = state.selfMemberId;
+    const seatingBlocked = table?.post_game_transition?.seating_blocked ?? false;
     const isHost = table !== null && selfId !== null && table.host_id === selfId;
     const canManageSeats = isHost || (!!selfId && !!table?.group_member_ids?.includes(selfId));
     const seatCount = table?.seat_count ?? 0;
@@ -99,6 +102,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         seatInitialLabels,
         seatedRoster,
         viewerRoster,
+        queuedRoster,
         viewerReactions,
         getRosterActions,
     } = useTableRoomPeople({
@@ -113,7 +117,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         grantHandView,
         revokeHandView,
     });
-    const memberCount = seatedRoster.length + viewerRoster.length;
+    const memberCount = seatedRoster.length + viewerRoster.length + queuedRoster.length;
     const {
         inviteCopied,
         fallbackInviteUrl,
@@ -147,6 +151,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
 
     const canStartGame =
         canManageSeats &&
+        !seatingBlocked &&
         table.state === "open" &&
         table.seats.every((seat) => seat !== null);
 
@@ -160,6 +165,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             context={context}
             seatedRoster={seatedRoster}
             viewerRoster={viewerRoster}
+            queuedRoster={queuedRoster}
             seatCount={seatCount}
             showSeatLocation={false}
             showHandViewStatus={false}
@@ -178,10 +184,10 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         <SettingsPanel
                             value={lobbyConfig}
                             onChange={(next: unknown) => updateGameSettings(next)}
-                            readOnly={!canManageSeats || table.state !== "open"}
+                            readOnly={!canManageSeats || seatingBlocked || table.state !== "open"}
                             isFourPlayer={isFourPlayer}
                             seatCount={seatCount}
-                            onResetSeating={canManageSeats && !table.active_game_id ? resetSeating : undefined}
+                            onResetSeating={canManageSeats && !seatingBlocked && !table.active_game_id ? resetSeating : undefined}
                             onAddSeat={addSeat}
                             onRemoveSeat={removeSeat}
                             title={t("table.label.game")}
@@ -239,7 +245,8 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         playerIndex={playerIndex}
                         isHost={canManageSeats}
                         tableState={table.state}
-                        showSeatActions={!table.active_game_id}
+                        showSeatActions={!table.active_game_id && !seatingBlocked}
+                        seatingBlocked={seatingBlocked}
                         lockedSeatIndex={selfId ? table.game_seat_locks?.[selfId] : undefined}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}
@@ -299,6 +306,15 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     </Button>
                 </div>
             </div>
+            {table.post_game_transition ? (
+                <PostGameDialog
+                    key={table.post_game_transition.id}
+                    transition={table.post_game_transition}
+                    selfId={selfId}
+                    onRespond={respondPostGame}
+                    memberNames={Object.fromEntries(Object.entries(table.members).map(([id, member]) => [id, member.name]))}
+                />
+            ) : null}
             <TableInviteDialog
                 fallbackInviteUrl={fallbackInviteUrl}
                 onCloseInviteFallback={closeInviteFallback}

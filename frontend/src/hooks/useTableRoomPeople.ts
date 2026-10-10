@@ -148,7 +148,12 @@ export function useTableRoomPeople({
             };
         });
     const seatedRoster = roster.filter((person) => person.hasSeat);
-    const viewerRoster = roster.filter((person) => !person.hasSeat);
+    const queue = table?.queue ?? [];
+    const queuedRoster = queue.flatMap((id, index) => {
+        const person = roster.find((person) => person.id === id && !person.hasSeat);
+        return person ? [{ ...person, queuePosition: index + 1 }] : [];
+    });
+    const viewerRoster = roster.filter((person) => !person.hasSeat && !queue.includes(person.id));
     const viewerReactions = buildViewerReactions(table ?? null, reactions, {
         includeSeated: true,
         initialLabelsById: memberInitialLabels,
@@ -215,6 +220,7 @@ export function useTableRoomPeople({
         seatInitialLabels,
         seatedRoster,
         viewerRoster,
+        queuedRoster,
         viewerReactions,
         getRosterActions,
     };

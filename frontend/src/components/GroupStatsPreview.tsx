@@ -1,4 +1,4 @@
-import { compareHeadToHead, compareHeadToHeadScore } from "game-table/utils/headToHead";
+import { compareHeadToHead, compareHeadToHeadScore, formatOpponentsAhead, opponentCount } from "game-table/utils/headToHead";
 import type { GroupActivity } from "game-table/types/groupActivity";
 import { useGroupActivity } from "game-table/hooks/useGroupActivity";
 import GroupHistoryPreview from "game-table/components/GroupHistoryPreview";
@@ -23,7 +23,7 @@ export function groupMonthLabel(language: string, season = new Date().toISOStrin
 }
 
 export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data?: GroupActivity }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const highlights = ([
         ["best_percentage", "bestPercentage"], ["most_wins", "mostWins"],
         ["head_to_head", "headToHead"], ["win_streak", "streakLeader"],
@@ -31,8 +31,9 @@ export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data
         const highlight = data?.highlights[field];
         const records = new Map<string, string[]>();
         if (field === "head_to_head") for (const record of data?.highlights.head_to_head?.records ?? []) {
-            const value = `${record.ahead}–${record.tied}–${record.behind}`;
-            records.set(value, [...(records.get(value) ?? []), record.username]);
+            const total = opponentCount(record);
+            const value = formatOpponentsAhead(record, i18n.language);
+            records.set(value, [...(records.get(value) ?? []), `${record.username} (${record.ahead}/${total})`]);
         }
         return { label: t(`groups.stats.${label}`),
             eligibilityNote: highlight && highlight.value == null && highlight.usernames.length === 0

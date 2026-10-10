@@ -24,7 +24,7 @@ export const en = {
 
             "mostPlayed": "Most games played",
             "mostWins": "Most wins",
-            "headToHead": "Head-to-head",
+            "headToHead": "Matchups > 50%",
             "streakLeader": "Best streak",
 
     "title": "Statistics",
@@ -172,14 +172,14 @@ export const en = {
             notRankedShort: "NR",
             notRankedExplanation: "NR means not ranked yet. Play at least {{count}} games to qualify for the win-percentage ranking.",
         },
-        sort: {
+        sort: { headToHead: "Matchups",
             label: "Sort by",
             won: "Won",
             played: "Played",
             winPercentage: "%",
         },
         column: {
-            headToHead: "H-T-H",
+            headToHead: "M↑",
             rank: "#",
             username: "Username",
             won: "W",
@@ -260,6 +260,8 @@ export const en = {
         },
     },
     table: {
+        queue: {"waitingTurn": "Waiting for your turn…","title": "Queue", "join": "Queue up", "leave": "Leave queue", "position": "Queue position {{count}}", "error": "Couldn’t update the queue. Try again.", "readyQuestion": "It’s your turn. Ready to play?", "ready": "I’m ready", "skip": "Skip my turn", "waitingChallengers": "Waiting for challengers…", "choosePlayer": "Who should continue?", "selected": "{{name}} chose you to continue. Keep playing?", "chooseCountdown_one": "Choose within {{count}} second", "chooseCountdown_other": "Choose within {{count}} seconds"},
+        postGame: {"keepPlayingQuestion": "Keep playing?", "keepPlaying": "Keep playing", "leave": "I’m leaving", "partnerQuestion": "Change partners?", "samePartner": "Same partner", "changePartner": "Change partners", "waitingWinners": "Waiting for winners…", "waitingPlayers": "Waiting for other players…", "expired": "Your spot expired.", "watching": "You’re now watching.", "saveError": "Couldn’t save your choice. Try again.", "spotExpires_one": "Spot expires in {{count}} second", "spotExpires_other": "Spot expires in {{count}} seconds", "chooseWithin_one": "Choose within {{count}} second", "chooseWithin_other": "Choose within {{count}} seconds"},
         tool: {
             people: "People",
             chat: "Chat",

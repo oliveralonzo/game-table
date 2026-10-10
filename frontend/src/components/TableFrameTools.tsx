@@ -1,3 +1,4 @@
+import QueueAction from 'game-table/components/QueueAction';
 import { type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { ChartNoAxesColumn, Share } from "lucide-react";
@@ -16,6 +17,7 @@ type Props = {
     context?: TableToolRenderContext;
     seatedRoster: RosterPerson[];
     viewerRoster: RosterPerson[];
+    queuedRoster?: RosterPerson[];
     seatCount: number;
     showSeatLocation?: boolean;
     showHandViewStatus?: boolean;
@@ -41,6 +43,7 @@ export default function TableFrameTools({
     context,
     seatedRoster,
     viewerRoster,
+    queuedRoster,
     seatCount,
     showSeatLocation = true,
     showHandViewStatus = false,
@@ -67,11 +70,12 @@ export default function TableFrameTools({
                 <PeoplePanel
                     seatedRoster={seatedRoster}
                     viewerRoster={viewerRoster}
+                    queuedRoster={queuedRoster}
                     seatCount={seatCount}
                     showSeatLocation={showSeatLocation}
                     showHandViewStatus={showHandViewStatus}
                     getActions={getRosterActions}
-                    middleAction={middleAction}
+                    middleAction={middleAction ?? <QueueAction />}
                 />
                 <div className="grid shrink-0 gap-2 px-safe-4 pt-1">
                     <div className="flex items-center justify-between gap-3">

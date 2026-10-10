@@ -1,3 +1,4 @@
+import { opponentCount } from "game-table/utils/headToHead";
 import type { ReactNode } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import {
@@ -101,7 +102,7 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
                         onClick={onHeadToHeadSort}
                         className="px-2 text-xs font-semibold"
                     >
-                        {t("leaderboard.column.headToHead")}
+                        {t("leaderboard.sort.headToHead")}
                     </SegmentedButton>}
                 </Segmented>
             </div>
@@ -151,7 +152,7 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
                                 <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.played")}
                                 </TableCell>
-                            {showHeadToHead && <TableCell header scope="col" className="w-px whitespace-nowrap !px-3 text-right">
+                            {showHeadToHead && <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.headToHead")}
                                 </TableCell>}
                             </TableRow>
@@ -196,8 +197,8 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
                                 <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
                                         {entry.games_played}
                                     </TableCell>
-                            {showHeadToHead && <TableCell className="whitespace-nowrap !px-3 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
-                                        {entry.head_to_head ? `${entry.head_to_head.ahead}–${entry.head_to_head.tied}–${entry.head_to_head.behind}` : "—"}
+                            {showHeadToHead && <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
+                                        {entry.head_to_head && opponentCount(entry.head_to_head) > 0 ? `${entry.head_to_head.ahead}/${opponentCount(entry.head_to_head)}` : "—"}
                                     </TableCell>}
                             </TableRow>
                             ))}

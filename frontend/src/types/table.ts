@@ -40,7 +40,30 @@ export interface TableMember {
  *
  * No derived UI fields should be added here.
  */
+export type PostGameDecision = 'waiting' | 'ready' | 'partner_choice' | 'keep_playing' | 'team_choice' | 'accepted' | 'left' | 'timed_out';
+export type PostGameTeamPreference = 'same_team' | 'mix_it_up';
+
+export interface PostGameTransitionView {
+    id: string;
+    phase: 'winner_checks' | 'challenger_checks' | 'partner_selection' | 'loser_checks' | 'seating_ready';
+    seating_blocked: boolean;
+    previous_seats: Array<string | null>;
+    previous_teams: string[];
+    winners: string[];
+    challengers?: string[];
+    selection_candidates?: string[];
+    invited_by?: Record<string, string>;
+    proposed_seats: Array<string | null>;
+    players: Record<string, {
+        decision: PostGameDecision;
+        deadline: number | null;
+        team_preference: PostGameTeamPreference | null;
+    }>;
+}
+
 export interface TableView {
+    queue?: string[];
+    post_game_transition?: PostGameTransitionView | null;
     instance_id?: string;
     /** Unique table identifier. */
     table_code: string;

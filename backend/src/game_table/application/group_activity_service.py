@@ -1,4 +1,5 @@
 """Group-only standings, highlights and paged history from recorded results."""
+from fractions import Fraction
 import json
 import re
 from datetime import datetime
@@ -158,9 +159,13 @@ class GroupActivityService:
                                          tied=sum(value == 0 for value in margins),
                                          behind=sum(value < 0 for value in margins))
         player_entries = sorted(players.values(), key=lambda p: p['username'])
+        def hth_score(player):
+            record = player['head_to_head']
+            total = sum(record.values())
+            return Fraction(record['ahead'], total) if total else Fraction(-1)
         highlight_entries = sorted(player_entries, key=lambda p: (
             p['games_played'] < MIN_PERCENTAGE_GAMES,
-            -p['head_to_head']['ahead'], p['head_to_head']['behind'], p['username']))
+            -hth_score(p), p['username']))
         def highlight(field, minimum=1, minimum_value=0):
             eligible = [p for p in highlight_entries
                         if p['games_played'] >= minimum and p[field] >= minimum_value]
@@ -174,13 +179,11 @@ class GroupActivityService:
             return dict(value=value if eligible else None,
                         usernames=[p['username'] for p in eligible
                                    if displayed_value(p) == value and (value > 0 or field == 'win_percentage')])
-        eligible_hth = [p for p in player_entries if p['games_played'] >= MIN_PERCENTAGE_GAMES]
-        def hth_score(player):
-            record = player['head_to_head']
-            return record['ahead'], -record['behind']
+        eligible_hth = [p for p in player_entries
+                        if p['games_played'] >= MIN_PERCENTAGE_GAMES and sum(p['head_to_head'].values()) > 0]
         best_hth = max((hth_score(p) for p in eligible_hth), default=None)
         hth_leaders = [p for p in eligible_hth if hth_score(p) == best_hth]
-        hth_highlight = dict(value=None, usernames=[p['username'] for p in hth_leaders],
+        hth_highlight = dict(value=float(best_hth) if best_hth is not None else None, usernames=[p['username'] for p in hth_leaders],
                             records=[dict(username=p['username'], **p['head_to_head']) for p in hth_leaders])
         total_pages = max(1, (len(history) + PAGE_SIZE - 1) // PAGE_SIZE)
         page = min(page, total_pages)

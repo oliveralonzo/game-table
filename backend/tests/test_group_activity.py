@@ -273,7 +273,7 @@ def test_head_to_head_includes_opponents_below_ten_total_group_games(opponent_to
 
 def test_hth_highlight_shows_eligible_tied_leaders_and_their_records():
     result = service(Repository([game(str(i)) for i in range(1, 11)])).read('owner', 'g')
-    assert result['highlights']['head_to_head'] == dict(value=None, usernames=['a', 'b'], records=[
+    assert result['highlights']['head_to_head'] == dict(value=1.0, usernames=['a', 'b'], records=[
         dict(username='a', ahead=2, tied=0, behind=0),
         dict(username='b', ahead=2, tied=0, behind=0),
     ])
@@ -430,3 +430,30 @@ def test_forfeits_are_distinct_from_missing_accounts_and_do_not_affect_player_st
     assert players['b']['games_played'] == 0
     assert players['a']['games_played'] == 1
     assert len(result['teams']) == 1
+
+
+@pytest.mark.parametrize("same_fraction", [False, True])
+def test_opponents_ahead_highlight_uses_exact_fraction(same_fraction):
+    games = []
+    def matchup(player, opponent, won, count):
+        for _ in range(count):
+            value = game(str(len(games) + 1), winner=0 if won else 1)
+            value['participants'] = [dict(account_id=name, username=name, team_index=team,
+                seat_index=team, group_participation='member')
+                for team, name in enumerate([player, opponent])]
+            games.append(value)
+    if same_fraction:
+        matchup('a', 'x', True, 5)
+        matchup('a', 'y', False, 5)
+        for opponent, won in [('q', True), ('r', True), ('s', False), ('t', False)]:
+            matchup('b', opponent, won, 3)
+        expected, value = ['a', 'b'], 0.5
+    else:
+        matchup('a', 'x', True, 4)
+        matchup('a', 'y', True, 4)
+        matchup('a', 'z', False, 4)
+        matchup('b', 'q', True, 10)
+        expected, value = ['b'], 1.0
+    highlight = service(Repository(games)).read('owner', 'g')['highlights']['head_to_head']
+    assert highlight['usernames'] == expected
+    assert highlight['value'] == value

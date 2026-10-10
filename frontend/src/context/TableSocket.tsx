@@ -1,3 +1,4 @@
+import type { PostGameTeamPreference } from 'game-table/types/table';
 /**
  * TableSocket.tsx
  * Author: Oliver Alonzo
@@ -260,6 +261,12 @@ type TableSocketAPI = {
         onSuccess?: (gameId: string) => void
     ) => void;
     endGameForTable: (onError?: (message: string) => void) => void;
+    setQueued: (queued: boolean, onResult: (saved: boolean) => void) => void;
+    respondPostGame: (
+        transitionId: string,
+        response: { keep_playing: boolean } | { team_preference: PostGameTeamPreference } | { selected_player: string },
+        onResult: (saved: boolean) => void,
+    ) => void;
     blockGame: () => void;
     resumeGame: () => void;
     markPersistent: () => void;
@@ -777,6 +784,32 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         emit("table:transfer_host", { member_id });
     }
 
+    function setQueued(queued: boolean, onResult: (saved: boolean) => void) {
+        const socket = socketRef.current;
+        if (!socket?.connected) { onResult(false); return; }
+        socket.timeout(5000).emit(queued ? 'table:queue_join' : 'table:queue_leave', {},
+            (error: Error | null, ack: { updated?: boolean; error?: string } | undefined) => {
+                onResult(!error && ack?.updated === true && !ack.error);
+            });
+    }
+
+    function respondPostGame(
+        transitionId: string,
+        response: { keep_playing: boolean } | { team_preference: PostGameTeamPreference } | { selected_player: string },
+        onResult: (saved: boolean) => void,
+    ) {
+        const socket = socketRef.current;
+        if (!socket?.connected) { onResult(false); return; }
+        const event = 'keep_playing' in response
+            ? 'table:post_game_keep_playing' : 'selected_player' in response
+                ? 'table:post_game_player_choice' : 'table:post_game_team_choice';
+        // Never buffer an expiring choice while disconnected; bound pending UI.
+        socket.timeout(5000).emit(event, { transition_id: transitionId, ...response },
+            (error: Error | null, ack: { updated?: boolean; error?: string } | undefined) => {
+                onResult(!error && ack?.updated === true && !ack.error);
+            });
+    }
+
     function addSeat() {
         emit("table:add_seat");
     }
@@ -1055,6 +1088,8 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         addSeat,
         removeSeat,
         assignSeat,
+        respondPostGame,
+        setQueued,
         unassignSeat,
         resetSeating,
         updateGameSettings,
