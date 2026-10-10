@@ -19,6 +19,9 @@ class TableSessionService(Generic[RulesT]):
     def table_preview(table: Table) -> dict:
         return {
             'table_code': table.table_code, 'instance_id': table.instance_id,
+            'invite_token': table.invite_token, 'group_name': table.group_name,
+            'host_name': table.get_host_details()['name'],
+            'host_username': table.get_host_details()['account_username'],
             'group_id': table.group_id, 'host_id': table.host_id, 'state': table.state.value,
             'seat_orders': table.get_seating_orders(),
             'seat_selection_methods': [seat.selection_method for seat in table.seats],
@@ -354,7 +357,11 @@ class TableSessionService(Generic[RulesT]):
         return {
             "table_code": table.table_code,
             "instance_id": table.instance_id,
+            "invite_token": table.invite_token,
+            "group_name": table.group_name,
             "host_id": table.host_id,
+            "host_name": table.get_host_details()["name"],
+            "host_username": table.get_host_details()["account_username"],
             "group_id": table.group_id,
             "members": members,
             "seats": seats,
@@ -368,6 +375,8 @@ class TableSessionService(Generic[RulesT]):
             "is_persistent": table.is_persistent,
             "pending_rules": table.pending_rules,
             "active_game_id": table.active_game_id,
+            "unseat": table.get_unseat_view(),
+            "end_game_confirmation": table.end_game_confirmation.snapshot() if table.end_game_confirmation else None,
             "queue": table.get_queue(),
             "post_game_transition": table.get_post_game_transition_view(),
             "has_game": table.active_game_id is not None,

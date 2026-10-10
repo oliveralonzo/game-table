@@ -100,6 +100,10 @@ def test_group_members_can_unseat_others_but_guests_only_themselves(services):
     with pytest.raises(PermissionError):
         router.unassign_seat('guest', 0)
     router.unassign_seat('m', 1)
+    table = router.get_table('BABA-1234')
+    assert table.get_seat_occupant(1) == 'guest'
+    confirmation = table.unseat_confirmations['guest']
+    table.respond_unseat('guest', confirmation['id'], True, confirmation['deadline'] - 1)
     assert router.get_table_view('BABA-1234')['seats'][1] is None
     router.assign_seat('guest', 1)
     router.unassign_seat('guest', 1)

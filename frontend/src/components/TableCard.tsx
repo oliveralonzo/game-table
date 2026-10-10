@@ -1,3 +1,4 @@
+import TableIdentityBadge from "game-table/components/TableIdentityBadge";
 import { useTranslation } from "react-i18next";
 import GroupTablePreviewCard from "game-table/components/GroupTablePreviewCard";
 import PeoplePanel from "game-table/components/PeoplePanel";
@@ -7,7 +8,7 @@ import type { SavedTable } from "game-table/context/SavedTablesContext";
 import { Plus } from "lucide-react";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 
-type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods" | "seat_orders"> & { host_id?: string | null };
+type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods" | "seat_orders"> & { host_id?: string | null; group_name?: string | null; host_name?: string | null; host_username?: string | null };
 export default function TableCard({ table, onEnter, pending = false, closing = false, onClosed, onRemove, removeLabel }: {
     table: Preview; onEnter: () => void; pending?: boolean; closing?: boolean;
     onClosed?: (code: string) => void; onRemove?: () => void; removeLabel?: string;
@@ -17,10 +18,18 @@ export default function TableCard({ table, onEnter, pending = false, closing = f
         id: member.member_id, name: member.name, accountUsername: member.account_username,
         isHost: member.member_id === table.host_id, hasSeat: table.seats.includes(member.member_id),
     }));
-    return <GroupTablePreviewCard title={table.table_code} pending={pending} closing={closing} onClosed={onClosed}
+    const host = table.members.find(member => member.member_id === table.host_id);
+    const username = host?.account_username ?? table.host_username;
+    const hostName = username ? `@${username}` : host?.name ?? table.host_name;
+    const label = table.group_name || hostName;
+    const identity = <div className="min-w-0">
+        <TableIdentityBadge groupName={table.group_name} hostName={hostName} compact />
+        <p className="mt-0.5 font-mono text-sm text-black/55 dark:text-white/55">{table.table_code}</p>
+    </div>;
+    return <GroupTablePreviewCard identity={identity} title={table.table_code} pending={pending} closing={closing} onClosed={onClosed}
         participantCount={table.members.length} onEnter={onEnter} onRemove={onRemove} removeLabel={removeLabel}
-        peopleLabel={t("groups.preview.peopleAt", { number: table.table_code })}
-        enterLabel={pending ? t("join.status.creatingTable") : t("groups.preview.enter", { number: table.table_code })}
+        peopleLabel={t("groups.preview.peopleAt", { number: label ? `${label} · ${table.table_code}` : table.table_code })}
+        enterLabel={pending ? t("join.status.creatingTable") : t("groups.preview.enter", { number: label ? `${label} · ${table.table_code}` : table.table_code })}
         backLabel={t("groups.preview.showTable", { number: table.table_code })}
         roster={roster.length ? <PeoplePanel seatedRoster={roster.filter(person => person.hasSeat)}
             viewerRoster={roster.filter(person => !person.hasSeat)} seatCount={table.seat_count} showSeatLocation={false} />

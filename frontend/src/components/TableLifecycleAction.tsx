@@ -61,7 +61,6 @@ export default function TableLifecycleAction({ onBackToLobby }: { onBackToLobby?
     };
 
     const endGame = () => {
-        if (!confirm(t("table.dialog.endGameConfirm"))) return;
         setIsOpen(false);
         endGameForTable((message) => alert(message));
     };

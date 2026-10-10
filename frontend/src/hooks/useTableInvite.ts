@@ -1,3 +1,4 @@
+import { useTable } from "game-table/context/TableState";
 import { useEffect, useState } from "react";
 
 import { tableInviteUrl } from "game-table/utils/tableRoute";
@@ -10,6 +11,7 @@ type UseTableInviteArgs = {
 
 export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
     const { name } = useBranding();
+    const { state } = useTable();
     const [inviteCopied, setInviteCopied] = useState(false);
     const [fallbackInviteUrl, setFallbackInviteUrl] = useState<string | null>(null);
 
@@ -27,10 +29,19 @@ export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
         if (!tableCode) return;
 
         setFallbackInviteUrl(null);
-        const inviteUrl = tableInviteUrl(window.location.origin, tableCode);
+        const table = state.tableView;
+        const host = table?.host_id ? table.members[table.host_id] : null;
+        const username = host?.account_username ?? table?.host_username;
+        const hostName = username ? `@${username}` : host?.name ?? table?.host_name;
+        const groupName = table?.group_name;
+        const context = groupName ? { key: t("table.inviteParam.group"), value: groupName }
+            : hostName ? { key: t("table.inviteParam.host"), value: hostName } : undefined;
+        const inviteUrl = tableInviteUrl(window.location.origin, tableCode, table?.invite_token, context);
         const shareData: ShareData = {
             title: name,
-            text: t("table.dialog.inviteShareText"),
+            text: groupName ? t("table.dialog.inviteGroup", { group: groupName })
+                : hostName ? t("table.dialog.inviteHost", { host: hostName })
+                : t("table.dialog.inviteShareText"),
             url: inviteUrl,
         };
 

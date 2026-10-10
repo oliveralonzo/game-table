@@ -1,6 +1,7 @@
 const MESSAGE_CODE_FALLBACKS: Record<string, string> = {
     "Table already exists.": "TABLE_ALREADY_EXISTS",
     "Table does not exist.": "TABLE_NOT_FOUND",
+    "Invitation has expired.": "INVITATION_EXPIRED",
     "Name already taken.": "NAME_TAKEN",
     "Name is required.": "NAME_REQUIRED",
     "Host name is required.": "NAME_REQUIRED",

@@ -99,10 +99,11 @@ class TableService(TableSessionService[RulesT]):
         self._member_to_table[member_id] = table_code
         self._last_activity[table_code] = time.time()
 
-    def create_empty_table(self, creator_identity: str, rules: RulesT | None = None) -> dict:
+    def create_empty_table(self, creator_identity: str, rules: RulesT | None = None, host_name: str | None = None, host_username: str | None = None) -> dict:
         if not creator_identity:
             raise ValueError("Creator identity is required.")
         table = self._registry.create_empty(rules=rules, creator_identity=creator_identity)
+        table.reserve_host(creator_identity, host_name, host_username)
         self._last_activity[table.table_code] = time.time()
         return self.table_preview(table)
 
@@ -454,6 +455,7 @@ class TableService(TableSessionService[RulesT]):
                 "has_game": table.active_game_id is not None,
                 "is_persistent": table.is_persistent,
                 "host_name": host_member.name if host_member else None,
+                "host_username": host_member.account_username if host_member else None,
             })
 
         return result

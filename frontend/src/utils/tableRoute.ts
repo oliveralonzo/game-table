@@ -33,6 +33,27 @@ export function encodeTableCodePath(code: string): string {
     return `/${encodeURIComponent(replaceInvalidSurrogates(normalizeTableCode(code)))}`;
 }
 
-export function tableInviteUrl(origin: string, code: string): string {
-    return `${origin}${encodeTableCodePath(code)}`;
+export function invitationLabel(value: string): string {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+}
+
+export function tableInviteUrl(origin: string, code: string, token?: string | null,
+    context?: { key: string; value: string }): string {
+    const params = new URLSearchParams();
+    if (token != null) params.set("i", token);
+    if (context) params.set(context.key, invitationLabel(context.value));
+    const query = params.toString();
+    return `${origin}${encodeTableCodePath(code)}${query ? `?${query}` : ""}`;
+}
+
+// Only attach an invitation token to requests for the table in that URL.
+export function routeInvitation(code: string): { invite_token?: string } {
+    const params = new URLSearchParams(window.location.search);
+    let routeCode: string;
+    try {
+        routeCode = decodeURIComponent(window.location.pathname.replace(/^\/|\/$/g, ""));
+    } catch { return {}; }
+    if (normalizeTableCode(routeCode) !== normalizeTableCode(code) || !params.has("i")) return {};
+    return { invite_token: params.get("i") ?? "" };
 }

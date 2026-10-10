@@ -14,7 +14,7 @@ type UseTableRoomPeopleArgs = {
     selfIsSeated: boolean;
     t: (key: string, options?: Record<string, unknown>) => string;
     reactions: ReactionEvent[];
-    unassignSeat: (seatIndex: number) => void;
+    unassignSeat: (seatIndex: number, onError?: (message: string, code?: string) => void) => void;
     removeMember: (memberId: string) => void;
     grantHandView: (viewerId: string) => void;
     revokeHandView: (viewerId: string) => void;
@@ -34,6 +34,12 @@ export function useTableRoomPeople({
     grantHandView,
     revokeHandView,
 }: UseTableRoomPeopleArgs) {
+    const [unseatNow, setUnseatNow] = useState(Date.now() / 1000);
+    useEffect(() => {
+        if (!table?.unseat || (!Object.keys(table.unseat.cooldowns).length && !Object.keys(table.unseat.confirmations).length)) return;
+        const timer = window.setInterval(() => setUnseatNow(Date.now() / 1000), 250);
+        return () => window.clearInterval(timer);
+    }, [table?.unseat]);
     const { listAccountStats, on, off } = useTableSocket();
     const [statsRevision, setStatsRevision] = useState<string | null>(null);
     const [statsByAccountId, setStatsByAccountId] = useState<Record<string, {
@@ -164,10 +170,20 @@ export function useTableRoomPeople({
         const actions: RosterAction[] = [];
 
         if (selfIsSeated && (isHost || (!!selfId && table?.group_member_ids?.includes(selfId))) && person.hasSeat && typeof person.seatIndex === "number") {
+            const deadline = !person.isSelf && table?.group_id
+                ? table.unseat?.confirmations[person.id]?.deadline ?? table.unseat?.cooldowns[person.id] ?? 0
+                : 0;
+            const remaining = Math.max(0, Math.ceil(deadline - unseatNow));
+            const confirming = !person.isSelf && !!table?.group_id && !!table.unseat?.confirmations[person.id];
             actions.push({
                 id: "unseat",
-                label: t("table.action.unseat"),
-                onClick: () => unassignSeat(person.seatIndex!),
+                disabled: confirming || remaining > 0,
+                label: remaining > 0
+                    ? t("table.unseatConfirmation.disabledAction", { action: t("table.action.unseat"), count: remaining })
+                    : t("table.action.unseat"),
+                onClick: () => unassignSeat(person.seatIndex!, (message, code) => {
+                    if (code !== "UNSEAT_COOLDOWN") alert(message);
+                }),
             });
         }
 

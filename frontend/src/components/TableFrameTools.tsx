@@ -1,3 +1,4 @@
+import TableIdentity from "game-table/components/TableIdentity";
 import QueueAction from 'game-table/components/QueueAction';
 import { type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +24,7 @@ type Props = {
     showHandViewStatus?: boolean;
     getRosterActions: (person: RosterPerson) => RosterAction[];
     middleAction?: ReactNode;
+    statsAction?: ReactNode;
     tableCode?: string | null;
     inviteCopied: boolean;
     fallbackInviteUrl?: string | null;
@@ -49,6 +51,7 @@ export default function TableFrameTools({
     showHandViewStatus = false,
     getRosterActions,
     middleAction,
+    statsAction,
     tableCode,
     inviteCopied,
     fallbackInviteUrl,
@@ -79,15 +82,8 @@ export default function TableFrameTools({
                 />
                 <div className="grid shrink-0 gap-2 px-safe-4 pt-1">
                     <div className="flex items-center justify-between gap-3">
-                        <span className="min-w-0">
-                            <span className="block text-[11px] font-medium uppercase tracking-normal text-black/35 dark:text-white/35">
-                                {t("table.label.code")}
-                            </span>
-                            <span className="block truncate font-mono text-sm font-medium tracking-normal text-black/55 dark:text-white/55">
-                                {tableCode}
-                            </span>
-                        </span>
-                        {context?.openLeaderboard ? <Button
+                        <TableIdentity />
+                        {statsAction !== undefined ? statsAction : context?.openLeaderboard ? <Button
                             type="button"
                             inline
                             clear

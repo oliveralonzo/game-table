@@ -94,8 +94,13 @@ class Table(Generic[RulesT]):
 
         self._group_id = group_id
         self.instance_id = str(uuid4())
+        self.invite_token: str | None = None
+        self.group_name: str | None = None
         self.table_code: str = table_code
 
+        self.unseat_confirmations = {}
+        self.unseat_cooldowns = {}
+        self.end_game_confirmation = None
         self._player_queue = PlayerQueue()
         self._post_game_transition: PostGameTransition | None = None
         self._post_game_transition_id: str | None = None
@@ -108,6 +113,7 @@ class Table(Generic[RulesT]):
 
         self._host_id: Optional[str] = None
         self._reserved_host_identity: str | None = None
+        self._reserved_host_details: dict | None = None
         self._active_game_id: Optional[str] = None
         self._pending_rules = rules
         self._game_changed_seats: Set[int] = set()
@@ -322,10 +328,11 @@ class Table(Generic[RulesT]):
         self._seat_locks_active = False
         self._game_seat_locks.clear()
 
-    def reserve_host(self, creator_identity: str) -> None:
+    def reserve_host(self, creator_identity: str, host_name: str | None = None, host_username: str | None = None) -> None:
         if self.group_id is not None or self._members or not creator_identity:
             raise ValueError("Host reservation requires an empty private table and creator identity.")
         self._reserved_host_identity = creator_identity
+        self._reserved_host_details = {"name": host_name, "account_username": host_username}
 
     def claim_reserved_host(self, member_id: str, creator_identity: str | None) -> None:
         if self._reserved_host_identity and creator_identity == self._reserved_host_identity:
@@ -333,6 +340,13 @@ class Table(Generic[RulesT]):
                 raise ValueError("Host must be a participant.")
             self._host_id = member_id
             self._reserved_host_identity = None
+            self._reserved_host_details = None
+
+    def get_host_details(self) -> dict:
+        host = self._members.get(self._host_id)
+        if host:
+            return {"name": host.name, "account_username": host.account_username}
+        return self._reserved_host_details or {"name": None, "account_username": None}
 
     def find_member_id_by_account_id(self, account_id: str | None) -> str | None:
         if not account_id:
@@ -359,6 +373,12 @@ class Table(Generic[RulesT]):
         old_member = self._members[old_member_id]
         if old_member.account_id != account_id:
             raise ValueError("Member does not represent account.")
+        if old_member_id in self.unseat_confirmations:
+            self.unseat_confirmations[new_member_id] = self.unseat_confirmations.pop(old_member_id)
+        if old_member_id in self.unseat_cooldowns:
+            self.unseat_cooldowns[new_member_id] = self.unseat_cooldowns.pop(old_member_id)
+        if self.end_game_confirmation is not None:
+            self.end_game_confirmation.replace_player(old_member_id, new_member_id)
         self._player_queue.replace(old_member_id, new_member_id)
         if self._post_game_transition is not None:
             self._post_game_transition.replace_player(old_member_id, new_member_id)
@@ -434,6 +454,8 @@ class Table(Generic[RulesT]):
         """
 
         self._ensure_member_exists(member_id)
+        self.unseat_confirmations.pop(member_id, None)
+        self.unseat_cooldowns.pop(member_id, None)
 
         if self._post_game_transition is not None:
             self._post_game_transition.withdraw(member_id)
@@ -645,6 +667,46 @@ class Table(Generic[RulesT]):
         return self._seats[seat_index].member_id
 
 
+    def get_unseat_view(self):
+        seated = {seat.member_id for seat in self.seats if seat.member_id}
+        self.unseat_confirmations = {key: value for key, value in self.unseat_confirmations.items()
+                                    if key in seated and self.get_seat_occupant(value['seat_index']) == key}
+        self.unseat_cooldowns = {key: value for key, value in self.unseat_cooldowns.items() if key in seated}
+        return {'confirmations': {key: dict(value) for key, value in self.unseat_confirmations.items()},
+                'cooldowns': dict(self.unseat_cooldowns)}
+
+    def request_unseat(self, seat_index, now, requester_id=None):
+        self._ensure_post_game_seating_open()
+        self.get_unseat_view()
+        target = self.get_seat_occupant(seat_index)
+        if target is None:
+            return
+        if self.unseat_cooldowns.get(target, 0) > now:
+            raise ValueError('This player recently confirmed they are still playing.')
+        if target not in self.unseat_confirmations:
+            self.unseat_confirmations[target] = {'id': str(uuid4()), 'seat_index': seat_index, 'deadline': now + 30,
+                                                   'requester_name': self._members[requester_id].name if requester_id else None}
+
+    def respond_unseat(self, member_id, confirmation_id, yes, now):
+        self.expire_unseat(now)
+        confirmation = self.unseat_confirmations.get(member_id)
+        if confirmation is None or confirmation['id'] != confirmation_id:
+            raise ValueError('Unseat confirmation is no longer available.')
+        if type(yes) is not bool:
+            raise ValueError('A boolean response is required.')
+        if yes:
+            self.unassign_seat(confirmation['seat_index'])
+        else:
+            self.unseat_confirmations.pop(member_id)
+            self.unseat_cooldowns[member_id] = now + 60
+
+    def expire_unseat(self, now):
+        self.get_unseat_view()
+        for target, confirmation in list(self.unseat_confirmations.items()):
+            if confirmation['deadline'] <= now:
+                self.unassign_seat(confirmation['seat_index'])
+        self.unseat_cooldowns = {key: value for key, value in self.unseat_cooldowns.items() if value > now}
+
     def unassign_seat(self, seat_index: int) -> None:
         """
         Remove a member from a seat as a domain operation.
@@ -667,6 +729,8 @@ class Table(Generic[RulesT]):
             return  # no-op
 
         former_player_id = seat.member_id
+        self.unseat_confirmations.pop(former_player_id, None)
+        self.unseat_cooldowns.pop(former_player_id, None)
         if self._active_game_id is not None:
             self._game_changed_seats.add(seat_index)
 
@@ -756,6 +820,7 @@ class Table(Generic[RulesT]):
         self._ensure_state(TableState.OPEN, "Game can only be attached while table is open.")
         self._ensure_no_game_exists("Game already exists.")
 
+        self.end_game_confirmation = None
         self._post_game_transition = None
         self._post_game_transition_id = None
         self._game_changed_seats.clear()

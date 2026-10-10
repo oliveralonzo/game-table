@@ -1,5 +1,6 @@
 export const en = {
-    privateTables: { groupsHaveTables: "Your groups have open tables.", viewGroups: "View groups", statsNote: "These tables don’t count toward group or league standings.", create: "Create table", subtitle: "Create private tables to invite others to join.", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
+    groupTables: { create: "Create a group table" },
+    privateTables: { groupsHaveTables: "Your groups have open tables.", viewGroups: "View groups", statsNote: "These tables don’t count toward group or league standings.", create: "Create an individual table", subtitle: "Individual", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
     groups: {
         settings: { loadError: "Could not load group settings.", saveError: "Could not save group settings." },
         tables: { enterError: "Couldn’t enter the table. Try again.", loadError: "Couldn’t refresh the tables.", closeError: "Could not close the table. It may now have participants.", createError: "Couldn’t create the table. Try again." },
@@ -240,7 +241,7 @@ export const en = {
         },
         backendErrors: {
             TABLE_ALREADY_EXISTS: "Table already exists",
-            TABLE_NOT_FOUND: "Table not found",
+            INVITATION_EXPIRED: "This invitation has expired.", TABLE_NOT_FOUND: "Table not found",
             NAME_TAKEN: "Name already taken",
             NAME_REQUIRED: "Name is required",
             MEMBER_ALREADY_IN_TABLE: "Already in a table",
@@ -260,6 +261,9 @@ export const en = {
         },
     },
     table: {
+        unseatConfirmation: { disabledAction: "{{action}} ({{count}}s)", requestedBy: "@{{player}} asked to unseat you.", cooldown: "This player recently confirmed they are still playing.", question: "Remove you from your seat?", yes: "Leave seat", no: "Still playing", timer: "Removal in {{count}}s", waiting: "" },
+        endConfirmation: {"question": "End the game?", "yes": "Yes", "no": "No", "waiting": "Waiting for the other players…", "timer_one": "Ends automatically in {{count}} second", "timer_other": "Ends automatically in {{count}} seconds"},
+        inviteParam: { host: "host", group: "group" },
         queue: {"waitingTurn": "Waiting for your turn…","title": "Queue", "join": "Queue up", "leave": "Leave queue", "position": "Queue position {{count}}", "error": "Couldn’t update the queue. Try again.", "readyQuestion": "It’s your turn. Ready to play?", "ready": "I’m ready", "skip": "Skip my turn", "waitingChallengers": "Waiting for challengers…", "choosePlayer": "Who should continue?", "selected": "{{name}} chose you to continue. Keep playing?", "chooseCountdown_one": "Choose within {{count}} second", "chooseCountdown_other": "Choose within {{count}} seconds"},
         postGame: {"keepPlayingQuestion": "Keep playing?", "keepPlaying": "Keep playing", "leave": "I’m leaving", "partnerQuestion": "Change partners?", "samePartner": "Same partner", "changePartner": "Change partners", "waitingWinners": "Waiting for winners…", "waitingPlayers": "Waiting for other players…", "expired": "Your spot expired.", "watching": "You’re now watching.", "saveError": "Couldn’t save your choice. Try again.", "spotExpires_one": "Spot expires in {{count}} second", "spotExpires_other": "Spot expires in {{count}} seconds", "chooseWithin_one": "Choose within {{count}} second", "chooseWithin_other": "Choose within {{count}} seconds"},
         tool: {
@@ -292,7 +296,7 @@ export const en = {
             stoppingHandShare: "Stopping…",
         },
         label: {
-            code: "Code",
+            individualTableBy: "Individual Table by", groupTable: "Group Table", hostBadge: "Host: {{host}}", code: "Code:",
             seats: "Seats",
             sponsoredBy: "Table sponsored by {{sponsor}}",
             table: "Table",
@@ -308,7 +312,7 @@ export const en = {
         dialog: {
             inviteLink: "Invite link",
             inviteCopyInstruction: "Copy the text below to share.",
-            inviteShareText: "Join my table",
+            inviteHost: "Join {{host}}’s table", inviteGroup: "Join {{group}}’s table", inviteShareText: "Join my table",
             leaveConfirm: "Leave this table?",
             closeConfirm: "Close this table?",
             endGameConfirm: "End this game?",

@@ -1,5 +1,6 @@
 """Group table discovery, sessions, seating, and last-participant closure."""
 from typing import Callable
+import time
 
 from game_table.application.group_service import GroupService
 from game_table.application.table_registry import TableRegistry, generate_table_code
@@ -37,6 +38,7 @@ class GroupTableService(TableSessionService):
                      else self._settings_provider.default_settings())
         table = self._registry.create_empty(group_id=group_id, code_factory=self._code_factory, rules=rules,
                                             seat_count=getattr(group, 'default_seat_count', 4))
+        table.group_name = getattr(group, 'name', None)
         self._group_public_ids[table.instance_id] = getattr(group, 'public_id', None)
         return self.table_preview(table)
 
@@ -135,6 +137,8 @@ class GroupTableService(TableSessionService):
             self._require_group_member(member_id)
             if not any(seat.member_id == member_id for seat in table.seats):
                 raise PermissionError('Spectators cannot unseat players.')
+            table.request_unseat(seat_index, time.time(), member_id)
+            return
         table.unassign_seat(seat_index)
 
     def get_table_view(self, table_code: str) -> dict:

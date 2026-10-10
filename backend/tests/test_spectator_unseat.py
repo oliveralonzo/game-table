@@ -32,6 +32,9 @@ def test_spectator_cannot_unseat_and_permission_updates_when_they_take_or_leave_
     assert table.get_seat_occupant(1) == 'player'
     service.assign_seat('actor', 0)
     service.unassign_seat('actor', 1)
+    if group:
+        confirmation = table.unseat_confirmations['player']
+        table.respond_unseat('player', confirmation['id'], True, confirmation['deadline'] - 1)
     assert table.get_seat_occupant(1) is None
     service.assign_seat('player', 1)
     service.unassign_seat('actor', 0)

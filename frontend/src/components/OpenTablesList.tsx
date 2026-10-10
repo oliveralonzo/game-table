@@ -86,12 +86,10 @@ export default function OpenTablesList({
                                 >
                                     <div className="min-w-0">
                                         <div className="truncate text-[17px] font-medium text-black dark:text-white">
-                                            {table.table_code}
+                                            {table.host_username ? `@${table.host_username}` : table.host_name}
                                         </div>
                                         <div className="mt-0.5 text-sm text-black/55 dark:text-white/55">
-                                            {t("join.openTables.host", {
-                                                host: table.host_name ?? "-",
-                                            })}
+                                            {table.table_code}
                                             {" | "}
                                             {t("join.openTables.joined", {
                                                 count: table.member_count,

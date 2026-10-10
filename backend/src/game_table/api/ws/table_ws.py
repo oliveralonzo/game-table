@@ -1,6 +1,7 @@
 # backend/api/ws/table_ws.py
 
 import asyncio
+import time
 from game_table.api.ws.group_table_notifications import emit_group_table_availability
 
 from socketio import AsyncServer
@@ -326,11 +327,13 @@ def register_table_events(
     async def create_empty_table(sid, data=None):
         try:
             # Allocation does not create a participant or join a socket room.
-            account_id, _ = _resolve_account_identity(data or {})
+            account_id, account_username = _resolve_account_identity(data or {})
             creator_identity = (f"account:{account_id}" if account_id else
                                 f"session:{session_registry.resolve_client_session_id(sid)}")
             table = table_service.create_empty_table(creator_identity=creator_identity,
-                                                     rules=game_settings_provider.default_settings())
+                                                     rules=game_settings_provider.default_settings(),
+                                                     host_username=account_username,
+                                                     host_name=account_username or (data or {}).get("name"))
             await _broadcast_table_list_update()
             return {"table": table}
         except Exception as exc:
@@ -368,11 +371,19 @@ def register_table_events(
 
     # ---------------------------- Membership ---------------------------- #
 
+    def _matches_invitation(table_code, data):
+        token = data.get("invite_token")
+        return token is None or (table_service.table_exists(table_code)
+            and table_service.get_table(table_code).invite_token == token)
+
     @sio.on("table:join")
     async def join_table(sid, data):
         try:
             table_code = data["table_code"]
             name = data["name"]
+
+            if not _matches_invitation(table_code, data):
+                raise ValueError("Invitation has expired.")
 
             expected_instance = data.get("instance_id")
             if expected_instance is not None:
@@ -616,13 +627,32 @@ def register_table_events(
 
             await _broadcast_table_state_update(table_code)
 
+            _schedule_post_game_deadline(table_code)
             return {
-                "unassigned": True,
+                "unassigned": table_service.get_table(table_code).get_seat_occupant(seat_index) is None,
                 "seat_index": seat_index,
             }
 
         except Exception as exc:
             return _error_response(exc)
+
+    @sio.on("table:unseat_response")
+    async def respond_unseat(sid, data):
+        table_code = None
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            table_code = table_service.get_table_code_for_member(member_id)
+            table = table_service.get_table(table_code)
+            if table.group_id is None:
+                raise ValueError('Unseat confirmations apply only to group tables.')
+            table.respond_unseat(member_id, data['confirmation_id'], data['yes'], time.time())
+            return {"saved": True}
+        except Exception as exc:
+            return _error_response(exc)
+        finally:
+            if table_code is not None:
+                await _broadcast_table_state_update(table_code)
+                _schedule_post_game_deadline(table_code)
 
     # ---------------------------- Configuration ---------------------------- #
 
@@ -662,15 +692,28 @@ def register_table_events(
         except Exception as exc:
             return _error_response(exc)
 
+    def _table_wait_seconds(table_code):
+        delay = game_table_service.post_game_wait_seconds(table_code) if game_table_service else None
+        view = table_service.get_table(table_code).get_unseat_view()
+        deadlines = [value['deadline'] for value in view['confirmations'].values()] + list(view['cooldowns'].values())
+        if deadlines:
+            unseat_delay = max(0, min(deadlines) - time.time())
+            delay = unseat_delay if delay is None else min(delay, unseat_delay)
+        return delay
+
     async def _run_post_game_deadlines(table_code, table):
         try:
             while (table_service.table_exists(table_code)
                    and table_service.get_table(table_code) is table):
-                before = table.get_post_game_transition_view()
-                game_table_service.expire_post_game_for_table(table_code)
-                if table.get_post_game_transition_view() != before:
+                before = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view())
+                table.expire_unseat(time.time())
+                if game_table_service:
+                    game_table_service.expire_game_end_for_table(table_code)
+                    game_table_service.expire_post_game_for_table(table_code)
+                after = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view())
+                if after != before:
                     await _broadcast_table_state_update(table_code)
-                delay = game_table_service.post_game_wait_seconds(table_code)
+                delay = _table_wait_seconds(table_code)
                 if delay is None:
                     return
                 await asyncio.sleep(max(0.01, delay))
@@ -682,7 +725,7 @@ def register_table_events(
         previous = post_game_tasks.pop(table_code, None)
         if previous is not None:
             previous.cancel()
-        if game_table_service.post_game_wait_seconds(table_code) is not None:
+        if _table_wait_seconds(table_code) is not None:
             post_game_tasks[table_code] = asyncio.create_task(
                 _run_post_game_deadlines(table_code, table_service.get_table(table_code)))
 
@@ -764,15 +807,30 @@ def register_table_events(
             member_id = session_registry.resolve_member_id(sid)
             table_code = table_service.get_table_code_for_member(member_id)
 
-            game_table_service.end_game_for_table(member_id)
+            game_table_service.request_game_end(member_id)
             _schedule_post_game_deadline(table_code)
 
             await _broadcast_table_state_update(table_code)
 
-            return {"ended": True}
+            return {"ended": table_service.get_table(table_code).active_game_id is None}
 
         except Exception as exc:
             return _error_response(exc)
+
+    @sio.on('table:end_game_response')
+    async def end_game_response(sid, data):
+        code = None
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            code = table_service.get_table_code_for_member(member_id)
+            game_table_service.respond_game_end(member_id, data['confirmation_id'], data['yes'])
+            return {'updated': True}
+        except Exception as exc:
+            return _error_response(exc)
+        finally:
+            if code is not None and table_service.table_exists(code):
+                await _broadcast_table_state_update(code)
+                _schedule_post_game_deadline(code)
 
     @sio.on("table:block_game")
     async def block_game(sid, data):
@@ -936,6 +994,8 @@ def register_table_events(
     async def lookup_table(sid, data):
         try:
             table_code = data["table_code"]
+            if data.get("invite_token") is not None and (not table_service.table_exists(table_code) or not _matches_invitation(table_code, data)):
+                raise ValueError("Invitation has expired.")
             exists = table_service.table_exists(table_code)
             account_member_name = None
 
@@ -979,6 +1039,8 @@ def register_table_events(
     async def check_table_membership(sid, data):
         try:
             table_code = data["table_code"]
+            if not _matches_invitation(table_code, data):
+                return {"table_code": table_code, "member": False}
             member_id = session_registry.get_member_id(sid)
 
             if member_id is None:

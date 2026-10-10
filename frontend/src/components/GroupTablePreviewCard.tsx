@@ -6,6 +6,7 @@ import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 
 type Props = {
     title: string;
+    identity?: ReactNode;
     pending?: boolean;
     closing?: boolean;
     onClosed?: (code: string) => void;
@@ -20,7 +21,7 @@ type Props = {
     children: ReactNode;
 };
 
-export default function GroupTablePreviewCard({ title, pending = false, closing = false, onClosed, participantCount, peopleLabel, enterLabel, backLabel, onEnter, onRemove, removeLabel, roster, children }: Props) {
+export default function GroupTablePreviewCard({ title, identity, pending = false, closing = false, onClosed, participantCount, peopleLabel, enterLabel, backLabel, onEnter, onRemove, removeLabel, roster, children }: Props) {
     const { t } = useTranslation();
     const disabled = pending || closing;
     const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -110,8 +111,8 @@ export default function GroupTablePreviewCard({ title, pending = false, closing 
         <div ref={surface} className={`relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[28px] bg-white dark:bg-[#1c1c1e] ${glassWithoutLightInsetShadow}`}>
             {!flipped ? <>
                 <div aria-hidden="true" inert className="pointer-events-none min-h-0 flex-1 [&_section>div:first-child]:py-3 [&_section>div:first-child>div>div]:!w-[62%]">{children}</div>
-                <div className="flex h-14 shrink-0 items-center justify-between gap-1 px-3 pb-2">
-                    <span className="rounded-full bg-black/5 px-3 py-1.5 text-sm font-semibold dark:bg-white/10">{title}</span>
+                <div className="flex min-h-16 shrink-0 items-center justify-between gap-1 px-3 pb-2">
+                    <div className="min-w-0">{identity ?? <span className="text-xs font-mono text-black/45 dark:text-white/45">{title}</span>}</div>
                     <Button ref={peopleButton} clear inline rounded className="relative z-20 cursor-pointer disabled:cursor-default h-11 min-w-11 !px-2 !text-black/60 dark:!text-white/60"
                         disabled={disabled} aria-label={peopleLabel} aria-expanded={flipped} onClick={flip}>
                         <Users size={17} /><span className="ml-1 text-sm">{participantCount}</span>
@@ -121,7 +122,7 @@ export default function GroupTablePreviewCard({ title, pending = false, closing 
                     disabled={disabled} aria-label={enterLabel} onClick={onEnter} />
             </> : <>
                 <div className="flex shrink-0 items-center justify-between gap-1 pl-4 pr-2 pt-1">
-                    <h3 className="truncate text-sm font-semibold">{title}</h3>
+                    <div className="min-w-0">{identity ?? <h3 className="truncate text-xs font-mono">{title}</h3>}</div>
                     <Button ref={backButton} clear inline rounded className="cursor-pointer disabled:cursor-default h-11 w-11 shrink-0 !px-0 !text-black/60 dark:!text-white/60"
                         disabled={disabled} aria-label={backLabel} onClick={flip}><RotateCcw size={18} /></Button>
                 </div>

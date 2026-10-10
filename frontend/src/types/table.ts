@@ -62,6 +62,12 @@ export interface PostGameTransitionView {
 }
 
 export interface TableView {
+    unseat?: { confirmations: Record<string, { id: string; seat_index: number; deadline: number; requester_name?: string | null }>; cooldowns: Record<string, number> };
+    end_game_confirmation?: { id: string; game_id: string; deadline: number; status: "pending" | "approved" | "cancelled"; responses: Record<string, boolean | null> } | null;
+    host_name?: string | null;
+    host_username?: string | null;
+    invite_token?: string | null;
+    group_name?: string | null;
     queue?: string[];
     post_game_transition?: PostGameTransitionView | null;
     instance_id?: string;
@@ -120,6 +126,7 @@ export interface TableView {
  * Mirrors TableService.list_tables() payload.
  */
 export interface TableList {
+    host_username?: string | null;
     /** Unique table identifier. */
     table_code: string;
 

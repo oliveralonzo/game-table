@@ -1,3 +1,4 @@
+import TableIdentity from "game-table/components/TableIdentity";
 import PostGameDialog from 'game-table/components/PostGameDialog';
 /**
  * TableScreen.tsx
@@ -223,12 +224,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
             onRemoveReaction={removeReaction}
             accountsEnabled={gamePlugin.features.accounts}
         >
-            <div className="mb-3 px-1">
-                <h1 className="text-[34px] font-bold leading-tight tracking-normal text-black dark:text-white">
-                    {t("table.label.seats")}
-                </h1>
-            </div>
-
             <div className="min-w-0">
                 <Glass
                     highlight={false}
@@ -287,9 +282,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     />
                 </Glass>
                 <div className="mt-3 flex flex-col items-center">
-                    <p className="font-mono text-sm text-black/55 dark:text-white/55">
-                        {table.table_code}
-                    </p>
+                    <TableIdentity />
                     <TableSponsor className="text-center" />
                     <Button
                         type="button"

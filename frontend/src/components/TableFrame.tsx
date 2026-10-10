@@ -1,3 +1,5 @@
+import UnseatConfirmationDialog from 'game-table/components/UnseatConfirmationDialog';
+import EndGameConfirmationDialog from 'game-table/components/EndGameConfirmationDialog';
 import {
     useEffect,
     useRef,
@@ -538,6 +540,8 @@ export default function TableFrame({
                     </>
                 )}
 
+                <EndGameConfirmationDialog />
+                <UnseatConfirmationDialog />
                 <ViewerReactions
                     reactions={reactions}
                     onRemoveReaction={onRemoveReaction}

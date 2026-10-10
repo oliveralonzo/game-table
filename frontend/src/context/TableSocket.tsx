@@ -1,3 +1,4 @@
+import { routeInvitation } from "game-table/utils/tableRoute";
 import type { PostGameTeamPreference } from 'game-table/types/table';
 /**
  * TableSocket.tsx
@@ -253,13 +254,15 @@ type TableSocketAPI = {
     addSeat: () => void;
     removeSeat: () => void;
     assignSeat: (seat_index: number, selection_method?: "manual" | "random") => void;
-    unassignSeat: (seat_index: number) => void;
+    unassignSeat: (seat_index: number, onError?: SocketErrorHandler) => void;
     resetSeating: () => void;
     updateGameSettings: (settings: unknown) => void;
     startGameForTable: (
         onError?: (message: string) => void,
         onSuccess?: (gameId: string) => void
     ) => void;
+    respondUnseat: (confirmationId: string, yes: boolean, onResult: (saved: boolean) => void) => void;
+    respondGameEnd: (confirmationId: string, yes: boolean, onResult: (saved: boolean) => void) => void;
     endGameForTable: (onError?: (message: string) => void) => void;
     setQueued: (queued: boolean, onResult: (saved: boolean) => void) => void;
     respondPostGame: (
@@ -639,6 +642,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         onSuccess?: (table_code: string) => void,
         expectedInstanceId?: string
     ) {
+        const invitation = routeInvitation(table_code);
         getAuthToken()
             .catch(() => null)
             .then((authToken) => {
@@ -648,6 +652,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                         table_code,
                         name,
                         ...(expectedInstanceId ? { instance_id: expectedInstanceId } : {}),
+                        ...invitation,
                         ...(authToken ? { auth_token: authToken } : {}),
                     },
                     (response: CreateJoinAck) => {
@@ -675,6 +680,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         table_code: string,
         onResult: (response: TableLookupAck) => void
     ) => {
+        const invitation = routeInvitation(table_code);
         getAuthToken()
             .catch(() => null)
             .then((authToken) => {
@@ -682,6 +688,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                     "table:lookup",
                     {
                         table_code,
+                        ...invitation,
                         ...(authToken ? { auth_token: authToken } : {}),
                     },
                     onResult
@@ -726,7 +733,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     ) {
         emit(
             "table:membership",
-            { table_code },
+            { table_code, ...routeInvitation(table_code) },
             (response: TableMembershipAck) => {
                 if ("member" in response && response.member) {
                     dispatch({ type: "SET_SELF_MEMBER_ID", payload: response.member_id });
@@ -826,8 +833,10 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         emit("table:reset_seating");
     }
 
-    function unassignSeat(seat_index: number) {
-        emit("table:unassign_seat", { seat_index });
+    function unassignSeat(seat_index: number, onError?: SocketErrorHandler) {
+        emit("table:unassign_seat", { seat_index }, (response?: { unassigned?: boolean } | BackendErrorAck) => {
+            if (response && "error" in response) onError?.(response.message, response.code);
+        });
     }
 
     function updateGameSettings(settings: unknown) {
@@ -853,6 +862,24 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                 }
             }
         );
+    }
+
+    function respondUnseat(confirmationId: string, yes: boolean, onResult: (saved: boolean) => void) {
+        const socket = socketRef.current;
+        if (!socket?.connected) { onResult(false); return; }
+        socket.timeout(5000).emit('table:unseat_response', { confirmation_id: confirmationId, yes },
+            (error: Error | null, ack: { saved?: boolean; error?: string } | undefined) => {
+                onResult(!error && ack?.saved === true && !ack.error);
+            });
+    }
+
+    function respondGameEnd(confirmationId: string, yes: boolean, onResult: (saved: boolean) => void) {
+        const socket = socketRef.current;
+        if (!socket?.connected) { onResult(false); return; }
+        socket.timeout(5000).emit('table:end_game_response', { confirmation_id: confirmationId, yes },
+            (error: Error | null, ack: { updated?: boolean; error?: string } | undefined) => {
+                onResult(!error && ack?.updated === true && !ack.error);
+            });
     }
 
     function endGameForTable(onError?: (message: string) => void) {
@@ -1095,6 +1122,8 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         updateGameSettings,
         startGameForTable,
         endGameForTable,
+        respondGameEnd,
+        respondUnseat,
         blockGame,
         resumeGame,
         markPersistent,

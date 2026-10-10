@@ -102,3 +102,19 @@ def test_signed_in_creator_keeps_reservation_across_member_id_changes():
     tables.leave_table('new-member-id')
     tables.join_table('returning-owner', code, 'Owner', account_id='owner', creator_identity='account:owner')
     assert tables.get_table(code).host_id == 'guest'
+
+
+def test_creator_host_identity_is_visible_before_entry_and_updates_after_transfer():
+    tables = TableService()
+    preview = tables.create_empty_table('account:owner', host_name='Oliver', host_username='oliver')
+    code = preview['table_code']
+    assert preview['host_username'] == 'oliver'
+    assert preview['host_name'] == 'Oliver'
+    assert preview['members'] == []
+    tables.join_table('guest', code, 'Ana', account_username='ana')
+    assert tables.get_table_view(code)['host_username'] == 'oliver'
+    tables.join_table('creator', code, 'Oliver', account_id='owner', account_username='oliver', creator_identity='account:owner')
+    assert tables.get_table(code).host_id == 'creator'
+    tables.transfer_host('creator', 'guest')
+    assert tables.get_table_view(code)['host_username'] == 'ana'
+    assert tables.table_preview(tables.get_table(code))['host_username'] == 'ana'

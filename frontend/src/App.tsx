@@ -1,7 +1,7 @@
 import { useGroupPresence } from "game-table/hooks/useGroupPresence";
 import { SavedTablesProvider } from "game-table/context/SavedTablesContext";
 import { GroupsCacheProvider, useGroupsCache } from "game-table/context/GroupsCacheContext";
-import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { TableProvider, useTable } from "game-table/context/TableState";
 import { TableSocketProvider, useTableSocket } from "game-table/context/TableSocket";
@@ -37,6 +37,18 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
   const { state } = useTable();
   const { code, groupPublicId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const visitingGameActivity = Boolean(
+    groupPublicId && location.pathname.endsWith("/activity")
+    && state.tableView?.group_public_id === groupPublicId
+    && typeof location.state?.returnToGame === "string"
+    && /^\/[^/]+$/.test(location.state.returnToGame)
+    && normalizeTableCode(location.state.returnToGame.slice(1)) === state.tableView?.table_code
+  );
+  const inviteToken = new URLSearchParams(location.search).get("i");
+  const invalidInvitation = inviteToken !== null && !!state.tableView
+    && state.tableView.table_code === normalizeTableCode(code)
+    && state.tableView.invite_token !== inviteToken;
   const { groups } = useGroupsCache();
   const routeGroupId = groups?.find(group => group.public_id === groupPublicId)?.id ?? null;
   useGroupPresence(gamePlugin.features.accounts
@@ -147,7 +159,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
     if (!routeTableCode) {
       setRouteMembershipStatus("idle");
 
-      if (tableCode) {
+      if (tableCode && !visitingGameActivity) {
         rootLeaveTimeoutRef.current = window.setTimeout(() => {
           socketActionsRef.current.leaveTable(
             (message) => alert(message),
@@ -187,6 +199,11 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
       return;
     }
 
+    if (invalidInvitation) {
+      setRouteMembershipStatus("guest");
+      return;
+    }
+
     if (tableCode === routeTableCode && selfMemberId) {
       setRouteMembershipStatus("member");
       return;
@@ -208,6 +225,9 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
   }, [
     isSessionReady,
     navigate,
+    invalidInvitation,
+    location.search,
+    visitingGameActivity,
     routeTableCode,
     selfMemberId,
     tableCode,
@@ -218,7 +238,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
   }
 
   if (!routeTableCode) {
-    if (tableCode) {
+    if (tableCode && !visitingGameActivity) {
       return <AppLoadingScreen />;
     }
 
@@ -232,7 +252,7 @@ function AppContent({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) {
     return <AppLoadingScreen />;
   }
 
-  if (!state.tableView || tableCode !== routeTableCode || routeMembershipStatus === "guest") {
+  if (invalidInvitation || !state.tableView || tableCode !== routeTableCode || routeMembershipStatus === "guest") {
     return <JoinScreen gamePlugin={gamePlugin} urlTableCode={routeTableCode} />;
   }
 

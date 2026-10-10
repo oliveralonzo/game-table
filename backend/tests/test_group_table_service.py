@@ -31,7 +31,7 @@ def test_group_creation_starts_empty_without_host_or_automatic_join():
     assert table.group_id == 'g'
     assert table.host_id is None
     assert table.members == {}
-    assert result == {'table_code': 'BABA-1234', 'instance_id': table.instance_id, 'host_id': None, 'group_id': 'g', 'state': 'open',
+    assert result == {'table_code': 'BABA-1234', 'instance_id': table.instance_id, 'invite_token': table.invite_token, 'group_name': None, 'host_name': None, 'host_username': None, 'seat_orders': [None] * 4, 'host_id': None, 'group_id': 'g', 'state': 'open',
                       'seat_count': 4, 'seats': [None] * 4, 'seat_selection_methods': [None] * 4, 'members': []}
     assert service.list_tables('owner', 'g') == [result]
     assert service.list_tables('owner', 'other') == []
@@ -102,7 +102,7 @@ def test_private_host_requirement_is_unchanged_and_group_identity_validated():
     with pytest.raises(ValueError):
         Table('A', None, group_id=' ')
     for _ in range(20):
-        assert re.fullmatch('[BCDFGJKLMNPRSTV][AEIU][BCDFGJKLMNPRSTV][AEIU]-[0-9]{4}', generate_table_code())
+        assert re.fullmatch('[0-9]{6}', generate_table_code())
 
 
 def test_empty_group_closure_requires_membership_matching_lifetime_and_no_people():

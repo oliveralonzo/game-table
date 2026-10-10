@@ -107,20 +107,22 @@ export default function PrivateTables({ ready }: { ready: boolean }) {
         onCreated: table => save(table),
     });
     return <section className="w-full max-w-md">
-        {hasGroupTables && <p className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">
+        <div className="mb-5 space-y-2">
+        {hasGroupTables && <p className="px-1 text-sm text-black/55 dark:text-white/55">
             {t("privateTables.groupsHaveTables")} {" "}
             <button type="button" className="cursor-pointer underline underline-offset-2 hover:text-black dark:hover:text-white"
                 onClick={() => navigate("/", { state: { homeTab: "groups" } })}>
                 {t("privateTables.viewGroups")}
             </button>
         </p>}
-        <p className="mb-5 px-1 text-sm text-black/55 dark:text-white/55">
+        <p className="px-1 text-sm text-black/55 dark:text-white/55">
             {t("privateTables.receivedCode")} {" "}
             <button type="button" className="cursor-pointer underline underline-offset-2 hover:text-black dark:hover:text-white"
                 onClick={() => { setError(null); setJoining(true); }} aria-haspopup="dialog" aria-expanded={joining} aria-controls="private-table-code">
                 {t("privateTables.joinLink")}
             </button>
         </p>
+        </div>
         <Dialog opened={joining} title={t("privateTables.joinLink")} onBackdropClick={closeCodeEntry}
             onKeyDown={event => { if (event.key === "Escape") closeCodeEntry(); }}
             buttons={<>
@@ -175,7 +177,7 @@ export default function PrivateTables({ ready }: { ready: boolean }) {
             </List>
         </form>
         </Dialog>
-        <TableCards tables={tables} getKey={table => table.instance_id}
+        <TableCards createLabel={t("privateTables.create")} tables={tables} getKey={table => table.instance_id}
             isPending={table => entering === table.instance_id} isClosing={table => closing.includes(table.instance_id)}
             onClosed={table => { remove(table.instance_id); setClosing(previous => previous.filter(id => id !== table.instance_id)); }}
             onRemove={table => dismiss(table.instance_id)} onEnter={enter} creating={creating} onCreate={create}

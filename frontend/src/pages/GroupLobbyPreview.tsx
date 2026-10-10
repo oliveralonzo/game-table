@@ -30,6 +30,9 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
+    const returnToGame = typeof location.state?.returnToGame === "string"
+        && /^\/[^/]+$/.test(location.state.returnToGame)
+        ? location.state.returnToGame : null;
     const showingStats = location.pathname.endsWith("/activity");
     const activity = useGroupActivity(groupId, "current", 1, !showingStats);
     const self = groupMembers.find(member => member.is_self);
@@ -84,14 +87,14 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
             memberNamesById={Object.fromEntries(groupMembers.map(member => [member.account_id, member.name]))}
             chatDraft={chatDraft} setChatDraft={setChatDraft} onSendChat={handleSendChat} /> : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
     >
-        {showingStats ? <GroupStatsPreview groupId={groupId} groupName={groupName} onBack={() => navigate(groupUrl)} /> : <>
+        {showingStats ? <GroupStatsPreview groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="mb-5 px-1 text-black/55 dark:text-white/55">{groupMonthLabel(i18n.language, activity.data?.current_season)}</p>
             <GroupStatsOverview data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />
             {activity.error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{activity.error} <Button inline clear onClick={activity.retry}>{t("groups.list.retry")}</Button></p>}
             <h2 className="mb-3 px-1 text-[22px] font-bold">{t("navigation.tables")}</h2>
             {tableError && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{tableError}</p>}
-            <TableCards tables={visibleTables} getKey={table => table.table_code}
+            <TableCards createLabel={t("groupTables.create")} tables={visibleTables.map(table => ({ ...table, group_name: groupName }))} getKey={table => table.table_code}
                 isPending={table => closingPending.includes(table.table_code)}
                 isClosing={table => !!closingTables[table.table_code] && !closingPending.includes(table.table_code)} onClosed={table => onTableClosed(table.table_code)}
                 onEnter={table => onEnterTable(table.table_code)} onRemove={onRemoveTable} canRemove={table => table.members.length === 0}

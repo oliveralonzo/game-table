@@ -218,7 +218,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     const isResolvingUrlEntry =
         isUrlMode && page === "join" && urlEntryPhase !== "manual";
 
-    const groupId = groupPublicId ?? new URLSearchParams(location.search).get("group");
+    const groupId = groupPublicId ?? (isUrlMode ? null : new URLSearchParams(location.search).get("group"));
     const isGroupDetail = accountsEnabled && !!groupId;
     const openTables = state.tableList;
     const privateCards = accountsEnabled && page === "join" && !isUrlMode;
@@ -332,7 +332,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
             isCurrent = false;
             window.clearTimeout(timeoutId);
         };
-    }, [lookupCode, lookupTable, accountsEnabled, isUrlMode, isCreateMode, navigate]);
+    }, [lookupCode, lookupTable, accountsEnabled, isUrlMode, isCreateMode, navigate, location.search]);
 
     useEffect(() => {
         if (!isUrlMode || page !== "join") return;
@@ -752,7 +752,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                 </Navbar>
 
                 {accountsEnabled && ((page === "join" && !isUrlMode) || page === "groups" || page === "open-play") && (
-                    <div className={`w-full max-w-md px-1 ${privateCards || (page === "groups" && !isSignedIn) ? "mb-1" : "mb-3"}`}>
+                    <div className={`w-full max-w-md px-1 ${privateCards ? "mb-2" : (page === "groups" && !isSignedIn) ? "mb-1" : "mb-3"}`}>
                         {isGroupDetail && (
                             <Button
                                 type="button" clear rounded inline
@@ -766,6 +766,9 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                         <h1 className="text-[34px] font-bold leading-tight tracking-normal text-black dark:text-white">
                             {isGroupDetail ? "Alpha" : t(page === "groups" ? "navigation.groups" : page === "open-play" ? "navigation.open-play" : "navigation.tables")}
                         </h1>
+                        {privateCards && !isGroupDetail && (
+                            <p className="mt-1 text-base text-black/55 dark:text-white/55">{t("privateTables.subtitle")}</p>
+                        )}
                     </div>
                 )}
 

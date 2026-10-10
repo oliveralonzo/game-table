@@ -4,6 +4,7 @@ import { useTable } from "game-table/context/TableState";
 import type { TableState } from "game-table/types/table";
 
 export type SavedTable = {
+    host_name?: string | null; host_username?: string | null;
     table_code: string; instance_id: string; host_id: string | null; state: TableState;
     seats: (string | null)[]; seat_count: number;
     seat_orders?: (number | null)[];
@@ -57,7 +58,7 @@ export function SavedTablesProvider({ children, enabled }: { children: ReactNode
         const self = state.selfMemberId && view?.members[state.selfMemberId];
         if (!enabled || !view?.instance_id || view.group_id || !self || !isAuthLoaded) return;
         if (isSignedIn !== !!self.account_id) return;
-        save({ table_code: view.table_code, instance_id: view.instance_id, host_id: view.host_id,
+        save({ host_name: view.host_name, host_username: view.host_username, table_code: view.table_code, instance_id: view.instance_id, host_id: view.host_id,
             state: view.state, seats: view.seats, seat_count: view.seat_count,
             seat_selection_methods: view.seat_selection_methods,
             seat_orders: view.seat_orders,

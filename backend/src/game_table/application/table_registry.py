@@ -3,13 +3,15 @@ from threading import RLock
 from secrets import choice
 
 def generate_table_code() -> str:
-    return "".join(choice(chars) for chars in ("BCDFGJKLMNPRSTV", "AEIU") * 2) + "-" + "".join(choice("0123456789") for _ in range(4))
+    return "".join(choice("0123456789") for _ in range(6))
 
 from game_table.table.table import Table
+from game_table.infrastructure.table_invite_tokens import TableInviteTokens
 
 
 class TableRegistry:
-    def __init__(self):
+    def __init__(self, invite_tokens=None):
+        self._invite_tokens = invite_tokens or TableInviteTokens()
         self.member_to_table: dict[str, str] = {}
         self.private_tables: dict[str, Table] = {}
         self.group_tables: dict[str, Table] = {}
@@ -23,6 +25,7 @@ class TableRegistry:
         with self._lock:
             if self.contains(table.table_code):
                 raise ValueError('Table already exists.')
+            table.invite_token = self._invite_tokens.allocate(table.table_code)
             target = self.group_tables if table.group_id is not None else self.private_tables
             target[table.table_code] = table
 
@@ -37,7 +40,12 @@ class TableRegistry:
                     table.reserve_host(creator_identity)
                 for _ in range(4 - seat_count):
                     table.remove_seat()
-                self.add(table)
+                try:
+                    self.add(table)
+                except ValueError as exc:
+                    if str(exc) == "Invitation tokens exhausted for this code.":
+                        continue
+                    raise
                 return table
         raise RuntimeError('Could not allocate an available table code.')
 

@@ -1,5 +1,6 @@
 export const es = {
-    privateTables: { groupsHaveTables: "Tus grupos tienen mesas abiertas.", viewGroups: "Ver grupos", statsNote: "Estas mesas no cuentan para las posiciones de grupos ni de la liga.", create: "Crear mesa", subtitle: "Crea mesas privadas para invitar a otros a unirse.", receivedCode: "¿Recibiste un código?", joinLink: "Únete a una mesa", joinByCode: "Unirse por código", remove: "Quitar {{code}} de mis mesas", unavailable: "No se pudo conectar con la mesa. Inténtalo de nuevo." },
+    groupTables: { create: "Crea una mesa de grupo" },
+    privateTables: { groupsHaveTables: "Tus grupos tienen mesas abiertas.", viewGroups: "Ver grupos", statsNote: "Estas mesas no cuentan para las posiciones de grupos ni de la liga.", create: "Crea una mesa individual", subtitle: "Individuales", receivedCode: "¿Recibiste un código?", joinLink: "Únete a una mesa", joinByCode: "Unirse por código", remove: "Quitar {{code}} de mis mesas", unavailable: "No se pudo conectar con la mesa. Inténtalo de nuevo." },
     groups: {
         settings: { loadError: "No se pudieron cargar los ajustes del grupo.", saveError: "No se pudieron guardar los ajustes del grupo." },
         tables: { enterError: "No se pudo entrar a la mesa. Inténtalo de nuevo.", loadError: "No se pudieron actualizar las mesas.", closeError: "No se pudo cerrar la mesa. Puede que ya tenga participantes.", createError: "No se pudo crear la mesa. Inténtalo de nuevo." },
@@ -240,7 +241,7 @@ export const es = {
         },
         backendErrors: {
             TABLE_ALREADY_EXISTS: "La mesa ya existe",
-            TABLE_NOT_FOUND: "Mesa no encontrada",
+            INVITATION_EXPIRED: "Esta invitación ha caducado.", TABLE_NOT_FOUND: "Mesa no encontrada",
             NAME_TAKEN: "Ese apodo esta en uso",
             NAME_REQUIRED: "El apodo es obligatorio",
             MEMBER_ALREADY_IN_TABLE: "Ya esta en una mesa",
@@ -260,6 +261,9 @@ export const es = {
         },
     },
     table: {
+        unseatConfirmation: { disabledAction: "{{action}} ({{count}}s)", requestedBy: "@{{player}} pidió que dejes tu asiento.", cooldown: "Este jugador acaba de confirmar que sigue jugando.", question: "¿Dejar tu asiento?", yes: "Dejar asiento", no: "Sigo jugando", timer: "Se libera en {{count}}s", waiting: "" },
+        endConfirmation: {"question": "¿Terminar el juego?", "yes": "Sí", "no": "No", "waiting": "Esperando a los demás…", "timer_one": "Termina automáticamente en {{count}} segundo", "timer_other": "Termina automáticamente en {{count}} segundos"},
+        inviteParam: { host: "anfitrion", group: "grupo" },
         queue: {"waitingTurn": "Esperando tu turno…","title": "Retando", "join": "Retar", "leave": "Dejar de retar", "position": "Lugar {{count}} en la fila", "error": "No se pudo actualizar la fila. Inténtalo de nuevo.", "readyQuestion": "Te toca. ¿Listo para jugar?", "ready": "Estoy listo", "skip": "Pasar mi turno", "waitingChallengers": "Esperando a los retadores…", "choosePlayer": "¿Quién sigue jugando?", "selected": "{{name}} te eligió para seguir jugando. ¿Sigues?", "chooseCountdown_one": "Elige en {{count}} segundo", "chooseCountdown_other": "Elige en {{count}} segundos"},
         postGame: {"keepPlayingQuestion": "¿Sigues jugando?", "keepPlaying": "Seguir jugando", "leave": "Me voy", "partnerQuestion": "¿Cambiar de frente?", "samePartner": "Mismo frente", "changePartner": "Cambiar de frente", "waitingWinners": "Esperando a los ganadores…", "waitingPlayers": "Esperando a los demás…", "expired": "Se venció tu tiempo.", "watching": "Ahora estás mirando.", "saveError": "No se pudo guardar tu respuesta. Inténtalo de nuevo.", "spotExpires_one": "Tu lugar vence en {{count}} segundo", "spotExpires_other": "Tu lugar vence en {{count}} segundos", "chooseWithin_one": "Elige en {{count}} segundo", "chooseWithin_other": "Elige en {{count}} segundos"},
         tool: {
@@ -292,7 +296,7 @@ export const es = {
             stoppingHandShare: "Dejando de Compartir…",
         },
         label: {
-            code: "Codigo",
+            individualTableBy: "Mesa Individual de", groupTable: "Mesa del Grupo", hostBadge: "Anfitrión: {{host}}", code: "Código:",
             seats: "Asientos",
             sponsoredBy: "Mesa patrocinada por {{sponsor}}",
             table: "Mesa",
@@ -308,7 +312,7 @@ export const es = {
         dialog: {
             inviteLink: "Link de invitacion",
             inviteCopyInstruction: "Copie el texto abajo para compartir.",
-            inviteShareText: "Entra a mi mesa",
+            inviteHost: "Entra a la mesa de {{host}}", inviteGroup: "Entra a la mesa del grupo {{group}}", inviteShareText: "Entra a mi mesa",
             leaveConfirm: "Salir de la mesa?",
             closeConfirm: "Cerrar la mesa?",
             endGameConfirm: "Terminar el juego?",

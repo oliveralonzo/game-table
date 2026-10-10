@@ -124,6 +124,27 @@ try {
     await converge(p,'challenger_checks');await response(p[6],false);await converge(p,'loser_checks');
     await Promise.all([response(p[1],true),response(p[3],true)]);await converge(p,'seating_ready');await cleanup(p);
  });
+ await test('active-game end confirmation broadcasts to all; a no cancels and all yes closes',async()=>{
+    const p=await table('LIVE-END-1');await ok(p[0],'fixture:set_running');
+    const request=await ok(p[0],'table:end_game');assert.equal(request.ended,false);
+    await until(()=>p.every(c=>c.view?.end_game_confirmation?.status==='pending'));
+    let vote=p[0].view.end_game_confirmation.id;
+    assert.deepEqual(Object.keys(p[0].view.end_game_confirmation.responses).sort(),p.slice(0,4).map(c=>c.id).sort());
+    assert.equal((await call(p[4],'table:end_game_response',{confirmation_id:vote,yes:false})).error,'ValueError');
+    await ok(p[1],'table:end_game_response',{confirmation_id:vote,yes:false});
+    await until(()=>p.every(c=>c.view?.end_game_confirmation?.status==='cancelled'));
+    assert.ok(p[0].view.active_game_id);
+    await ok(p[0],'table:end_game');await until(()=>p.every(c=>c.view?.end_game_confirmation?.status==='pending'));
+    vote=p[0].view.end_game_confirmation.id;
+    await Promise.all(p.slice(0,4).map(c=>ok(c,'table:end_game_response',{confirmation_id:vote,yes:true})));
+    await converge(p,'loser_checks');assert.equal(p[0].view.active_game_id,null);await cleanup(p);
+ });
+ await test('unanswered active-game confirmation expires to yes for every client',async()=>{
+    const p=await table('LIVE-END-2');await ok(p[0],'fixture:set_running');await ok(p[0],'table:end_game');
+    await until(()=>p.every(c=>c.view?.end_game_confirmation?.status==='pending'));
+    await until(()=>p.every(c=>c.view?.end_game_confirmation?.status==='approved'));
+    await converge(p,'loser_checks');assert.equal(p[0].view.active_game_id,null);await cleanup(p);
+ });
 } finally {
  for(const c of clients)c.socket.disconnect();
  server.kill('SIGKILL');

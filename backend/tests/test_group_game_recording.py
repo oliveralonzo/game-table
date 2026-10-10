@@ -106,7 +106,7 @@ def test_changed_seat_gives_neither_original_nor_replacement_credit(removal):
     for member in ('m0', 'm1', 'm2', 'm3'):
         s.service.record_game_action(member, id)
     if removal == 'unseat':
-        s.tables.unassign_seat('m0', 2)
+        s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     else:
         s.tables.leave_table('m2')
     s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='replacement')
@@ -124,7 +124,7 @@ def test_returning_to_seat_and_account_reconnect_preserve_credit():
     id = s.service.start_game_for_table('m0')
     for member in ('m0', 'm1', 'm2', 'm3'):
         s.service.record_game_action(member, id)
-    s.tables.unassign_seat('m0', 2)
+    s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     s.tables.assign_seat('m2', 2)
     s.tables.join_table('new-device', 'CODE-1234', 'A', account_id='a')
     s.service.record_game_action('m2', id)
@@ -186,7 +186,7 @@ def test_failed_save_keeps_game_attached_for_retry_and_preserves_completion_snap
         s.service.end_game_for_table('m0')
     assert s.tables.get_table('CODE-1234').active_game_id == id
     assert not s.games.removed
-    s.tables.unassign_seat('m0', 2)
+    s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     s.repo.fail = False
     s.service.end_game_for_table('m0')
     assert len(s.repo.results) == 4
@@ -285,7 +285,7 @@ def test_replacement_only_forfeits_after_acting_and_return_cannot_undo_it(privat
     s = setup(private=private)
     game = s.service.start_game_for_table('m0')
     s.service.record_game_action('m2', game)
-    s.tables.unassign_seat('m0', 2)
+    s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='other')
     s.tables.assign_seat('replacement', 2)
     if replacement_acts:
@@ -303,7 +303,7 @@ def test_replacement_only_forfeits_after_acting_and_return_cannot_undo_it(privat
 def test_replacement_before_first_action_earns_result_and_nonplayers_do_not(private):
     s = setup(private=private)
     game = s.service.start_game_for_table('m0')
-    s.tables.unassign_seat('m0', 2)
+    s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     s.tables.join_table('replacement', 'CODE-1234', 'Replacement', account_id='new')
     s.tables.assign_seat('replacement', 2)
     s.service.record_game_action('replacement', game)
@@ -330,7 +330,7 @@ def test_completion_retry_preserves_forfeit_and_rejects_new_actions():
     s = setup()
     game = s.service.start_game_for_table('m0')
     s.service.record_game_action('m2', game)
-    s.tables.unassign_seat('m0', 2)
+    s.tables.unassign_seat(s.tables.get_table(s.tables.get_table_code_for_member('m0')).get_seat_occupant(2), 2)
     s.tables.join_table('replacement', 'CODE-1234', 'Replacement')
     s.tables.assign_seat('replacement', 2)
     s.service.record_game_action('replacement', game)

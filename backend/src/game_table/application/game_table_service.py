@@ -5,6 +5,7 @@ Application-layer orchestrator for workflows spanning Game and Table.
 """
 
 from time import time
+from game_table.table.end_game_confirmation import EndGameConfirmation
 from weakref import WeakKeyDictionary
 
 from game_table.application.game_service_port import GameServicePort
@@ -96,12 +97,13 @@ class GameTableService:
         game_id = table.active_game_id
         completed = game_id is not None and self._game_service.is_over(game_id)
         self._table_service.validate_game_end(member_id, completed=completed)
-        transition = self._build_post_game_transition(table, game_id) if completed else None
-        self.record_completed_game_for_table(table_code, game_id)
-        if table.group_id is not None:
-            self._table_service.detach_game(member_id, completed=completed)
-        else:
-            self._table_service.detach_game(member_id)
+        self._close_game(table)
+
+    def _close_game(self, table, *, player_checks=False):
+        game_id = table.active_game_id
+        transition = self._build_post_game_transition(table, game_id) if self._game_service.is_over(game_id) else (self._build_abort_transition(table) if player_checks else None)
+        self.record_completed_game_for_table(table.table_code, game_id)
+        table.release_game()
 
         if transition is not None:
             table.begin_post_game_transition(transition, clock=lambda: self._clock_ms() / 1000)
@@ -110,6 +112,50 @@ class GameTableService:
         self._history_contexts.pop(table, None)
         if self._game_activity_service is not None:
             self._game_activity_service.clear_game(game_id)
+
+    def request_game_end(self, member_id):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        game_id = table.active_game_id
+        completed = game_id is not None and self._game_service.is_over(game_id)
+        self._table_service.validate_game_end(member_id, completed=completed)
+        if completed:
+            self.end_game_for_table(member_id)
+            return
+        confirmation = table.end_game_confirmation
+        if confirmation is not None and confirmation.status == 'pending':
+            return  # Repeated requests do not restart the shared deadline.
+        players = [seat.member_id for seat in table.seats if seat.member_id is not None]
+        table.end_game_confirmation = EndGameConfirmation(game_id, players,
+            now=self._clock_ms() / 1000, response_seconds=self._post_game_response_seconds)
+
+    def respond_game_end(self, member_id, confirmation_id, yes):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        confirmation = table.end_game_confirmation
+        if confirmation is None or confirmation.id != confirmation_id:
+            raise ValueError('End-game confirmation is no longer current.')
+        try:
+            confirmation.respond(member_id, yes, now=self._clock_ms() / 1000)
+        finally:
+            self.expire_game_end_for_table(code)
+
+    def expire_game_end_for_table(self, code):
+        table = self._table_service.get_table(code)
+        confirmation = table.end_game_confirmation
+        if confirmation is None or confirmation.game_id != table.active_game_id:
+            return
+        confirmation.expire(self._clock_ms() / 1000)
+        if confirmation.status == 'approved':
+            self._close_game(table, player_checks=True)
+
+    def _build_abort_transition(self, table):
+        seats = tuple(seat.member_id for seat in table.seats)
+        get_teams = getattr(self._game_service, 'get_seat_team_indices', None)
+        mapping = get_teams(table.active_game_id) if get_teams else dict(enumerate(range(len(seats))))
+        return PostGameTransition(seats, tuple(str(mapping[i]) for i in range(len(seats))),
+            frozenset(), now=self._clock_ms() / 1000, response_seconds=self._post_game_response_seconds,
+            challengers=tuple(table.get_queue()))
 
     def _build_post_game_transition(self, table, game_id):
         get_result = getattr(self._game_service, 'get_result', None)
@@ -185,6 +231,13 @@ class GameTableService:
 
     def post_game_wait_seconds(self, table_code):
         deadline = self.post_game_deadline(table_code)
+        unseat = self._table_service.get_table(table_code).get_unseat_view()
+        deadlines = [value['deadline'] for value in unseat['confirmations'].values()] + list(unseat['cooldowns'].values())
+        if deadlines:
+            deadline = min(deadlines) if deadline is None else min(deadline, *deadlines)
+        confirmation = self._table_service.get_table(table_code).end_game_confirmation
+        if confirmation is not None and confirmation.status == 'pending':
+            deadline = confirmation.deadline if deadline is None else min(deadline, confirmation.deadline)
         return None if deadline is None else max(0, deadline - self._clock_ms() / 1000)
 
     def record_completed_game_for_table(
