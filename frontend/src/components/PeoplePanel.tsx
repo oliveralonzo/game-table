@@ -34,7 +34,7 @@ export default function PeoplePanel({
     const hasViewers = viewerRoster.length > 0;
 
     return (
-        <div className="min-h-0 pb-3">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-3">
             {hasPlayers && (
                 <LobbyRoster
                     title={t("table.roster.players")}

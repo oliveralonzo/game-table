@@ -369,7 +369,7 @@ export default function TableFrame({
         : undefined;
     const sheetClassName = `${activeTool === "chat"
         ? "h-[85svh] overflow-hidden p-4 pb-6"
-        : mobileSheetClassName
+        : activeTool === "people" ? "flex max-h-[85svh] flex-col overflow-hidden p-4 pb-6" : mobileSheetClassName
         } ${isContentTranslucent ? mobileSheetTranslucentClassName : ""}`;
     const sheetBackdrop = !isContentTranslucent;
     const shouldHideMobileChrome = isMobileLayout && !!activeTool;
@@ -439,7 +439,7 @@ export default function TableFrame({
                                         : "calc(100svh - 6rem)",
                                 }}
                             >
-                                <div className={`min-h-0 flex-1 ${activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"}`}>
+                                <div className={`min-h-0 flex-1 ${activeTool === "people" ? "flex flex-col overflow-hidden" : activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"}`}>
                                     {renderActiveToolContent()}
                                 </div>
                             </Glass>
@@ -486,7 +486,7 @@ export default function TableFrame({
                             onBackdropClick={() => setActiveTool(null)}
                             className={sheetClassName}
                         >
-                            <div className={activeTool === "chat" ? "flex h-full min-h-0 flex-col" : ""}>
+                            <div className={activeTool === "chat" ? "flex h-full min-h-0 flex-col" : activeTool === "people" ? "flex min-h-0 flex-1 flex-col" : ""}>
                                 <div className="mb-2 flex justify-end px-safe-4">
                                     <Button
                                         type="button"
@@ -499,7 +499,7 @@ export default function TableFrame({
                                         {t("table.action.done")}
                                     </Button>
                                 </div>
-                                <div className={activeTool === "chat" ? "min-h-0 flex-1" : ""}>
+                                <div className={activeTool === "people" ? "flex min-h-0 flex-1 flex-col overflow-hidden" : activeTool === "chat" ? "min-h-0 flex-1" : ""}>
                                     {renderActiveToolContent()}
                                 </div>
                             </div>
@@ -538,7 +538,7 @@ export default function TableFrame({
                             onBackdropClick={() => setActiveTool(null)}
                             className={sheetClassName}
                         >
-                            <div className={activeTool === "chat" ? "flex h-full min-h-0 flex-col" : ""}>
+                            <div className={activeTool === "chat" ? "flex h-full min-h-0 flex-col" : activeTool === "people" ? "flex min-h-0 flex-1 flex-col" : ""}>
                                 <div className="mb-2 flex justify-end px-safe-4">
                                     <Button
                                         type="button"
@@ -551,7 +551,7 @@ export default function TableFrame({
                                         {t("table.action.done")}
                                     </Button>
                                 </div>
-                                <div className={activeTool === "chat" ? "min-h-0 flex-1" : ""}>
+                                <div className={activeTool === "people" ? "flex min-h-0 flex-1 flex-col overflow-hidden" : activeTool === "chat" ? "min-h-0 flex-1" : ""}>
                                     {renderActiveToolContent()}
                                 </div>
                             </div>

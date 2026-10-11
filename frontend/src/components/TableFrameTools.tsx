@@ -101,7 +101,7 @@ export default function TableFrameTools({
         const displayed = new Set([...pending, ...accepted, ...(queued ?? [])].map(person => person.id));
         const viewers = checking ? roster.filter(person => !displayed.has(person.id)).map(status) : viewerRoster;
         return (
-            <section className="flex max-h-[min(32rem,calc(100svh-7rem))] flex-col">
+            <section className="flex min-h-0 flex-1 max-h-[min(32rem,calc(100svh-7rem))] flex-col overflow-hidden">
                 <PeoplePanel
                     seatedRoster={accepted}
                     viewerRoster={viewers}
