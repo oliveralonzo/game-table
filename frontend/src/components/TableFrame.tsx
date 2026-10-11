@@ -77,6 +77,7 @@ type Props = {
     desktopAccessory?: ReactNode;
     mobileAccessory?: ReactNode;
     fullBleed?: boolean;
+    desktopToolsAtBottom?: boolean;
     mainClassName?: string;
     contentClassName?: string;
     onBottomChromeInsetChange?: (inset: number) => void;
@@ -100,6 +101,7 @@ export default function TableFrame({
     desktopAccessory,
     mobileAccessory,
     fullBleed = false,
+    desktopToolsAtBottom = false,
     mainClassName = "w-full max-w-xl",
     contentClassName = "",
     onBottomChromeInsetChange,
@@ -209,9 +211,11 @@ export default function TableFrame({
 
             const panelTop = toolAreaRect.bottom + 12;
             const panelBottomMargin = 16;
-            setDesktopPanelMaxHeight(
-                Math.max(0, Math.floor(Math.min(window.visualViewport?.height ?? window.innerHeight, fixedChrome ? window.innerHeight : frameRect.bottom) - panelTop - panelBottomMargin))
-            );
+            const availableHeight = desktopToolsAtBottom
+                ? toolAreaRect.top - 12 - Math.max(0, frameRect.top) - 16
+                : Math.min(window.visualViewport?.height ?? window.innerHeight,
+                    fixedChrome ? window.innerHeight : frameRect.bottom) - panelTop - panelBottomMargin;
+            setDesktopPanelMaxHeight(Math.max(0, Math.floor(availableHeight)));
         };
 
         measure();
@@ -228,7 +232,7 @@ export default function TableFrame({
             window.visualViewport?.removeEventListener("resize", measure);
             window.visualViewport?.removeEventListener("scroll", measure);
         };
-    }, [activeTool, desktopAccessory, isMobileLayout, fixedChrome]);
+    }, [activeTool, desktopAccessory, isMobileLayout, fixedChrome, desktopToolsAtBottom]);
 
     useEffect(() => {
         if (!onBottomChromeInsetChange) return;
@@ -239,7 +243,7 @@ export default function TableFrame({
 
             const measuredElements = isMobileLayout
                 ? [mobileFullBleedChromeRef.current]
-                : [desktopReactionRef.current, desktopActionRef.current];
+                : [desktopReactionRef.current, desktopToolsAtBottom ? desktopToolAreaRef.current : desktopActionRef.current];
 
             const bottomInset = measuredElements.reduce((maxInset, element) => {
                 if (!element) return maxInset;
@@ -258,6 +262,7 @@ export default function TableFrame({
             frameRef.current,
             desktopReactionRef.current,
             desktopActionRef.current,
+            desktopToolAreaRef.current,
             mobileFullBleedChromeRef.current,
         ];
 
@@ -274,7 +279,7 @@ export default function TableFrame({
             window.visualViewport?.removeEventListener("resize", measure);
             window.visualViewport?.removeEventListener("scroll", measure);
         };
-    }, [isMobileLayout, onBottomChromeInsetChange]);
+    }, [isMobileLayout, onBottomChromeInsetChange, desktopToolsAtBottom]);
 
     const selectTool = (tool: TableTool) => {
         setIsContentTranslucent(false);
@@ -383,6 +388,49 @@ export default function TableFrame({
         ? "pointer-events-none opacity-0"
         : "opacity-100";
     const chromePosition = fixedChrome ? "fixed" : "absolute";
+    const desktopTools = (
+                    <div
+                        ref={desktopToolAreaRef}
+                        className={`${desktopToolsAtBottom ? `${chromePosition} bottom-4 right-4 z-10 domino-desktop-tools` : "relative"} w-max transition-opacity ${overlayChromeVisibilityClass}`}
+                    >
+                        {toolSwitcher}
+
+                        {desktopAccessory && !activeTool && (
+                            <div
+                                className={`absolute right-0 ${desktopToolsAtBottom ? "bottom-full mb-3" : "top-full mt-3"} overflow-visible`}
+                                style={{
+                                    maxHeight: desktopPanelMaxHeight
+                                        ? `${desktopPanelMaxHeight}px`
+                                        : undefined,
+                                }}
+                            >
+                                {desktopAccessory}
+                            </div>
+                        )}
+
+                        {activeTool && (
+                            <Glass
+                                highlight={false}
+                                colors={translucentGlassColors}
+                                className={`absolute right-0 ${desktopToolsAtBottom ? "bottom-full mb-3" : "top-full mt-3"} box-border flex min-h-0 w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] p-4 transition-colors ${isContentTranslucent ? "opacity-45 backdrop-blur-0" : ""}`}
+                                style={{
+                                    height: activeTool === "chat"
+                                        ? (desktopPanelMaxHeight
+                                            ? `${Math.min(desktopPanelMaxHeight, 512)}px`
+                                            : "min(32rem, calc(100svh - 6rem))")
+                                        : undefined,
+                                    maxHeight: desktopPanelMaxHeight
+                                        ? `${desktopPanelMaxHeight}px`
+                                        : "calc(100svh - 6rem)",
+                                }}
+                            >
+                                <div className={`min-h-0 flex-1 ${activeTool === "people" ? "flex flex-col overflow-hidden" : activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"}`}>
+                                    {renderActiveToolContent()}
+                                </div>
+                            </Glass>
+                        )}
+                    </div>
+    );
     return (
         <KonstaApp theme="ios" safeAreas={false} className="min-h-[100svh]">
             <div
@@ -403,51 +451,10 @@ export default function TableFrame({
                     </div>
                 )}
 
-                {!isMobileLayout && (
-                    <div
-                        ref={desktopToolAreaRef}
-                        className={`relative w-max transition-opacity ${overlayChromeVisibilityClass}`}
-                    >
-                        {toolSwitcher}
-
-                        {desktopAccessory && !activeTool && (
-                            <div
-                                className="absolute right-0 top-full mt-3 overflow-visible"
-                                style={{
-                                    maxHeight: desktopPanelMaxHeight
-                                        ? `${desktopPanelMaxHeight}px`
-                                        : undefined,
-                                }}
-                            >
-                                {desktopAccessory}
-                            </div>
-                        )}
-
-                        {activeTool && (
-                            <Glass
-                                highlight={false}
-                                colors={translucentGlassColors}
-                                className={`absolute right-0 top-full mt-3 box-border flex min-h-0 w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] p-4 transition-colors ${isContentTranslucent ? "opacity-45 backdrop-blur-0" : ""}`}
-                                style={{
-                                    height: activeTool === "chat"
-                                        ? (desktopPanelMaxHeight
-                                            ? `${Math.min(desktopPanelMaxHeight, 512)}px`
-                                            : "min(32rem, calc(100svh - 6rem))")
-                                        : undefined,
-                                    maxHeight: desktopPanelMaxHeight
-                                        ? `${desktopPanelMaxHeight}px`
-                                        : "calc(100svh - 6rem)",
-                                }}
-                            >
-                                <div className={`min-h-0 flex-1 ${activeTool === "people" ? "flex flex-col overflow-hidden" : activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"}`}>
-                                    {renderActiveToolContent()}
-                                </div>
-                            </Glass>
-                        )}
-                    </div>
-                )}
+                {!isMobileLayout && !desktopToolsAtBottom && desktopTools}
 
                 </Navbar>
+                {!isMobileLayout && desktopToolsAtBottom && desktopTools}
 
                 {!isMobileLayout && (
                     <div ref={desktopReactionRef} className={`${chromePosition} bottom-4 left-4 z-10 h-11 transition-opacity ${reactionChromeVisibilityClass}`}>
@@ -459,7 +466,7 @@ export default function TableFrame({
                 )}
 
                 {!isMobileLayout && (
-                    <div ref={desktopActionRef} className={`${chromePosition} bottom-4 right-4 z-10 transition-opacity ${overlayChromeVisibilityClass}`}>
+                    <div ref={desktopActionRef} className={`${chromePosition} ${desktopToolsAtBottom ? "top-4 left-4" : "bottom-4 right-4"} z-10 transition-opacity ${overlayChromeVisibilityClass}`}>
                         {lifecycleAction ?? <TableLifecycleAction />}
                     </div>
                 )}

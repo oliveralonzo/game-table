@@ -67,3 +67,15 @@ def test_server_deadline_closes_game_and_broadcasts_without_clicks():
         assert s.table.active_game_id is None
         assert any(event == 'table:updated' and data['active_game_id'] is None for event, data in events)
     asyncio.run(run())
+
+
+def test_finished_game_can_close_manually_after_normal_round_delay_without_review():
+    s = setup()
+    s.service.update_finished_game_close('T', reviewing=False)
+    s.now[0] = 1.9
+    with pytest.raises(ValueError):
+        s.service.request_game_end('a')
+    s.now[0] = 2
+    s.service.request_game_end('a')
+    assert s.table.active_game_id is None
+    assert s.table.post_game_transition is not None

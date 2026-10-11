@@ -143,8 +143,9 @@ class GameTableService:
         self._table_service.validate_game_end(member_id, completed=completed)
         if completed:
             close = table.finished_game_close
-            if close and (close['reviewing'] or not close['reviewed']):
-                raise ValueError('Wait for automatic close or finish a review first.')
+            if close and (close['reviewing'] or (not close['reviewed'] and close['deadline'] is not None
+                    and self._clock_ms() / 1000 < close['deadline'] - 8)):
+                raise ValueError('Wait for the close button or finish the review first.')
             self.end_game_for_table(member_id)
             return
         confirmation = table.end_game_confirmation
