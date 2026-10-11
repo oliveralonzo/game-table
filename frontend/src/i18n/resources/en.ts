@@ -25,7 +25,7 @@ export const en = {
 
             "mostPlayed": "Most games played",
             "mostWins": "Most wins",
-            "headToHead": "Matchups > 50%",
+            "headToHead": "Records > 50%",
             "streakLeader": "Best streak",
 
     "title": "Statistics",
@@ -174,14 +174,14 @@ export const en = {
             notRankedShort: "NR",
             notRankedExplanation: "NR means not ranked yet. Play at least {{count}} games to qualify for the win-percentage ranking.",
         },
-        sort: { headToHead: "Matchups",
+        sort: { headToHead: "Records",
             label: "Sort by",
             won: "Won",
             played: "Played",
             winPercentage: "%",
         },
         column: {
-            headToHead: "M↑",
+            headToHead: "R+",
             rank: "#",
             username: "Username",
             won: "W",

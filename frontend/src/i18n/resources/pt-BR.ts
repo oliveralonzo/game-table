@@ -25,7 +25,7 @@ export const ptBR = {
 
             "mostPlayed": "Mais partidas jogadas",
             "mostWins": "Mais vitórias",
-            "headToHead": "Duelos > 50%",
+            "headToHead": "Retrospectos > 50%",
             "streakLeader": "Melhor sequência",
 
     "title": "Estatísticas",
@@ -93,9 +93,9 @@ export const ptBR = {
     leaderboard: {
         title: "Ranking", tool: "Ranking", empty: "As partidas concluídas com a conta conectada aparecerão aqui.", signInRequired: "Entre para ver o ranking.",
         rank: { notRankedShort: "NR", notRankedExplanation: "NR significa ainda não classificado. Jogue pelo menos {{count}} partidas para entrar no ranking por porcentagem de vitórias." },
-        sort: { headToHead: "Duelos", label: "Ordenar por", won: "Vitórias", played: "Jogadas", winPercentage: "%" },
+        sort: { headToHead: "Retrospectos", label: "Ordenar por", won: "Vitórias", played: "Jogadas", winPercentage: "%" },
         column: {
-            headToHead: "D↑", rank: "#", username: "Nome de usuário", won: "V", lost: "D", played: "J", winPercentage: "%" },
+            headToHead: "R+", rank: "#", username: "Nome de usuário", won: "V", lost: "D", played: "J", winPercentage: "%" },
         streak: { label: "Sequência de {{count}} vitórias" },
         action: { previous: "Anterior", next: "Próxima" },
     },

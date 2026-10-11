@@ -25,7 +25,7 @@ export const es = {
 
             "mostPlayed": "Más partidas jugadas",
             "mostWins": "Más victorias",
-            "headToHead": "Duelos > 50%",
+            "headToHead": "Récords > 50%",
             "streakLeader": "Mejor racha",
 
     "title": "Estadísticas",
@@ -174,14 +174,14 @@ export const es = {
             notRankedShort: "NR",
             notRankedExplanation: "NR significa sin clasificación. Juega al menos {{count}} partidas para clasificar por porcentaje de victorias.",
         },
-        sort: { headToHead: "Duelos",
+        sort: { headToHead: "Récords",
             label: "Ordenar por",
             won: "Ganados",
             played: "Jugados",
             winPercentage: "%",
         },
         column: {
-            headToHead: "D↑",
+            headToHead: "R+",
             rank: "#",
             username: "Usuario",
             won: "G",
