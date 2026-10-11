@@ -18,18 +18,19 @@ def accept_winners(model, first='same_team', second='same_team'):
         model.choose_team(player, TeamPreference(preference), now=2)
 
 
-def test_initial_state_blocks_seating_and_only_offers_winners():
+def test_initial_state_blocks_seating_but_everyone_can_indicate_intent_without_challengers():
     model = transition()
     state = model.snapshot()
     assert state['seating_blocked']
     assert state['proposed_seats'] == [None] * 4
     assert state['players']['a']['deadline'] == 10
-    assert state['players']['b'] == {'decision': 'waiting', 'deadline': None, 'team_preference': None}
-    with pytest.raises(ValueError, match='no active'):
-        model.respond_keep_playing('b', True, now=0)
+    assert state['players']['b'] == {'decision': 'keep_playing', 'deadline': 10, 'team_preference': None}
+    model.respond_keep_playing('b', True, now=0)
+    assert model.phase == TransitionPhase.WINNER_CHECKS
+    assert model.snapshot()['players']['b']['decision'] == 'accepted'
 
 
-def test_winners_must_finish_both_questions_before_loser_offers():
+def test_winner_choices_control_seating_without_delaying_loser_intent():
     model = transition()
     model.respond_keep_playing('a', True, now=1)
     model.respond_keep_playing('c', False, now=1)
@@ -37,7 +38,7 @@ def test_winners_must_finish_both_questions_before_loser_offers():
     assert model.snapshot()['players']['a']['deadline'] == 11
     model.choose_team('a', TeamPreference.SAME_TEAM, now=2)
     assert model.phase == TransitionPhase.LOSER_CHECKS
-    assert model.snapshot()['players']['b']['deadline'] == 12
+    assert model.snapshot()['players']['b']['deadline'] == 10
     assert model.seating_blocked
 
 
@@ -74,16 +75,11 @@ def test_declines_leave_vacancies_instead_of_retaining_seats():
     assert model.phase == TransitionPhase.SEATING_READY
 
 
-def test_expiry_opens_loser_prompts_with_fresh_deadlines():
+def test_silence_expires_all_initial_prompts_without_an_extra_loser_wait():
     model = transition()
     model.expire(now=100)
-    assert model.phase == TransitionPhase.LOSER_CHECKS
-    assert model.snapshot()['players']['a']['decision'] == 'timed_out'
-    assert model.snapshot()['players']['b']['deadline'] == 110
-    model.expire(now=110)
     assert model.phase == TransitionPhase.SEATING_READY
-    assert model.proposed_seats == (None,) * 4
-    model.expire(now=120)
+    assert all(player['decision'] == 'timed_out' for player in model.snapshot()['players'].values())
     assert model.proposed_seats == (None,) * 4
 
 
@@ -94,7 +90,7 @@ def test_team_choice_timeout_loses_winners_spot():
     model.expire(now=14)
     assert model.phase == TransitionPhase.WINNER_CHECKS
     model.expire(now=15)
-    assert model.phase == TransitionPhase.LOSER_CHECKS
+    assert model.phase == TransitionPhase.SEATING_READY
     assert model.snapshot()['players']['a']['decision'] == 'timed_out'
 
 
@@ -148,3 +144,22 @@ def test_two_player_game():
     model.choose_team('a', TeamPreference.SAME_TEAM, now=1)
     model.respond_keep_playing('b', True, now=2)
     assert model.proposed_seats == ('a', 'b')
+
+
+def test_challengers_preserve_winner_priority_and_losers_wait_for_a_real_offer():
+    model = PostGameTransition(('a','b','c','d'), ('A','B','A','B'), frozenset({'a','c'}),
+                               now=0, response_seconds=10, challengers=('x',))
+    assert model.snapshot()['players']['b']['decision'] == 'waiting'
+    with pytest.raises(ValueError):
+        model.respond_keep_playing('b', True, now=1)
+
+
+def test_early_loser_yes_retains_intent_until_winner_choices_resolve():
+    model = transition()
+    model.respond_keep_playing('b', True, now=1)
+    model.respond_keep_playing('d', False, now=1)
+    assert model.phase == TransitionPhase.WINNER_CHECKS
+    assert model.proposed_seats == (None,) * 4
+    accept_winners(model)
+    assert model.phase == TransitionPhase.SEATING_READY
+    assert set(model.proposed_seats) == {'a','b','c',None}

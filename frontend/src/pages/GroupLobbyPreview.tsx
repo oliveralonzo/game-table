@@ -87,7 +87,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
             memberNamesById={Object.fromEntries(groupMembers.map(member => [member.account_id, member.name]))}
             chatDraft={chatDraft} setChatDraft={setChatDraft} onSendChat={handleSendChat} /> : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
     >
-        {showingStats ? <GroupStatsPreview groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
+        {showingStats ? <GroupStatsPreview backToTable={!!returnToGame} groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="mb-5 px-1 text-black/55 dark:text-white/55">{groupMonthLabel(i18n.language, activity.data?.current_season)}</p>
             <GroupStatsOverview data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />

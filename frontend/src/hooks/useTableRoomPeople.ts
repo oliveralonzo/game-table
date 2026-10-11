@@ -128,7 +128,17 @@ export function useTableRoomPeople({
             .map(([playerId]) => members[playerId]?.name)
             .filter((name): name is string => Boolean(name));
 
-        return { handViewerCount, viewingHandNames };
+        const viewingHandPlayers = Object.entries(handViewGrants)
+            .filter(([playerId, viewerIds]) => !!members[playerId] && viewerIds.includes(personId))
+            .map(([playerId]) => ({
+                id: playerId,
+                name: members[playerId].name,
+                initialLabel: memberInitialLabels[playerId]?.label,
+                isHost: playerId === table?.host_id,
+                hasSeat: seats.includes(playerId),
+                isSelf: playerId === selfId,
+            }));
+        return { handViewerCount, viewingHandNames, viewingHandPlayers };
     };
 
     const roster = Object.entries(members)

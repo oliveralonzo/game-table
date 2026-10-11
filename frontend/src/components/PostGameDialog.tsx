@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogButton } from 'konsta/react';
+import { Button, Dialog } from 'konsta/react';
+import type { ComponentProps } from 'react';
+
 import { useTranslation } from 'react-i18next';
 import { importantGlassWithoutLightInsetShadow } from 'game-table/styles/glass';
 import type { PostGameTeamPreference, PostGameTransitionView } from 'game-table/types/table';
+
+function DialogButton(props: ComponentProps<typeof Button>) {
+    return <Button large rounded colors={{
+        fillBgIos: 'bg-ios-light-surface-variant active:bg-ios-light-surface dark:bg-ios-dark-surface-variant dark:active:bg-ios-dark-surface-1-tint',
+        fillBgMaterial: 'bg-md-light-surface-variant dark:bg-md-dark-surface-variant',
+        fillTextIos: 'text-black dark:text-white',
+        fillTextMaterial: 'text-md-light-on-surface-variant dark:text-md-dark-on-surface-variant',
+    }} {...props} />;
+}
 
 type Response = { keep_playing: boolean } | { team_preference: PostGameTeamPreference } | { selected_player: string };
 type Props = {
@@ -14,9 +25,9 @@ type Props = {
 
 export default function PostGameDialog(props: Props) {
     const player = props.transition.players[props.selfId];
-    if (!player || (['accepted', 'waiting'].includes(player.decision) && !props.transition.seating_blocked)) return null;
+    if (!player || !['keep_playing', 'team_choice', 'ready', 'partner_choice'].includes(player.decision)) return null;
     // A broadcast advancing the prompt resets pending/error/dismissed state.
-    return <PlayerPrompt key={`${props.selfId}:${player.decision}`} {...props} />;
+    return <PlayerPrompt key={`${props.transition.id}:${props.selfId}:${player.decision}`} {...props} />;
 }
 
 function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props) {
@@ -82,19 +93,21 @@ function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props
     const title = ready ? t('table.queue.readyQuestion')
         : playerChoice ? t('table.queue.choosePlayer')
         : keepPlaying ? inviter
-            ? t('table.queue.selected', { name: memberNames[inviter] ?? '' })
+            ? transition.random_invites?.includes(selfId)
+                ? t('table.queue.selectedRandom')
+                : t('table.queue.selected', { name: memberNames[inviter] ?? '' })
             : t('table.postGame.keepPlayingQuestion')
         : teamChoice ? t('table.postGame.partnerQuestion') : undefined;
 
     return (
         <Dialog
             opened
-            backdrop={false}
+            backdrop
             role="dialog"
             aria-label={title ?? status}
             title={title ? <span className="block text-center">{title}</span> : undefined}
-            style={{ zIndex: 5, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
-            className={`${importantGlassWithoutLightInsetShadow} [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
+            style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
+            className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
             buttons={(
                 <div className="grid w-full gap-1 [&>button]:px-[2em]">
                     {ready ? <>
@@ -104,11 +117,16 @@ function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props
                         <DialogButton disabled={disabled} onClick={() => respond({ keep_playing: false })}>
                             {t('table.queue.skip')}
                         </DialogButton>
-                    </> : playerChoice ? (transition.selection_candidates ?? []).map(id => (
+                    </> : playerChoice ? <>
+                    {(transition.selection_candidates ?? []).map(id => (
                         <DialogButton key={id} disabled={disabled} onClick={() => respond({ selected_player: id })}>
                             {memberNames[id] ?? id}
                         </DialogButton>
-                    )) : keepPlaying ? <>
+                    ))}
+                        <DialogButton disabled={disabled} onClick={() => respond({ selected_player: '__random__' })}>
+                            {t('table.queue.either')}
+                        </DialogButton>
+                    </> : keepPlaying ? <>
                         <DialogButton disabled={disabled} onClick={() => respond({ keep_playing: true })}>
                             {t('table.postGame.keepPlaying')}
                         </DialogButton>

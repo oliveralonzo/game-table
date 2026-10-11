@@ -40,10 +40,10 @@ function Confirmation({ deadline, answered, onRespond, requesterName }: {
         });
     };
     const question = requesterName ? t('table.unseatConfirmation.requestedBy', { player: requesterName }) : t('table.unseatConfirmation.question');
-    return <Dialog opened backdrop={false} role="dialog" aria-label={question}
+    return <Dialog opened backdrop role="dialog" aria-label={question}
         title={<span className="block text-center">{question}</span>}
-        style={{ zIndex: 7, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
-        className={`${importantGlassWithoutLightInsetShadow} [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
+        style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
+        className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
         buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">
             {!answered ? <>
                 <DialogButton disabled={pending || count === 0} onClick={() => respond(true)}>{t('table.unseatConfirmation.yes')}</DialogButton>

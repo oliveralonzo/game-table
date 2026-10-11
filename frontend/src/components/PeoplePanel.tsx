@@ -10,6 +10,7 @@ type Props = {
     seatedRoster: RosterPerson[];
     viewerRoster: RosterPerson[];
     queuedRoster?: RosterPerson[];
+    pendingRoster?: RosterPerson[];
     seatCount: number;
     showSeatLocation?: boolean;
     showHandViewStatus?: boolean;
@@ -21,6 +22,7 @@ export default function PeoplePanel({
     seatedRoster,
     viewerRoster,
     queuedRoster = [],
+    pendingRoster = [],
     seatCount,
     showSeatLocation = true,
     showHandViewStatus = false,
@@ -32,7 +34,7 @@ export default function PeoplePanel({
     const hasViewers = viewerRoster.length > 0;
 
     return (
-        <div className="min-h-0 overflow-y-auto pb-3">
+        <div className="min-h-0 pb-3">
             {hasPlayers && (
                 <LobbyRoster
                     title={t("table.roster.players")}
@@ -44,13 +46,21 @@ export default function PeoplePanel({
                     getActions={getActions}
                 />
             )}
+            {pendingRoster.length > 0 ? <LobbyRoster
+                title={t('table.postGame.pending')}
+                people={pendingRoster}
+                seatCount={seatCount}
+                flush
+                className={hasPlayers ? "mt-4" : ""}
+                showSeatLocation={false}
+            /> : null}
             {queuedRoster.length > 0 ? (
                 <LobbyRoster
                     title={t('table.queue.title')}
                     people={queuedRoster}
                     seatCount={seatCount}
                     flush
-                    className={hasPlayers ? 'mt-3' : ''}
+                    className={hasPlayers || pendingRoster.length ? 'mt-4' : ''}
                     showSeatLocation={false}
                     showHandViewStatus={showHandViewStatus}
                     getActions={getActions}
@@ -63,7 +73,7 @@ export default function PeoplePanel({
                     people={viewerRoster}
                     seatCount={seatCount}
                     flush
-                    className={hasPlayers && !middleAction ? "mt-3" : ""}
+                    className={hasPlayers || pendingRoster.length || queuedRoster.length > 0 || middleAction ? "mt-4" : ""}
                     showSeatLocation={showSeatLocation}
                     showHandViewStatus={showHandViewStatus}
                     getActions={getActions}

@@ -17,6 +17,7 @@ export default function QueueAction() {
     const selfId = state.selfMemberId;
     if (!table || !selfId || table.seats.includes(selfId)) return null;
     const queued = table.queue?.includes(selfId) ?? false;
+    if (!queued && table.seats.some(seat => seat === null)) return null;
     const check = table.post_game_transition?.players[selfId];
     if (!queued && table.post_game_transition?.seating_blocked && check && !['left', 'timed_out'].includes(check.decision)) return null;
     const toggle = () => {

@@ -7,6 +7,7 @@ player IDs must be stable for the duration of the transition.
 from dataclasses import dataclass
 from enum import Enum
 from math import isfinite
+from random import choice
 
 
 class TransitionPhase(str, Enum):
@@ -72,6 +73,7 @@ class PostGameTransition:
         self._partner_chooser = None
         self._invited_player = None
         self._invited_by = {}
+        self._random_invites = set()
         self._partner_attempted = False
         self._seats = tuple(seats)
         self._teams = tuple(teams)
@@ -81,8 +83,9 @@ class PostGameTransition:
         self._phase = TransitionPhase.WINNER_CHECKS
         self._checks = {player: _PlayerCheck() for player in [*players, *challengers]}
         self._proposed_seats: tuple[str | None, ...] = (None,) * len(seats)
-        for player in winners:
-            self._offer(player, now)
+        for player in players:
+            if player in winners or not challengers:
+                self._offer(player, now)
         self._advance_phase(now)
 
     @property
@@ -181,12 +184,19 @@ class PostGameTransition:
         self.expire(now=now)
         if player != self._partner_chooser or self._checks[player].decision != PlayerDecision.PARTNER_CHOICE:
             raise ValueError('Player has no active selection prompt.')
-        if selected_player not in self._available_losers():
+        candidates = self._available_losers()
+        randomly_selected = selected_player == '__random__'
+        if randomly_selected and candidates:
+            selected_player = choice(candidates)
+        if selected_player not in candidates:
             raise ValueError('Selected player is not available.')
         self._checks[player].decision = PlayerDecision.ACCEPTED
         self._checks[player].deadline = None
         self._invited_player = selected_player
         self._invited_by[selected_player] = player
+        self._random_invites.discard(selected_player)
+        if randomly_selected:
+            self._random_invites.add(selected_player)
         self._offer(selected_player, now)
         self._phase = TransitionPhase.LOSER_CHECKS
 
@@ -277,6 +287,7 @@ class PostGameTransition:
             self._invited_player = new
         self._invited_by = {new if p == old else p: new if chooser == old else chooser
                             for p, chooser in self._invited_by.items()}
+        self._random_invites = {new if p == old else p for p in self._random_invites}
         self._checks[new] = self._checks.pop(old)
         self._seats = tuple(new if p == old else p for p in self._seats)
         self._winners = frozenset(new if p == old else p for p in self._winners)
@@ -289,6 +300,7 @@ class PostGameTransition:
             'challengers': list(self._challengers),
             'selection_candidates': self._available_losers() if self._phase == TransitionPhase.PARTNER_SELECTION else [],
             'invited_by': dict(self._invited_by),
+            'random_invites': sorted(self._random_invites),
             'seating_blocked': self.seating_blocked,
             'previous_seats': list(self._seats),
             'previous_teams': list(self._teams),

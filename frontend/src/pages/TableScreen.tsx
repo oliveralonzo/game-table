@@ -1,5 +1,4 @@
 import TableIdentity from "game-table/components/TableIdentity";
-import PostGameDialog from 'game-table/components/PostGameDialog';
 /**
  * TableScreen.tsx
  * Author: Oliver Alonzo
@@ -54,7 +53,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
         startGameForTable,
         updateGameSettings,
         updateName,
-        respondPostGame,
     } = useTableSocket();
     const tableCodeForActivity = state.tableView?.table_code;
     const selfMemberIdForActivity = state.selfMemberId;
@@ -232,6 +230,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     }}
                     className="w-full rounded-[28px] p-5 sm:p-6"
                 >
+                    <div className="mt-2 sm:mt-0">
                     <SeatsPanel
                         sizeToContent
                         seats={seats}
@@ -280,9 +279,10 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                             )
                         }
                     />
+                    </div>
                 </Glass>
                 <div className="mt-3 flex flex-col items-center">
-                    <TableIdentity />
+                    <TableIdentity linkGroup />
                     <TableSponsor className="text-center" />
                     <Button
                         type="button"
@@ -299,15 +299,6 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                     </Button>
                 </div>
             </div>
-            {table.post_game_transition ? (
-                <PostGameDialog
-                    key={table.post_game_transition.id}
-                    transition={table.post_game_transition}
-                    selfId={selfId}
-                    onRespond={respondPostGame}
-                    memberNames={Object.fromEntries(Object.entries(table.members).map(([id, member]) => [id, member.name]))}
-                />
-            ) : null}
             <TableInviteDialog
                 fallbackInviteUrl={fallbackInviteUrl}
                 onCloseInviteFallback={closeInviteFallback}

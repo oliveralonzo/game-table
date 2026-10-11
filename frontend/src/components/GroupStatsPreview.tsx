@@ -60,7 +60,7 @@ export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data
     </section>;
 }
 
-export default function GroupStatsPreview({ onBack, groupName, groupId }: { onBack: () => void; groupName: string; groupId: string }) {
+export default function GroupStatsPreview({ onBack, groupName, groupId, backToTable = false }: { onBack: () => void; groupName: string; groupId: string; backToTable?: boolean }) {
     const { t, i18n } = useTranslation();
     const location = useLocation();
     const navigate = useNavigate();
@@ -124,7 +124,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId }: { onBa
         else if (target.right > bounds.right) row.scrollLeft += target.right - bounds.right;
     }, [selectedSeason, seasons, i18n.language]);
     return <>
-        <Button clear inline rounded onClick={playerReference ? backToActivity : onBack} className="mb-3 h-11 !px-1"><ArrowLeft size={18} className="mr-1" />{playerReference ? t("groups.stats.activity") : groupName}</Button>
+        <Button clear inline rounded onClick={playerReference ? backToActivity : onBack} className="mb-3 h-11 !px-1"><ArrowLeft size={18} className="mr-1" />{playerReference ? t("groups.stats.activity") : backToTable ? t("groups.preview.returnToTable") : groupName}</Button>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="px-1 text-black/55 dark:text-white/55">{playerReference
             ? `@${selectedPlayer?.username ?? playerReference}`

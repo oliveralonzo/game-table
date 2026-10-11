@@ -32,16 +32,8 @@ test('Spanish active prompts use agreed frente and leaving copy with countdowns'
     assert.match(choice, /Elige en 20 segundos/);
     assert.doesNotMatch(choice, /pareja|equipo/i);
 });
-test('waiting players have status without personal countdown or active response buttons', () => {
-    const waiting = dialog('waiting');
-    assert.match(waiting, /Esperando a los ganadores…/);
-    assert.doesNotMatch(waiting, /vence en|<button/);
-    assert.match(dialog('accepted'), /Esperando a los demás…/);
-    assert.doesNotMatch(dialog('accepted', false), /role="dialog"/);
-});
-test('decline and timeout have distinct watching states', () => {
-    assert.match(dialog('left', false), /Ahora estás mirando/);
-    assert.match(dialog('timed_out', false), /Se venció tu tiempo/);
+test('waiting, accepted, and departed players have no blocking modal', () => {
+    for (const decision of ['waiting','accepted','left','timed_out']) assert.doesNotMatch(dialog(decision), /role="dialog"|k-dialog/);
 });
 test('each language supplies singular and plural countdown forms', () => {
     for (const language of ['en', 'es', 'pt-BR']) {
@@ -72,7 +64,7 @@ test('challenger readiness and player selection use neutral prompts', () => {
     const transition = { id: 'offer', phase: 'partner_selection', seating_blocked: true,
         selection_candidates: ['b', 'd'], players: { me: { decision: 'partner_choice', deadline: Date.now() / 1000 + 20 } } };
     const html = render(React.createElement(PostGameDialog, { transition, selfId: 'me', memberNames: { b: 'Ana', d: 'Luis' }, onRespond() {} }));
-    assert.match(html, /¿Quién sigue jugando/);
+    assert.match(html, /¿Con quién quieres jugar/);
     assert.match(html, /Ana/);
     assert.match(html, /Luis/);
     assert.match(html, /Elige en 20 segundos/);
@@ -84,4 +76,18 @@ test('invited loser sees who chose them to continue', () => {
     const html = render(React.createElement(PostGameDialog, { transition, selfId: 'me', memberNames: { challenger: 'Ana' }, onRespond() {} }));
     assert.match(html, /Ana te eligió para seguir jugando/);
     assert.match(html, /Me voy/);
+});
+
+
+test('People panel reuses avatar rows for pending and confirmed responses', async () => {
+    const { default: PeoplePanel } = await import('../dist/components/PeoplePanel.js');
+    const person = (id, name, statusLabel) => ({ id, name, statusLabel, isHost: false, hasSeat: false });
+    const html = render(React.createElement(PeoplePanel, {
+        pendingRoster: [person('a','Ana','Decidiendo…')],
+        seatedRoster: [person('l','Luis','Mismo frente')],
+        queuedRoster: [person('s','Sofía','Esperando un lugar')],
+        viewerRoster: [], seatCount: 4, showSeatLocation: false,
+    }));
+    for (const text of ['Pendientes','Jugadores','Retando','Ana','Luis','Sofía','Decidiendo…','Mismo frente']) assert.ok(html.includes(text));
+    assert.doesNotMatch(html, /k-dialog/);
 });

@@ -100,6 +100,7 @@ class Table(Generic[RulesT]):
 
         self.unseat_confirmations = {}
         self.unseat_cooldowns = {}
+        self.finished_game_close = None
         self.end_game_confirmation = None
         self._player_queue = PlayerQueue()
         self._post_game_transition: PostGameTransition | None = None
@@ -842,6 +843,8 @@ class Table(Generic[RulesT]):
         self._ensure_member_exists(member_id)
         if self._find_seat_by_member(member_id) is not None:
             raise ValueError('Seated players cannot challenge.')
+        if member_id not in self.get_queue() and any(seat.member_id is None for seat in self._seats):
+            raise ValueError('All seats must be filled before joining the queue.')
         self._player_queue.join(member_id)
 
     def leave_queue(self, member_id):

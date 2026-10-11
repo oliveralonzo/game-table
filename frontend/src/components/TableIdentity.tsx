@@ -1,9 +1,11 @@
+import { Link, useLocation } from "react-router-dom";
 import { Users } from "lucide-react";
 import { useTable } from "game-table/context/TableState";
 import { useTranslation } from "react-i18next";
 
-export default function TableIdentity() {
+export default function TableIdentity({ linkGroup = false }: { linkGroup?: boolean }) {
     const { state } = useTable();
+    const location = useLocation();
     const { t } = useTranslation();
     const table = state.tableView;
     if (!table) return null;
@@ -14,7 +16,13 @@ export default function TableIdentity() {
         <p className="text-base leading-6 text-black/65 dark:text-white/65">
             {t(table.group_name ? "table.label.groupTable" : "table.label.individualTableBy")}{" "}
             {table.group_name && <><Users size={18} className="inline-block align-[-3px]" aria-hidden="true" />{" "}</>}
-            <span className="font-medium [overflow-wrap:anywhere]">{table.group_name || hostName}</span>
+            {table.group_name && table.group_public_id && linkGroup ? (
+                <Link to={`/g/${encodeURIComponent(table.group_public_id)}/activity`}
+                    state={{ returnToGame: location.pathname }}
+                    className="rounded font-medium underline underline-offset-2 [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                    {table.group_name}
+                </Link>
+            ) : <span className="font-medium [overflow-wrap:anywhere]">{table.group_name || hostName}</span>}
         </p>
         <p className="mt-2 text-base text-black/55 dark:text-white/55">{t("table.label.code")} <span className="font-mono">{table.table_code}</span></p>
     </div>;

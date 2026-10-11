@@ -705,12 +705,13 @@ def register_table_events(
         try:
             while (table_service.table_exists(table_code)
                    and table_service.get_table(table_code) is table):
-                before = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view())
+                before = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view(), dict(table.finished_game_close) if table.finished_game_close else None)
                 table.expire_unseat(time.time())
                 if game_table_service:
+                    game_table_service.expire_finished_game_for_table(table_code)
                     game_table_service.expire_game_end_for_table(table_code)
                     game_table_service.expire_post_game_for_table(table_code)
-                after = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view())
+                after = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view(), dict(table.finished_game_close) if table.finished_game_close else None)
                 if after != before:
                     await _broadcast_table_state_update(table_code)
                 delay = _table_wait_seconds(table_code)
@@ -728,6 +729,9 @@ def register_table_events(
         if _table_wait_seconds(table_code) is not None:
             post_game_tasks[table_code] = asyncio.create_task(
                 _run_post_game_deadlines(table_code, table_service.get_table(table_code)))
+
+    sio.publish_table_update = _broadcast_table_state_update
+    sio.schedule_table_deadline = _schedule_post_game_deadline
 
     async def _respond_post_game(sid, data, *, team_choice=False, player_choice=False):
         table_code = None

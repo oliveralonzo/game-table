@@ -10,13 +10,15 @@ export default function EndGameConfirmationDialog() {
     const { respondGameEnd } = useTableSocket();
     const confirmation = state.tableView?.end_game_confirmation;
     const self = state.selfMemberId;
-    if (!confirmation || confirmation.status !== 'pending' || !self || !(self in confirmation.responses)) return null;
+    if (!confirmation || confirmation.status !== 'pending' || !self || !(self in confirmation.responses) || confirmation.responses[self] !== null) return null;
     return <Confirmation key={`${confirmation.id}:${confirmation.responses[self]}`} deadline={confirmation.deadline}
-        answered={confirmation.responses[self] !== null}
+        answered={confirmation.responses[self] !== null} responses={confirmation.responses}
+        memberNames={Object.fromEntries(Object.entries(state.tableView?.members ?? {}).map(([id, member]) => [id, member.name]))}
         onRespond={(yes, callback) => respondGameEnd(confirmation.id, yes, callback)} />;
 }
 
-function Confirmation({ deadline, answered, onRespond }: {
+function Confirmation({ deadline, answered, onRespond, responses, memberNames }: {
+    responses: Record<string, boolean | null>; memberNames: Record<string, string>;
     deadline: number; answered: boolean; onRespond: (yes: boolean, callback: (saved: boolean) => void) => void;
 }) {
     const { t } = useTranslation();
@@ -39,15 +41,20 @@ function Confirmation({ deadline, answered, onRespond }: {
             pendingRef.current = false; setPending(false); setError(true);
         });
     };
-    return <Dialog opened backdrop={false} role="dialog" aria-label={t('table.endConfirmation.question')}
+    return <Dialog opened backdrop role="dialog" aria-label={t('table.endConfirmation.question')}
         title={<span className="block text-center">{t('table.endConfirmation.question')}</span>}
-        style={{ zIndex: 6, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
-        className={`${importantGlassWithoutLightInsetShadow} [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
+        style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
+        className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
         buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">
             {!answered ? <>
                 <DialogButton disabled={pending || count === 0} onClick={() => respond(true)}>{t('table.endConfirmation.yes')}</DialogButton>
                 <DialogButton disabled={pending || count === 0} onClick={() => respond(false)}>{t('table.endConfirmation.no')}</DialogButton>
             </> : <p className="px-4 pt-2 text-center text-sm">{t('table.endConfirmation.waiting')}</p>}
+            {answered ? <div className="grid gap-2 px-4 py-2 text-center text-sm">
+                {Object.entries(responses).map(([id, response]) => <p key={id} className="m-0 text-center">
+                    {memberNames[id] ?? id}{': '}{t(response === null ? 'table.postGame.answering' : response ? 'table.endConfirmation.yes' : 'table.endConfirmation.no')}
+                </p>)}
+            </div> : null}
             {error ? <p role="alert" className="px-4 text-center text-sm text-red-600 dark:text-red-400">{t('table.postGame.saveError')}</p> : null}
             <p className="px-4 py-2 text-center text-sm tabular-nums text-black/55 dark:text-white/55">{t('table.endConfirmation.timer', { count })}</p>
         </div>} />;

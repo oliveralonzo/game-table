@@ -106,10 +106,10 @@ def test_expiry_and_declines_free_spots_for_ordinary_seating():
     s = setup()
     id = close(s)
     s.service.respond_post_game('a', id, keep_playing=False)
+    accept(s, id, 'b')
     s.now[0] = 10
     s.service.expire_post_game_for_table('T')
-    assert s.tables.get_table_view('T')['post_game_transition']['phase'] == 'loser_checks'
-    accept(s, id, 'b')
+    assert s.tables.get_table_view('T')['post_game_transition']['phase'] == 'seating_ready'
     s.now[0] = 20
     s.service.expire_post_game_for_table('T')
     assert s.tables.get_table_view('T')['seats'] == [None, 'b', None, None]
@@ -120,7 +120,7 @@ def test_expiry_and_declines_free_spots_for_ordinary_seating():
 def test_stale_or_unauthorized_responses_cannot_claim_spots():
     s = setup()
     id = close(s)
-    for player, offer in [('a', 'old-offer'), ('viewer', id), ('b', id)]:
+    for player, offer in [('a', 'old-offer'), ('viewer', id)]:
         with pytest.raises(ValueError):
             s.service.respond_post_game(player, offer, keep_playing=True)
     with pytest.raises(ValueError):
@@ -234,7 +234,7 @@ def test_deadlines_advance_and_broadcast_without_client_commands():
             await asyncio.sleep(0.01)
         assert sio.views[-1]['post_game_transition']['phase'] == 'seating_ready'
         assert sio.views[-1]['seats'] == [None] * 4
-        assert any(v['post_game_transition']['phase'] == 'loser_checks' for v in sio.views)
+        assert any(v['post_game_transition']['phase'] == 'winner_checks' for v in sio.views)
     asyncio.run(run())
 
 

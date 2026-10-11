@@ -196,12 +196,44 @@ def test_departing_challenger_passes_offer_on_immediately():
     assert view['players']['z']['deadline'] == 12
 
 
-def test_queue_stays_available_to_new_challengers_for_next_game():
+def test_new_challengers_wait_until_post_game_seats_are_filled():
     s = setup()
     id = close(s)
+    with pytest.raises(ValueError, match='All seats must be filled'):
+        s.service.set_queue_membership('viewer', queued=True)
+    accept(s, id, 'a'); accept(s, id, 'c'); accept(s, id, 'b'); accept(s, id, 'd')
     s.service.set_queue_membership('viewer', queued=True)
     assert s.table.get_queue() == ['viewer']
-    assert 'viewer' not in s.table.post_game_transition.snapshot()['challengers']
-    accept(s, id, 'a'); accept(s, id, 'c'); accept(s, id, 'b'); accept(s, id, 'd')
     s.service.start_game_for_table('a')
     assert s.table.get_queue() == ['viewer']
+
+
+def test_new_challengers_cannot_queue_when_a_seat_is_empty():
+    s = setup()
+    s.tables.join_table('x', 'T', 'X')
+    s.tables.leave_table('d')
+    with pytest.raises(ValueError, match='All seats must be filled'):
+        s.service.set_queue_membership('x', queued=True)
+    assert s.table.get_queue() == []
+
+
+def test_queued_challenger_can_leave_after_a_seat_opens():
+    s = setup()
+    s.tables.join_table('x', 'T', 'X')
+    s.service.set_queue_membership('x', queued=True)
+    s.tables.leave_table('d')
+    s.service.set_queue_membership('x', queued=False)
+    assert s.table.get_queue() == []
+
+
+def test_either_chooses_an_available_loser_and_marks_random_invitation(monkeypatch):
+    monkeypatch.setattr('game_table.table.post_game_transition.choice', lambda candidates: candidates[-1])
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    m.choose_player('x', '__random__', now=3)
+    assert m.snapshot()['random_invites'] == ['d']
+    assert m.snapshot()['invited_by'] == {'d': 'x'}
+    assert m.snapshot()['players']['d']['decision'] == 'keep_playing'
+    m.replace_player('d', 'new-d')
+    assert m.snapshot()['random_invites'] == ['new-d']

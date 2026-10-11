@@ -1,3 +1,6 @@
+import PostGameDialog from "game-table/components/PostGameDialog";
+import { useTableSocket } from "game-table/context/TableSocket";
+import { useTable } from "game-table/context/TableState";
 import UnseatConfirmationDialog from 'game-table/components/UnseatConfirmationDialog';
 import EndGameConfirmationDialog from 'game-table/components/EndGameConfirmationDialog';
 import {
@@ -110,6 +113,17 @@ export default function TableFrame({
 }: Props) {
     const { t } = useTranslation();
     const [activeTool, setActiveTool] = useState<TableTool | null>(null);
+    const { state: progressState } = useTable();
+    const { respondPostGame } = useTableSocket();
+    const progressId = progressState.tableView?.post_game_transition?.seating_blocked
+        ? progressState.tableView.post_game_transition.id
+        : progressState.tableView?.end_game_confirmation?.status === 'pending' ? progressState.tableView.end_game_confirmation.id : null;
+    const seenProgressId = useRef<string | null>(null);
+    useEffect(() => {
+        if (!progressId || seenProgressId.current === progressId) return;
+        seenProgressId.current = progressId;
+        setActiveTool(current => current ?? 'people');
+    }, [progressId]);
     const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
     const [isContentTranslucent, setIsContentTranslucent] = useState(false);
     const [suppressHighlightSlide, setSuppressHighlightSlide] = useState(false);
@@ -163,6 +177,9 @@ export default function TableFrame({
         if (isMobileLayout || !activeTool) return;
 
         const handlePointerDown = (event: PointerEvent) => {
+            // A personal decision overlays the tool panel; answering it should
+            // return to the same People or Chat panel.
+            if (event.target instanceof Element && event.target.closest('.k-dialog')) return;
             if (desktopToolAreaRef.current?.contains(event.target as Node)) {
                 return;
             }
@@ -193,7 +210,7 @@ export default function TableFrame({
             const panelTop = toolAreaRect.bottom + 12;
             const panelBottomMargin = 16;
             setDesktopPanelMaxHeight(
-                Math.max(160, Math.floor((fixedChrome ? window.innerHeight : frameRect.bottom) - panelTop - panelBottomMargin))
+                Math.max(0, Math.floor(Math.min(window.visualViewport?.height ?? window.innerHeight, fixedChrome ? window.innerHeight : frameRect.bottom) - panelTop - panelBottomMargin))
             );
         };
 
@@ -343,7 +360,7 @@ export default function TableFrame({
         shadowIos: glassWithoutLightInsetShadow,
         bgIos: isContentTranslucent
             ? "bg-ios-light-glass/5 dark:bg-ios-dark-glass/5"
-            : "bg-ios-light-glass/55 dark:bg-ios-dark-glass/55",
+            : "bg-ios-light-glass dark:bg-ios-dark-glass",
     };
     const sheetColors = isContentTranslucent
         ? {
@@ -410,7 +427,7 @@ export default function TableFrame({
                             <Glass
                                 highlight={false}
                                 colors={translucentGlassColors}
-                                className={`absolute right-0 top-full mt-3 w-[22rem] max-w-[calc(100vw-2rem)] overflow-x-hidden rounded-[28px] p-4 transition-colors ${activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"} ${isContentTranslucent ? "opacity-45 backdrop-blur-0" : ""}`}
+                                className={`absolute right-0 top-full mt-3 box-border flex min-h-0 w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] p-4 transition-colors ${isContentTranslucent ? "opacity-45 backdrop-blur-0" : ""}`}
                                 style={{
                                     height: activeTool === "chat"
                                         ? (desktopPanelMaxHeight
@@ -422,7 +439,9 @@ export default function TableFrame({
                                         : "calc(100svh - 6rem)",
                                 }}
                             >
-                                {renderActiveToolContent()}
+                                <div className={`min-h-0 flex-1 ${activeTool === "chat" ? "overflow-hidden" : "overflow-y-auto"}`}>
+                                    {renderActiveToolContent()}
+                                </div>
                             </Glass>
                         )}
                     </div>
@@ -540,6 +559,12 @@ export default function TableFrame({
                     </>
                 )}
 
+                {progressState.tableView?.post_game_transition && progressState.selfMemberId ? <PostGameDialog
+                    transition={progressState.tableView.post_game_transition}
+                    selfId={progressState.selfMemberId}
+                    onRespond={respondPostGame}
+                    memberNames={Object.fromEntries(Object.entries(progressState.tableView.members).map(([id, member]) => [id, member.name]))}
+                /> : null}
                 <EndGameConfirmationDialog />
                 <UnseatConfirmationDialog />
                 <ViewerReactions

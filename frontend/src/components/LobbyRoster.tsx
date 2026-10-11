@@ -46,6 +46,8 @@ export type RosterPerson = {
     isSelf?: boolean;
     handViewerCount?: number;
     viewingHandNames?: string[];
+    viewingHandPlayers?: Array<Pick<RosterPerson, 'id' | 'name' | 'initialLabel' | 'isHost' | 'hasSeat' | 'isSelf'>>;
+    statusLabel?: string;
     queuePosition?: number;
     presence?: { active: boolean; label: string };
 };
@@ -237,6 +239,9 @@ export default function LobbyRoster({
                     const handViewerCount = p.handViewerCount ?? 0;
                     const viewingHandNames = p.viewingHandNames ?? [];
                     const viewingHandNamesLabel = viewingHandNames.join(", ");
+                    const watchedPlayers = p.viewingHandPlayers ?? viewingHandNames.map((name, index) => ({
+                        id: String(index), name, isHost: false, hasSeat: true,
+                    }));
                     const seatSubtitle = showSeatLocation
                         ? p.hasSeat && typeof p.seatIndex === "number"
                             ? (
@@ -283,7 +288,13 @@ export default function LobbyRoster({
                                         })}
                                     >
                                         <Eye size={13} strokeWidth={2.2} className="shrink-0" />
-                                        <span className="min-w-0 truncate">{viewingHandNamesLabel}</span>
+                                        <span className="inline-flex shrink-0 items-center gap-1" aria-hidden="true">
+                                            {watchedPlayers.map(player => <span
+                                                key={player.id}
+                                                title={player.name}
+                                                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-medium ring-1 ${getAvatarClass(player)}`}
+                                            >{getAvatarLabel(player)}</span>)}
+                                        </span>
                                     </span>
                                 )
                                 : null
@@ -294,7 +305,7 @@ export default function LobbyRoster({
                     const accountUsernameLabel = p.accountUsername
                         ? `@${p.accountUsername}`
                         : null;
-                    const showSubtitleRow = showSeatLocation || showHandViewStatus || !!accountUsernameLabel || !!p.presence;
+                    const showSubtitleRow = !!p.statusLabel || showSeatLocation || showHandViewStatus || !!accountUsernameLabel || !!p.presence;
 
                     return (
                         <li
@@ -329,8 +340,13 @@ export default function LobbyRoster({
                                     </div>
                                     {showSubtitleRow ? (
                                         <div className="mt-0.5 min-h-[1.25rem] text-sm text-black/45 dark:text-white/45">
-	                                            <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-	                                                {accountUsernameLabel ? (
+	                                            <span className={`inline-flex w-full min-w-0 items-center gap-x-2 ${p.statusLabel ? "flex-nowrap" : "flex-wrap gap-y-1"}`}>
+	                                                {p.statusLabel && accountUsernameLabel ? <>
+                                                    <span className="min-w-0 truncate font-medium" title={accountUsernameLabel}>{accountUsernameLabel}</span>
+                                                    <span aria-hidden="true" className="shrink-0">·</span>
+                                                </> : null}
+                                                {p.statusLabel ? <span className="shrink-0 whitespace-nowrap">{p.statusLabel}</span> : null}
+                                                {!p.statusLabel && accountUsernameLabel ? (
 	                                                    <>
 	                                                        <span className="min-w-0 truncate font-medium text-black/40 dark:text-white/45">
 	                                                            {accountUsernameLabel}
@@ -363,18 +379,18 @@ export default function LobbyRoster({
 	                                                        ) : null}
 	                                                    </>
 	                                                ) : null}
-                                                {p.presence && (
+                                                {!p.statusLabel && p.presence && (
                                                     <span className="inline-flex min-w-0 items-center gap-1.5">
                                                         <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${p.presence.active ? "bg-green-600 dark:bg-green-400" : "bg-black/20 dark:bg-white/25"}`} />
                                                         <span className="truncate">{p.presence.label}</span>
                                                     </span>
                                                 )}
-	                                                {showSeatLocation ? (
+	                                                {!p.statusLabel && showSeatLocation ? (
 	                                                    <span>
 	                                                        {seatSubtitle}
                                                     </span>
                                                 ) : null}
-	                                                {showHandViewStatus ? (
+	                                                {!p.statusLabel && showHandViewStatus ? (
 	                                                    handViewSubtitle ?? (
 	                                                        <span aria-hidden="true">&nbsp;</span>
 	                                                    )

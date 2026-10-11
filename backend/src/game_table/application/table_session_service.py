@@ -151,7 +151,10 @@ class TableSessionService(Generic[RulesT]):
 
     def validate_game_end(self, member_id: str, *, completed: bool = False) -> None:
         _, table = self._get_table_for_member(member_id)
-        if table.host_id != member_id:
+        reviewed_player = (completed and table.finished_game_close and table.finished_game_close['reviewed']
+                           and not table.finished_game_close['reviewing']
+                           and any(seat.member_id == member_id for seat in table.seats))
+        if table.host_id != member_id and not reviewed_player:
             raise PermissionError("Only host may detach the game.")
         if table.active_game_id is None:
             raise ValueError("No active game.")
@@ -375,6 +378,7 @@ class TableSessionService(Generic[RulesT]):
             "is_persistent": table.is_persistent,
             "pending_rules": table.pending_rules,
             "active_game_id": table.active_game_id,
+            "finished_game_close": table.finished_game_close,
             "unseat": table.get_unseat_view(),
             "end_game_confirmation": table.end_game_confirmation.snapshot() if table.end_game_confirmation else None,
             "queue": table.get_queue(),

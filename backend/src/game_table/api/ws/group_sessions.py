@@ -70,11 +70,17 @@ class GroupSocketSessions:
         return account
 
     async def enter(self, sid, payload):
+        group_id = payload.get('group_id')
+        if not isinstance(group_id, str) or not group_id.strip():
+            raise ValueError('Group ID is required.')
+        # Capture departure state before waiting for another admission. A leave
+        # must invalidate queued refreshes as well as requests already running.
+        epochs = self.room_epochs.setdefault(sid, {})
+        room_epoch = epochs.setdefault(group_id, 0)
         async with self.locks.setdefault(sid, asyncio.Lock()):
-            group_id = payload.get('group_id')
-            if not isinstance(group_id, str) or not group_id.strip():
-                raise ValueError('Group ID is required.')
-            room_epoch = self.room_epochs.setdefault(sid, {}).setdefault(group_id, 0)
+            if (self.room_epochs.get(sid) is not epochs
+                    or room_epoch != epochs.get(group_id)):
+                raise PermissionError('Group presence ended.')
             account = await self._account(sid, payload)
             generation = self.generations.get(sid)
             await to_thread(self.groups.admit, account.id, group_id, f'socket:{sid}')

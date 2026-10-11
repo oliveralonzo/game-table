@@ -104,6 +104,7 @@ class GameTableService:
         transition = self._build_post_game_transition(table, game_id) if self._game_service.is_over(game_id) else (self._build_abort_transition(table) if player_checks else None)
         self.record_completed_game_for_table(table.table_code, game_id)
         table.release_game()
+        table.finished_game_close = None
 
         if transition is not None:
             table.begin_post_game_transition(transition, clock=lambda: self._clock_ms() / 1000)
@@ -113,6 +114,27 @@ class GameTableService:
         if self._game_activity_service is not None:
             self._game_activity_service.clear_game(game_id)
 
+    def update_finished_game_close(self, code, *, reviewing):
+        table = self._table_service.get_table(code)
+        game_id = table.active_game_id
+        if game_id is None or not self._game_service.is_over(game_id):
+            return
+        close = table.finished_game_close
+        if close is None or close['game_id'] != game_id:
+            close = table.finished_game_close = {'game_id': game_id, 'deadline': self._clock_ms() / 1000 + 10,
+                                                'reviewing': False, 'reviewed': False}
+        if reviewing:
+            close.update(reviewing=True, deadline=None)
+        elif close['reviewing']:
+            close.update(reviewing=False, reviewed=True, deadline=self._clock_ms() / 1000 + 10)
+
+    def expire_finished_game_for_table(self, code):
+        table = self._table_service.get_table(code)
+        close = table.finished_game_close
+        if (close and close['game_id'] == table.active_game_id and close['deadline'] is not None
+                and close['deadline'] <= self._clock_ms() / 1000):
+            self._close_game(table)
+
     def request_game_end(self, member_id):
         code = self._table_service.get_table_code_for_member(member_id)
         table = self._table_service.get_table(code)
@@ -120,6 +142,9 @@ class GameTableService:
         completed = game_id is not None and self._game_service.is_over(game_id)
         self._table_service.validate_game_end(member_id, completed=completed)
         if completed:
+            close = table.finished_game_close
+            if close and (close['reviewing'] or not close['reviewed']):
+                raise ValueError('Wait for automatic close or finish a review first.')
             self.end_game_for_table(member_id)
             return
         confirmation = table.end_game_confirmation
@@ -231,6 +256,9 @@ class GameTableService:
 
     def post_game_wait_seconds(self, table_code):
         deadline = self.post_game_deadline(table_code)
+        close = self._table_service.get_table(table_code).finished_game_close
+        if close and close['game_id'] == self._table_service.get_table(table_code).active_game_id and close['deadline'] is not None:
+            deadline = close['deadline'] if deadline is None else min(deadline, close['deadline'])
         unseat = self._table_service.get_table(table_code).get_unseat_view()
         deadlines = [value['deadline'] for value in unseat['confirmations'].values()] + list(unseat['cooldowns'].values())
         if deadlines:

@@ -417,3 +417,38 @@ def test_unwatch_cancels_in_flight_availability_admission():
         assert entered == left == ['group-tables:g']
         assert sockets.discovery.get('s', set()) == set()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('leave_all', [False, True])
+def test_queued_group_refresh_cannot_restore_presence_after_leave(leave_all):
+    from game_table.api.ws.session_registry import SessionRegistry
+    async def run():
+        _, groups, _, tables = setup()
+        sessions = SessionRegistry()
+        sessions.bind_connection('s', 'browser')
+        sio = AsyncServer(async_mode='asgi')
+        sio.manager.is_connected = lambda sid, namespace: True
+        events = []
+        async def room(*args): pass
+        async def emit(event, data=None, **kwargs): events.append((event, data))
+        sio.enter_room = sio.leave_room = room
+        sio.emit = emit
+        sockets = GroupSocketSessions(sio, Accounts(), groups, Auth(), session_registry=sessions, tables=tables)
+        await sockets.enter('s', {'token': 'member', 'group_id': 'g'})
+        assert sockets.active_count('g') == 1
+        lock = sockets.locks['s']
+        await lock.acquire()
+        pending = asyncio.create_task(sockets.enter('s', {'token': 'member', 'group_id': 'g'}))
+        await asyncio.sleep(0)
+        await sockets.leave('s', None if leave_all else 'g')
+        assert sockets.active_count('g') == 0
+        lock.release()
+        with pytest.raises(PermissionError, match='Group presence ended'):
+            await pending
+        assert sockets.active_count('g') == 0
+        assert not sessions.group_presences
+        assert events[-1] == ('group:active_count', {'group_id': 'g', 'active_count': 0})
+        # A genuinely new visit can still enter after departure.
+        await sockets.enter('s', {'token': 'member', 'group_id': 'g'})
+        assert sockets.active_count('g') == 1
+    asyncio.run(run())

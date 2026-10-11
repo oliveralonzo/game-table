@@ -52,6 +52,7 @@ export const en = {
     "empty": "No participants",
     "members": "Members",
     "exit": "Exit group lobby",
+    "returnToTable": "Return to table",
     "return": "Return to group",
     "settings": "Group settings will be added later.",
     "notice": "Preview · sample tables and members",
@@ -261,11 +262,11 @@ export const en = {
         },
     },
     table: {
-        unseatConfirmation: { disabledAction: "{{action}} ({{count}}s)", requestedBy: "@{{player}} asked to unseat you.", cooldown: "This player recently confirmed they are still playing.", question: "Remove you from your seat?", yes: "Leave seat", no: "Still playing", timer: "Removal in {{count}}s", waiting: "" },
+        unseatConfirmation: { disabledAction: "{{action}} ({{count}}s)", requestedBy: "@{{player}} asked to unseat you.", cooldown: "This player recently confirmed they are still playing.", question: "Remove you from your seat?", yes: "Leave seat", no: "Playing", timer: "Removal in {{count}}s", waiting: "" },
         endConfirmation: {"question": "End the game?", "yes": "Yes", "no": "No", "waiting": "Waiting for the other players…", "timer_one": "Ends automatically in {{count}} second", "timer_other": "Ends automatically in {{count}} seconds"},
         inviteParam: { host: "host", group: "group" },
-        queue: {"waitingTurn": "Waiting for your turn…","title": "Queue", "join": "Queue up", "leave": "Leave queue", "position": "Queue position {{count}}", "error": "Couldn’t update the queue. Try again.", "readyQuestion": "It’s your turn. Ready to play?", "ready": "I’m ready", "skip": "Skip my turn", "waitingChallengers": "Waiting for challengers…", "choosePlayer": "Who should continue?", "selected": "{{name}} chose you to continue. Keep playing?", "chooseCountdown_one": "Choose within {{count}} second", "chooseCountdown_other": "Choose within {{count}} seconds"},
-        postGame: {"keepPlayingQuestion": "Keep playing?", "keepPlaying": "Keep playing", "leave": "I’m leaving", "partnerQuestion": "Change partners?", "samePartner": "Same partner", "changePartner": "Change partners", "waitingWinners": "Waiting for winners…", "waitingPlayers": "Waiting for other players…", "expired": "Your spot expired.", "watching": "You’re now watching.", "saveError": "Couldn’t save your choice. Try again.", "spotExpires_one": "Spot expires in {{count}} second", "spotExpires_other": "Spot expires in {{count}} seconds", "chooseWithin_one": "Choose within {{count}} second", "chooseWithin_other": "Choose within {{count}} seconds"},
+        queue: {"waitingTurn": "Waiting for your turn…","title": "Queue", "join": "Queue up", "leave": "Leave queue", "position": "Queue position {{count}}", "error": "Couldn’t update the queue. Try again.", "readyQuestion": "It’s your turn. Ready to play?", "ready": "I’m ready", "skip": "Skip my turn", "waitingChallengers": "Waiting for challengers…", "either": "Either", "selectedRandom": "You were chosen at random. Keep playing?", "choosePlayer": "Who do you want to play with?", "selected": "{{name}} chose you to continue. Keep playing?", "chooseCountdown_one": "Choose within {{count}} second", "chooseCountdown_other": "Choose within {{count}} seconds"},
+        postGame: {pending: "Pending", playing: "Playing", awaitingSpot: "Waiting", choosingPartner: "Choosing…", choosingPlayer: "Choosing…",  answering: "Deciding…", autoClose: "Closes in {{count}}s","keepPlayingQuestion": "Keep playing?", "keepPlaying": "Keep playing", "leave": "I’m leaving", "partnerQuestion": "Change partners?", "samePartner": "Same partner", "changePartner": "Change partners", "waitingWinners": "Waiting for winners…", "waitingPlayers": "Waiting for other players…", "expired": "Your spot expired.", "watching": "You’re now watching.", "saveError": "Couldn’t save your choice. Try again.", "spotExpires_one": "Spot expires in {{count}} second", "spotExpires_other": "Spot expires in {{count}} seconds", "chooseWithin_one": "Choose within {{count}} second", "chooseWithin_other": "Choose within {{count}} seconds"},
         tool: {
             people: "People",
             chat: "Chat",

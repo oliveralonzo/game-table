@@ -191,7 +191,11 @@ class GroupTableService(TableSessionService):
     unmark_persistent = mark_persistent
 
     def validate_game_end(self, member_id: str, *, completed: bool = False) -> None:
-        table = self._require_group_member(member_id)
+        _, table = self._get_table_for_member(member_id)
+        reviewed_player = (completed and table.finished_game_close and table.finished_game_close['reviewed']
+                           and not table.finished_game_close['reviewing'])
+        if not reviewed_player:
+            table = self._require_group_member(member_id)
         if not any(seat.member_id == member_id for seat in table.seats):
             raise PermissionError('Only seated group members may end the game.')
         if table.active_game_id is None:
