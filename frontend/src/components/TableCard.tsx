@@ -44,7 +44,7 @@ export default function TableCard({ table, onEnter, pending = false, closing = f
 export function NewTableCard({ onCreate, disabled, label }: { onCreate: () => void; disabled: boolean; label?: string }) {
     const { t } = useTranslation();
     return <button type="button" disabled={disabled} aria-label={label ?? t("groups.preview.add")} onClick={onCreate}
-        className={`flex flex-col gap-2 aspect-[3/4] w-full min-w-0 cursor-pointer disabled:cursor-default items-center justify-center rounded-[28px] bg-white text-black/45 dark:bg-[#1c1c1e] dark:text-white/45 ${glassWithoutLightInsetShadow} opacity-60 transition-[opacity,transform] duration-150 enabled:hover:opacity-80 motion-safe:enabled:hover:-translate-y-0.5 motion-reduce:transition-none enabled:active:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500`}
+        className={`flex flex-col gap-2 aspect-[3/4] w-full min-w-0 p-[1em] text-center cursor-pointer disabled:cursor-default items-center justify-center rounded-[28px] bg-white text-black/45 dark:bg-[#1c1c1e] dark:text-white/45 ${glassWithoutLightInsetShadow} opacity-60 transition-[opacity,transform] duration-150 enabled:hover:opacity-80 motion-safe:enabled:hover:-translate-y-0.5 motion-reduce:transition-none enabled:active:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500`}
     ><Plus size={32} strokeWidth={1.5} aria-hidden="true" />
         {label && <span className="text-sm">{label}</span>}
     </button>;
