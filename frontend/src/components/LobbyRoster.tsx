@@ -321,9 +321,7 @@ export default function LobbyRoster({
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className={`truncate text-sm text-black dark:text-white ${p.isSelf ? "font-semibold" : "font-normal"}`}>
-                                        {p.queuePosition !== undefined ? <span className="mr-2 font-mono text-black/50 dark:text-white/50" aria-label={t('table.queue.position', { count: p.queuePosition })}>
-                                            {p.queuePosition}.
-                                        </span> : null}
+                                        {p.queuePosition !== undefined ? `${p.queuePosition}. ` : null}
                                         {p.name}
                                         {p.isSelf ? (
                                             <Badge

@@ -54,6 +54,7 @@ export interface PostGameTransitionView {
     selection_candidates?: string[];
     invited_by?: Record<string, string>;
     random_invites?: string[];
+    selection_notifications?: Record<string, { challenger: string; player: string; random: boolean }>;
     proposed_seats: Array<string | null>;
     players: Record<string, {
         decision: PostGameDecision;

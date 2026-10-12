@@ -868,7 +868,8 @@ class Table(Generic[RulesT]):
             return
         view = self._post_game_transition.snapshot()
         for player in view['challengers']:
-            if view['players'][player]['decision'] not in ('waiting', 'ready'):
+            decision = view['players'][player]['decision']
+            if decision in ('left', 'timed_out') or (not view['seating_blocked'] and decision != 'waiting'):
                 self._player_queue.leave(player)
 
     @property

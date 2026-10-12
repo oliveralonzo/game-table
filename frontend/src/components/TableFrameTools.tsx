@@ -81,7 +81,8 @@ export default function TableFrameTools({
             }
             if (!check) return person;
             const key = check.decision === 'accepted'
-                ? check.team_preference === 'mix_it_up' ? 'table.postGame.changePartner'
+                ? transition?.challengers?.includes(person.id) ? 'table.queue.readyStatus'
+                    : check.team_preference === 'mix_it_up' ? 'table.postGame.changePartner'
                     : check.team_preference === 'same_team' ? 'table.postGame.samePartner' : 'table.postGame.playing'
                 : check.decision === 'left' ? 'table.postGame.leave'
                 : check.decision === 'timed_out' ? 'table.postGame.expired'

@@ -75,6 +75,7 @@ class PostGameTransition:
         self._invited_by = {}
         self._random_invites = set()
         self._partner_attempted = False
+        self._partner_choice_deadline = None
         self._seats = tuple(seats)
         self._teams = tuple(teams)
         self._winners = frozenset(winners)
@@ -83,6 +84,7 @@ class PostGameTransition:
         self._phase = TransitionPhase.WINNER_CHECKS
         self._checks = {player: _PlayerCheck() for player in [*players, *challengers]}
         self._proposed_seats: tuple[str | None, ...] = (None,) * len(seats)
+        self._selection_notifications = {}
         for player in players:
             if player in winners or not challengers:
                 self._offer(player, now)
@@ -166,6 +168,28 @@ class PostGameTransition:
     def _finish(self):
         self._proposed_seats = self._assign_seats()
         self._phase = TransitionPhase.SEATING_READY
+        selected = next((p for p in self._invited_by if p in self._proposed_seats), None)
+        if selected is not None:
+            for player in self._available_losers():
+                if player not in self._proposed_seats:
+                    self._selection_notifications[player] = {
+                        'challenger': self._invited_by[selected], 'player': selected,
+                        'random': selected in self._random_invites,
+                    }
+
+    def _offer_challengers(self, now):
+        pending_winners = sum(self._checks[p].decision in (PlayerDecision.KEEP_PLAYING, PlayerDecision.TEAM_CHOICE)
+                              for p in self._winners)
+        pending_losers = sum(c.decision == PlayerDecision.KEEP_PLAYING for p, c in self._checks.items()
+                             if p not in self._winners)
+        pending = [p for p in self._challengers if self._checks[p].decision == PlayerDecision.READY]
+        waiting = [p for p in self._challengers if self._checks[p].decision == PlayerDecision.WAITING]
+        count = max(0, self._remaining_spots() - pending_winners - pending_losers - len(pending))
+        for player in waiting[:count]:
+            self._checks[player].decision = PlayerDecision.READY
+            self._checks[player].deadline = now + self._window
+            pending.append(player)
+        return pending
 
     def _offer_partner_choice(self, now):
         candidates = self._available_losers()
@@ -175,8 +199,15 @@ class PostGameTransition:
         if chooser is None or self._checks[chooser].decision != PlayerDecision.ACCEPTED:
             return False
         check = self._checks[chooser]
+        if len(candidates) == 1:
+            self._invited_player = candidates[0]
+            self._offer(candidates[0], now)
+            self._phase = TransitionPhase.LOSER_CHECKS
+            return True
         check.decision = PlayerDecision.PARTNER_CHOICE
-        check.deadline = now + self._window
+        if self._partner_choice_deadline is None or self._partner_choice_deadline[0] != chooser:
+            self._partner_choice_deadline = (chooser, now + self._window)
+        check.deadline = self._partner_choice_deadline[1]
         self._phase = TransitionPhase.PARTNER_SELECTION
         return True
 
@@ -184,6 +215,11 @@ class PostGameTransition:
         self.expire(now=now)
         if player != self._partner_chooser or self._checks[player].decision != PlayerDecision.PARTNER_CHOICE:
             raise ValueError('Player has no active selection prompt.')
+        if selected_player == '__cancel__':
+            self._checks[player].decision = PlayerDecision.READY
+            self._partner_attempted = False
+            self._phase = TransitionPhase.CHALLENGER_CHECKS
+            return
         candidates = self._available_losers()
         randomly_selected = selected_player == '__random__'
         if randomly_selected and candidates:
@@ -192,6 +228,7 @@ class PostGameTransition:
             raise ValueError('Selected player is not available.')
         self._checks[player].decision = PlayerDecision.ACCEPTED
         self._checks[player].deadline = None
+        self._partner_choice_deadline = None
         self._invited_player = selected_player
         self._invited_by[selected_player] = player
         self._random_invites.discard(selected_player)
@@ -201,19 +238,16 @@ class PostGameTransition:
         self._phase = TransitionPhase.LOSER_CHECKS
 
     def _advance_phase(self, now: float) -> None:
+        if not self.seating_blocked:
+            return
+        pending_challengers = self._offer_challengers(now)
         resolved = {PlayerDecision.ACCEPTED, PlayerDecision.LEFT, PlayerDecision.TIMED_OUT}
         if self._phase == TransitionPhase.WINNER_CHECKS:
             if not all(self._checks[p].decision in resolved for p in self._winners):
                 return
             self._phase = TransitionPhase.CHALLENGER_CHECKS
         if self._phase == TransitionPhase.CHALLENGER_CHECKS:
-            pending = [p for p in self._challengers if self._checks[p].decision == PlayerDecision.READY]
-            waiting = [p for p in self._challengers if self._checks[p].decision == PlayerDecision.WAITING]
-            for player in waiting[:max(0, self._remaining_spots() - len(pending))]:
-                self._checks[player].decision = PlayerDecision.READY
-                self._checks[player].deadline = now + self._window
-                pending.append(player)
-            if pending:
+            if pending_challengers:
                 return
             if self._remaining_spots() == 0:
                 self._finish()
@@ -226,10 +260,24 @@ class PostGameTransition:
                     return
             self._phase = TransitionPhase.LOSER_CHECKS
         if self._phase == TransitionPhase.PARTNER_SELECTION:
-            if self._checks[self._partner_chooser].decision == PlayerDecision.PARTNER_CHOICE:
-                return
+            check = self._checks[self._partner_chooser]
+            if check.decision == PlayerDecision.PARTNER_CHOICE:
+                candidates = self._available_losers()
+                if len(candidates) > 1 and not pending_challengers:
+                    return
+                check.decision = PlayerDecision.ACCEPTED
+                check.deadline = None
+                if pending_challengers:
+                    self._partner_attempted = False
+                    self._phase = TransitionPhase.CHALLENGER_CHECKS
+                    return
+                if self._offer_partner_choice(now):
+                    return
             self._phase = TransitionPhase.LOSER_CHECKS
         if self._phase == TransitionPhase.LOSER_CHECKS:
+            if pending_challengers:
+                self._phase = TransitionPhase.CHALLENGER_CHECKS
+                return
             if self._invited_player is not None:
                 invited = self._checks[self._invited_player]
                 if invited.decision == PlayerDecision.KEEP_PLAYING:
@@ -283,11 +331,18 @@ class PostGameTransition:
         self._challengers = tuple(new if p == old else p for p in self._challengers)
         if self._partner_chooser == old:
             self._partner_chooser = new
+        if self._partner_choice_deadline is not None and self._partner_choice_deadline[0] == old:
+            self._partner_choice_deadline = (new, self._partner_choice_deadline[1])
         if self._invited_player == old:
             self._invited_player = new
         self._invited_by = {new if p == old else p: new if chooser == old else chooser
                             for p, chooser in self._invited_by.items()}
         self._random_invites = {new if p == old else p for p in self._random_invites}
+        self._selection_notifications = {
+            new if p == old else p: {**value,
+                'challenger': new if value['challenger'] == old else value['challenger'],
+                'player': new if value['player'] == old else value['player']}
+            for p, value in self._selection_notifications.items()}
         self._checks[new] = self._checks.pop(old)
         self._seats = tuple(new if p == old else p for p in self._seats)
         self._winners = frozenset(new if p == old else p for p in self._winners)
@@ -301,6 +356,7 @@ class PostGameTransition:
             'selection_candidates': self._available_losers() if self._phase == TransitionPhase.PARTNER_SELECTION else [],
             'invited_by': dict(self._invited_by),
             'random_invites': sorted(self._random_invites),
+            'selection_notifications': {p: dict(value) for p, value in self._selection_notifications.items()},
             'seating_blocked': self.seating_blocked,
             'previous_seats': list(self._seats),
             'previous_teams': list(self._teams),

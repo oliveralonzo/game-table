@@ -20,14 +20,55 @@ type Props = {
     transition: PostGameTransitionView;
     selfId: string;
     memberNames?: Record<string, string>;
+    canQueue?: boolean;
+    onQueue?: (onResult: (saved: boolean) => void) => void;
     onRespond: (transitionId: string, response: Response, onResult: (saved: boolean) => void) => void;
 };
 
 export default function PostGameDialog(props: Props) {
+    const notification = props.transition.selection_notifications?.[props.selfId];
+    if (notification) return <SelectionNotice key={`${props.transition.id}:${notification.player}`} {...props} notification={notification} />;
     const player = props.transition.players[props.selfId];
     if (!player || !['keep_playing', 'team_choice', 'ready', 'partner_choice'].includes(player.decision)) return null;
     // A broadcast advancing the prompt resets pending/error/dismissed state.
     return <PlayerPrompt key={`${props.transition.id}:${props.selfId}:${player.decision}`} {...props} />;
+}
+
+function SelectionNotice({ notification, canQueue = false, onQueue, memberNames = {} }: Props & {
+    notification: { challenger: string; player: string; random: boolean };
+}) {
+    const { t } = useTranslation();
+    const [dismissed, setDismissed] = useState(false);
+    const [pending, setPending] = useState(false);
+    const [error, setError] = useState(false);
+    const mounted = useRef(true);
+    const pendingRef = useRef(false);
+    useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+    if (dismissed) return null;
+    const title = t(notification.random ? 'table.queue.otherSelectedRandom' : 'table.queue.otherSelected', {
+        challenger: memberNames[notification.challenger] ?? '', player: memberNames[notification.player] ?? '',
+    });
+    const join = () => {
+        if (!canQueue || !onQueue || pendingRef.current) return;
+        pendingRef.current = true;
+        setPending(true);
+        setError(false);
+        onQueue(saved => {
+            if (!mounted.current) return;
+            pendingRef.current = false;
+            setPending(false);
+            if (saved) setDismissed(true); else setError(true);
+        });
+    };
+    return <Dialog opened backdrop role="dialog" aria-label={title}
+        title={<span className="block text-center">{title}</span>}
+        style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
+        className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
+        buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">
+            <DialogButton disabled={pending} onClick={() => setDismissed(true)}>{t('table.queue.selectionOk')}</DialogButton>
+            <DialogButton disabled={pending || !canQueue} onClick={join}>{t('table.queue.join')}</DialogButton>
+            {error ? <p role="alert" className="px-4 pt-2 text-center text-sm text-red-600 dark:text-red-400">{t('table.queue.error')}</p> : null}
+        </div>} />;
 }
 
 function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props) {
@@ -125,6 +166,9 @@ function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props
                     ))}
                         <DialogButton disabled={disabled} onClick={() => respond({ selected_player: '__random__' })}>
                             {t('table.queue.either')}
+                        </DialogButton>
+                        <DialogButton disabled={disabled} onClick={() => respond({ selected_player: '__cancel__' })}>
+                            {t('table.queue.cancelChoice')}
                         </DialogButton>
                     </> : keepPlaying ? <>
                         <DialogButton disabled={disabled} onClick={() => respond({ keep_playing: true })}>

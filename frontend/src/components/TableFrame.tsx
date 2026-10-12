@@ -116,7 +116,7 @@ export default function TableFrame({
     const { t } = useTranslation();
     const [activeTool, setActiveTool] = useState<TableTool | null>(null);
     const { state: progressState } = useTable();
-    const { respondPostGame } = useTableSocket();
+    const { respondPostGame, setQueued } = useTableSocket();
     const progressId = progressState.tableView?.post_game_transition?.seating_blocked
         ? progressState.tableView.post_game_transition.id
         : progressState.tableView?.end_game_confirmation?.status === 'pending' ? progressState.tableView.end_game_confirmation.id : null;
@@ -570,6 +570,11 @@ export default function TableFrame({
                     transition={progressState.tableView.post_game_transition}
                     selfId={progressState.selfMemberId}
                     onRespond={respondPostGame}
+                    onQueue={onResult => setQueued(true, onResult)}
+                    canQueue={!progressState.tableView.post_game_transition.seating_blocked
+                        && progressState.tableView.seats.every(Boolean)
+                        && !progressState.tableView.seats.includes(progressState.selfMemberId)
+                        && !progressState.tableView.queue?.includes(progressState.selfMemberId)}
                     memberNames={Object.fromEntries(Object.entries(progressState.tableView.members).map(([id, member]) => [id, member.name]))}
                 /> : null}
                 <EndGameConfirmationDialog />

@@ -217,3 +217,40 @@ body {
 .language-popover {
   --color-ios-hover-highlight: transparent;
 }
+
+/* Shared composer: shrink the field before fading in the stationary Send button. */
+.game-table-chat form {
+  position: relative;
+  gap: 0;
+}
+
+.game-table-chat form > div {
+  margin-right: 48px;
+  transition: margin-right 180ms ease;
+}
+
+.game-table-chat button[type="submit"] {
+  overflow: hidden;
+  position: absolute;
+  right: max(1rem, var(--k-safe-area-right, 0px));
+  bottom: 0;
+  transition: opacity 140ms ease 180ms;
+}
+
+.game-table-chat form:has(textarea:placeholder-shown) > div {
+  margin-right: 0;
+  transition-delay: 140ms;
+}
+
+.game-table-chat form:has(textarea:placeholder-shown) button[type="submit"] {
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-table-chat form > div,
+  .game-table-chat button[type="submit"] {
+    transition: none;
+  }
+}

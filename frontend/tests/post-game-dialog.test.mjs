@@ -91,3 +91,18 @@ test('People panel reuses avatar rows for pending and confirmed responses', asyn
     for (const text of ['Pendientes','Jugadores','Retando','Ana','Luis','Sofía','Decidiendo…','Mismo frente']) assert.ok(html.includes(text));
     assert.doesNotMatch(html, /k-dialog/);
 });
+
+
+test('non-selected loser sees explicit or random selection only with the confirmed notice', () => {
+    for (const random of [false, true]) {
+        const transition = { id: 'offer', phase: 'seating_ready', seating_blocked: false,
+            players: { me: { decision: 'waiting', deadline: null } },
+            selection_notifications: { me: { challenger: 'x', player: 'b', random } } };
+        const html = render(React.createElement(PostGameDialog, { transition, selfId: 'me', canQueue: true,
+            memberNames: { x: 'Sofía', b: 'Ana' }, onRespond() {}, onQueue() {} }));
+        assert.match(html, random ? /Se eligió a Ana al azar/ : /Sofía eligió a Ana/);
+        assert.match(html, /OK/);
+        assert.match(html, /Retar/);
+        assert.doesNotMatch(html, /disabled=""/);
+    }
+});

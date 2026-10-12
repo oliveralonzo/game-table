@@ -31,13 +31,13 @@ def test_queue_preserves_order_and_snapshots_are_detached():
 
 def test_challengers_wait_for_winners_then_fill_opponent_seats():
     m = model(('x', 'y', 'z'))
-    with pytest.raises(ValueError):
-        m.respond_keep_playing('x', True, now=0)
+    assert m.snapshot()['players']['x']['decision'] == 'ready'
+    m.respond_keep_playing('x', True, now=0)
+    assert m.snapshot()['phase'] == 'winner_checks'
     winners(m)
     assert m.snapshot()['phase'] == 'challenger_checks'
     assert m.snapshot()['players']['z']['decision'] == 'waiting'
     m.respond_keep_playing('y', True, now=2)
-    m.respond_keep_playing('x', True, now=2)
     assert m.snapshot()['phase'] == 'seating_ready'
     assert m.proposed_seats == ('a', 'x', 'c', 'y')
     assert m.snapshot()['players']['b']['decision'] == 'waiting'
@@ -83,9 +83,9 @@ def test_selected_player_declines_then_challenger_can_pick_another():
     m.respond_keep_playing('x', True, now=2)
     m.choose_player('x', 'b', now=3)
     m.respond_keep_playing('b', False, now=4)
-    assert m.snapshot()['selection_candidates'] == ['d']
-    assert m.snapshot()['players']['x']['deadline'] == 14
-    m.choose_player('x', 'd', now=5)
+    assert m.snapshot()['selection_candidates'] == []
+    assert m.snapshot()['players']['d']['decision'] == 'keep_playing'
+    assert m.snapshot()['players']['x']['decision'] == 'accepted'
     m.respond_keep_playing('d', True, now=6)
     assert set(m.proposed_seats) == {'a', 'c', 'x', 'd'}
 
@@ -174,7 +174,7 @@ def test_socket_queue_and_selection_commands_broadcast_authoritative_state():
             await sio.handlers['table:post_game_keep_playing'](p, {'transition_id': id, 'keep_playing': True})
             await sio.handlers['table:post_game_team_choice'](p, {'transition_id': id, 'team_preference': 'same_team'})
         await sio.handlers['table:post_game_keep_playing']('x', {'transition_id': id, 'keep_playing': True})
-        assert sio.views[-1]['queue'] == []
+        assert sio.views[-1]['queue'] == ['x']
         assert await sio.handlers['table:post_game_player_choice']('x', {'transition_id': id, 'selected_player': 'b'}) == {'updated': True}
         await sio.handlers['table:post_game_keep_playing']('b', {'transition_id': id, 'keep_playing': True})
         assert sio.views[-1]['seats'] == ['a', 'x', 'c', 'b']
@@ -237,3 +237,122 @@ def test_either_chooses_an_available_loser_and_marks_random_invitation(monkeypat
     assert m.snapshot()['players']['d']['decision'] == 'keep_playing'
     m.replace_player('d', 'new-d')
     assert m.snapshot()['random_invites'] == ['new-d']
+
+
+def test_cancel_player_choice_returns_to_ready_without_extending_deadline():
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    deadline = m.snapshot()['players']['x']['deadline']
+    m.choose_player('x', '__cancel__', now=3)
+    assert m.snapshot()['players']['x']['decision'] == 'ready'
+    assert m.snapshot()['players']['x']['deadline'] == deadline
+    assert m.snapshot()['invited_by'] == {}
+    m.respond_keep_playing('x', True, now=4)
+    assert m.snapshot()['players']['x']['decision'] == 'partner_choice'
+    assert m.snapshot()['players']['x']['deadline'] == deadline
+    m.choose_player('x', '__cancel__', now=5)
+    m.respond_keep_playing('x', False, now=6)
+    assert m.snapshot()['players']['x']['decision'] == 'left'
+
+
+def test_cancel_preserves_queue_membership_until_selection_is_committed():
+    s = setup()
+    s.tables.join_table('x', 'T', 'X')
+    s.service.set_queue_membership('x', queued=True)
+    id = close(s)
+    accept(s, id, 'a'); accept(s, id, 'c')
+    s.service.respond_post_game('x', id, keep_playing=True)
+    assert s.table.get_queue() == ['x']
+    s.service.respond_post_game('x', id, selected_player='__cancel__')
+    assert s.table.get_queue() == ['x']
+    assert s.table.post_game_transition.snapshot()['players']['x']['decision'] == 'ready'
+
+
+def test_cancelled_readiness_expires_at_original_selection_deadline():
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    m.choose_player('x', '__cancel__', now=3)
+    m.expire(now=12)
+    assert m.snapshot()['players']['x']['decision'] == 'timed_out'
+    with pytest.raises(ValueError):
+        m.respond_keep_playing('x', True, now=12)
+
+
+def test_challenger_confirms_before_winners_but_selection_waits_for_winners():
+    m = model(('x',))
+    assert m.snapshot()['players']['x']['deadline'] == 10
+    m.respond_keep_playing('x', True, now=1)
+    assert m.snapshot()['players']['x']['decision'] == 'accepted'
+    assert m.phase.value == 'winner_checks'
+    assert m.snapshot()['selection_candidates'] == []
+    winners(m)
+    assert m.snapshot()['players']['x']['decision'] == 'partner_choice'
+
+
+def test_departures_while_winners_decide_offer_next_challengers():
+    m = model(('x', 'y', 'z', 'w'))
+    assert m.snapshot()['players']['z']['decision'] == 'waiting'
+    m.respond_keep_playing('x', False, now=1)
+    assert m.snapshot()['players']['z']['decision'] == 'ready'
+    m.withdraw('a')
+    m.expire(now=2)
+    assert m.snapshot()['players']['w']['decision'] == 'ready'
+    assert m.phase.value == 'winner_checks'
+
+
+@pytest.mark.parametrize('departed', [('b',), ('b', 'd')])
+def test_loser_departure_updates_active_choice_without_stale_prompt(departed):
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    for player in departed:
+        m.withdraw(player)
+    m.expire(now=3)
+    assert m.snapshot()['players']['x']['decision'] == 'accepted'
+    assert m.snapshot()['selection_candidates'] == []
+    if len(departed) == 1:
+        assert m.snapshot()['players']['d']['decision'] == 'keep_playing'
+    else:
+        assert m.phase.value == 'seating_ready'
+        assert m.proposed_seats.count(None) == 1
+
+
+@pytest.mark.parametrize('randomly', [False, True])
+def test_other_loser_notification_waits_for_selected_player_acceptance(randomly):
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    m.choose_player('x', '__random__' if randomly else 'b', now=3)
+    invited = next(iter(m.snapshot()['invited_by']))
+    other = 'd' if invited == 'b' else 'b'
+    assert m.snapshot()['selection_notifications'] == {}
+    m.respond_keep_playing(invited, True, now=4)
+    assert m.snapshot()['selection_notifications'] == {other: {'challenger': 'x', 'player': invited, 'random': randomly}}
+    detached = m.snapshot()['selection_notifications']
+    detached[other]['player'] = 'changed'
+    assert m.snapshot()['selection_notifications'][other]['player'] == invited
+
+
+def test_no_selection_notification_when_selected_loser_declines():
+    m = model(('x',))
+    winners(m)
+    m.respond_keep_playing('x', True, now=2)
+    m.choose_player('x', 'b', now=3)
+    m.respond_keep_playing('b', False, now=4)
+    assert m.snapshot()['selection_notifications'] == {}
+    assert m.snapshot()['players']['d']['decision'] == 'keep_playing'
+
+
+def test_early_ready_challenger_can_cancel_later_without_losing_queue():
+    s = setup()
+    s.tables.join_table('x', 'T', 'X')
+    s.service.set_queue_membership('x', queued=True)
+    id = close(s)
+    s.service.respond_post_game('x', id, keep_playing=True)
+    assert s.table.get_queue() == ['x']
+    accept(s, id, 'a'); accept(s, id, 'c')
+    s.service.respond_post_game('x', id, selected_player='__cancel__')
+    assert s.table.get_queue() == ['x']
+    assert s.table.post_game_transition.snapshot()['players']['x']['decision'] == 'ready'

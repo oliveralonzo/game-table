@@ -53,7 +53,8 @@ async function table(code,names=['a','b','c','d','x','y','z','viewer']) {
     return people;
 }
 async function converge(people,phase) {
-    await until(()=>people.filter(c=>c.socket.connected).every(c=>c.view?.post_game_transition?.phase===phase));
+    await until(()=>people.filter(c=>c.socket.connected).every(c=>c.view?.post_game_transition?.phase===phase
+        && JSON.stringify(c.view)===JSON.stringify(people[0].view)));
     const reference=JSON.stringify(people[0].view);
     assert.ok(people.filter(c=>c.socket.connected).every(c=>JSON.stringify(c.view)===reference),'All connected clients must agree');
 }
@@ -100,9 +101,9 @@ try {
     await winners(p);await response(p[4],true);await converge(p,'partner_selection');
     const offer=p[0].view.post_game_transition.id;
     await ok(p[4],'table:post_game_player_choice',{transition_id:offer,selected_player:p[1].id});
-    await response(p[1],false);await converge(p,'partner_selection');
-    assert.deepEqual(p[0].view.post_game_transition.selection_candidates,[p[3].id]);
-    await ok(p[4],'table:post_game_player_choice',{transition_id:offer,selected_player:p[3].id});
+    await response(p[1],false);await converge(p,'loser_checks');
+    assert.deepEqual(p[0].view.post_game_transition.selection_candidates,[]);
+    assert.equal(p[0].view.post_game_transition.players[p[3].id].decision,'keep_playing');
     await response(p[3],true);await converge(p,'seating_ready');
     assert.deepEqual(new Set(p[0].view.seats),new Set([p[0].id,p[2].id,p[4].id,p[3].id]));
     assert.equal((await call(p[1],'table:post_game_keep_playing',{transition_id:offer,keep_playing:true})).error,'ValueError');
@@ -123,6 +124,41 @@ try {
     assert.equal(p[0].view.post_game_transition.players[p[5].id].decision,'timed_out');
     await converge(p,'challenger_checks');await response(p[6],false);await converge(p,'loser_checks');
     await Promise.all([response(p[1],true),response(p[3],true)]);await converge(p,'seating_ready');await cleanup(p);
+ });
+ await test('challenger confirms alongside winners, cancels, selects randomly, and other loser joins next queue',async()=>{
+    const p=await table('LIVE-SIMULTANEOUS');await ok(p[4],'table:queue_join');await ok(p[0],'table:end_game');
+    await converge(p,'winner_checks');
+    assert.equal(p[4].view.post_game_transition.players[p[4].id].decision,'ready');
+    await response(p[4],true);await converge(p,'winner_checks');
+    assert.equal(p[4].view.post_game_transition.players[p[4].id].decision,'accepted');
+    await winners(p);await converge(p,'partner_selection');
+    const offer=p[4].view.post_game_transition.id;
+    const deadline=p[4].view.post_game_transition.players[p[4].id].deadline;
+    await ok(p[4],'table:post_game_player_choice',{transition_id:offer,selected_player:'__cancel__'});
+    await converge(p,'challenger_checks');
+    assert.equal(p[4].view.post_game_transition.players[p[4].id].deadline,deadline);
+    assert.deepEqual(p[4].view.queue,[p[4].id]);
+    await response(p[4],true);await converge(p,'partner_selection');
+    assert.equal(p[4].view.post_game_transition.players[p[4].id].deadline,deadline);
+    await ok(p[4],'table:post_game_player_choice',{transition_id:offer,selected_player:'__random__'});
+    await converge(p,'loser_checks');
+    const chosenId=Object.keys(p[0].view.post_game_transition.invited_by)[0];
+    const chosen=p.find(c=>c.id===chosenId);const other=p[[p[1].id,p[3].id].indexOf(chosenId)===0?3:1];
+    assert.deepEqual(p[0].view.post_game_transition.selection_notifications,{});
+    await response(chosen,true);await converge(p,'seating_ready');
+    assert.deepEqual(p[0].view.post_game_transition.selection_notifications[other.id],{challenger:p[4].id,player:chosenId,random:true});
+    await ok(other,'table:queue_join');
+    await until(()=>p.every(c=>c.view.queue.includes(other.id)));
+    await cleanup(p);
+ });
+ await test('departing loser removes the challenger selection prompt and directly offers the survivor',async()=>{
+    const p=await table('LIVE-LOSER-LEAVE');await ok(p[4],'table:queue_join');await ok(p[0],'table:end_game');
+    await converge(p,'winner_checks');
+    await response(p[4],true);await winners(p);await converge(p,'partner_selection');
+    await ok(p[1],'table:leave');p[1].socket.disconnect();await converge(p,'loser_checks');
+    assert.equal(p[4].view.post_game_transition.players[p[4].id].decision,'accepted');
+    assert.equal(p[3].view.post_game_transition.players[p[3].id].decision,'keep_playing');
+    await response(p[3],true);await converge(p,'seating_ready');await cleanup(p);
  });
  await test('active-game end confirmation broadcasts to all; a no cancels and all yes closes',async()=>{
     const p=await table('LIVE-END-1');await ok(p[0],'fixture:set_running');

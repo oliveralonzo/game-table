@@ -12,6 +12,10 @@ from game_table.application.game_service_port import GameServicePort
 from game_table.table.post_game_transition import PostGameTransition
 
 
+FINISHED_GAME_AUTO_CLOSE_SECONDS = 10
+FINISHED_GAME_MANUAL_CLOSE_DELAY_SECONDS = 2
+
+
 class GameTableService:
     def __init__(
         self,
@@ -121,12 +125,12 @@ class GameTableService:
             return
         close = table.finished_game_close
         if close is None or close['game_id'] != game_id:
-            close = table.finished_game_close = {'game_id': game_id, 'deadline': self._clock_ms() / 1000 + 10,
+            close = table.finished_game_close = {'game_id': game_id, 'deadline': self._clock_ms() / 1000 + FINISHED_GAME_AUTO_CLOSE_SECONDS,
                                                 'reviewing': False, 'reviewed': False}
         if reviewing:
             close.update(reviewing=True, deadline=None)
         elif close['reviewing']:
-            close.update(reviewing=False, reviewed=True, deadline=self._clock_ms() / 1000 + 10)
+            close.update(reviewing=False, reviewed=True, deadline=self._clock_ms() / 1000 + FINISHED_GAME_AUTO_CLOSE_SECONDS)
 
     def expire_finished_game_for_table(self, code):
         table = self._table_service.get_table(code)
@@ -144,7 +148,8 @@ class GameTableService:
         if completed:
             close = table.finished_game_close
             if close and (close['reviewing'] or (not close['reviewed'] and close['deadline'] is not None
-                    and self._clock_ms() / 1000 < close['deadline'] - 8)):
+                    and self._clock_ms() / 1000 < close['deadline'] - FINISHED_GAME_AUTO_CLOSE_SECONDS
+                    + FINISHED_GAME_MANUAL_CLOSE_DELAY_SECONDS)):
                 raise ValueError('Wait for the close button or finish the review first.')
             self.end_game_for_table(member_id)
             return

@@ -79,7 +79,7 @@ export default function Chat({
     }, [chatDraft]);
 
     return (
-        <section className="flex h-full min-h-0 flex-col overflow-hidden">
+        <section className="game-table-chat flex h-full min-h-0 flex-col overflow-hidden">
             <h2 className="mb-2 px-safe-4 text-[22px] font-bold leading-tight tracking-normal text-black dark:text-white">
                 {t("table.tool.chat")}
             </h2>
@@ -149,7 +149,7 @@ export default function Chat({
                             }
                         }}
                         maxLength={MAX_CHAT_MESSAGE_LENGTH}
-                        className="block min-h-10 max-h-[120px] w-full resize-none overflow-y-auto rounded-2xl bg-ios-light-surface-2 py-[9px] pl-3 pr-12 text-[15px] leading-[22px] text-black outline-none ring-1 ring-black/10 dark:bg-ios-dark-surface-2 dark:text-white dark:ring-white/15"
+                        className="block min-h-10 max-h-[120px] w-full resize-none overflow-y-auto rounded-2xl bg-ios-light-surface-2 py-[9px] pl-3 pr-12 text-[16px] leading-[22px] text-black outline-none ring-1 ring-black/10 dark:bg-ios-dark-surface-2 dark:text-white dark:ring-white/15"
                         placeholder="Message"
                     />
                     <span
