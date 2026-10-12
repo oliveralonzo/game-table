@@ -1,3 +1,4 @@
+from game_table.table.player_badge import valid_badge
 """
 AccountService
 Author: Oliver Alonzo
@@ -116,15 +117,19 @@ class AccountService:
             created_at=account.created_at,
             updated_at=self._clock_ms(),
             table_nickname=account.table_nickname,
+            badge_label=account.badge_label,
         )
         self._repository.save(renamed)
         return renamed
 
-    def update_table_nickname(self, account_id: str, table_nickname: str | None) -> Account:
+    def update_table_nickname(self, account_id: str, table_nickname: str | None, badge_label: str | None = None) -> Account:
         account = self.get_account(account_id)
         clean_table_nickname = Account.clean_table_nickname(table_nickname)
 
-        if clean_table_nickname == account.table_nickname:
+        if clean_table_nickname != account.table_nickname and clean_table_nickname and len(clean_table_nickname) > 24:
+            raise ValueError("Display name cannot exceed 24 characters.")
+        chosen_badge = valid_badge(clean_table_nickname or account.username, badge_label if badge_label is not None else account.badge_label)
+        if clean_table_nickname == account.table_nickname and chosen_badge == account.badge_label:
             return account
 
         updated = Account(
@@ -136,6 +141,7 @@ class AccountService:
             created_at=account.created_at,
             updated_at=self._clock_ms(),
             table_nickname=clean_table_nickname,
+            badge_label=chosen_badge,
         )
         self._repository.save(updated)
         return updated

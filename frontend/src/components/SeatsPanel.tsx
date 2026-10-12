@@ -26,6 +26,7 @@ function getSeatPermissions({
     isHost,
     tableState,
     seatingBlocked = false,
+    allowUnseatedManagement = false,
 }: {
     claimed: boolean;
     isSelf: boolean;
@@ -33,6 +34,7 @@ function getSeatPermissions({
     isHost: boolean;
     tableState: TableState;
     seatingBlocked?: boolean;
+    allowUnseatedManagement?: boolean;
 }): SeatPermissions {
     const canClaimSeat =
         !seatingBlocked &&
@@ -41,7 +43,7 @@ function getSeatPermissions({
         (tableState === "open" || tableState === "game_blocked");
 
     const canUnassignSeat =
-        !seatingBlocked && claimed && (isSelf || (isHost && hasASeat));
+        !seatingBlocked && claimed && (isSelf || (isHost && (hasASeat || allowUnseatedManagement)));
 
     return {
         canClaimSeat,
@@ -64,6 +66,7 @@ type Props = {
     lockedSeatIndex?: number;
     showSeatActions?: boolean;
     seatingBlocked?: boolean;
+    allowUnseatedManagement?: boolean;
 };
 
 export default function SeatsPanel({
@@ -80,6 +83,7 @@ export default function SeatsPanel({
     lockedSeatIndex,
     showSeatActions = false,
     seatingBlocked = false,
+    allowUnseatedManagement = false,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
@@ -91,6 +95,7 @@ export default function SeatsPanel({
             isHost,
             tableState,
             seatingBlocked,
+            allowUnseatedManagement,
         });
         return canClaimSeat && (lockedSeatIndex === undefined || lockedSeatIndex === index)
 
@@ -175,6 +180,7 @@ export default function SeatsPanel({
                                 isHost,
                                 tableState,
                                 seatingBlocked,
+                                allowUnseatedManagement,
                             });
                             const canInteract = permissions.canInteract
                                 && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);

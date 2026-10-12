@@ -1,3 +1,4 @@
+from game_table.table.player_badge import valid_badge, validate_badge
 # backend/api/ws/table_ws.py
 
 import asyncio
@@ -309,6 +310,12 @@ def register_table_events(
                 rules=game_settings_provider.default_settings(),
             )
 
+            member = table_service.get_table(table_code).members[member_id]
+            requested_badge = data.get("badge_label")
+            if requested_badge is None and account_id and account_service is not None:
+                requested_badge = account_service.get_account(account_id).badge_label
+            member.badge_label = valid_badge(member.name, requested_badge)
+
             await _enter_table_room_and_broadcast(
                 sid,
                 table_code,
@@ -429,6 +436,12 @@ def register_table_events(
 
                 session_registry.remove_member_sessions(removed_member_id)
 
+            member = table_service.get_table(table_code).members[member_id]
+            requested_badge = data.get("badge_label")
+            if requested_badge is None and account_id and account_service is not None:
+                requested_badge = account_service.get_account(account_id).badge_label
+            member.badge_label = valid_badge(member.name, requested_badge)
+
             await _enter_table_room_and_broadcast(
                 sid,
                 table_code,
@@ -462,6 +475,30 @@ def register_table_events(
                 "table_code": table_code,
             }
 
+        except Exception as exc:
+            return _error_response(exc)
+
+    @sio.on("table:update_badge")
+    async def update_badge(sid, data):
+        try:
+            name = data["name"].strip()
+            label = validate_badge(name, data["badge_label"])
+            account_id, _ = _resolve_account_identity(data)
+            member_id = session_registry.get_or_create_member_id(sid)
+            try:
+                table_code = table_service.get_table_code_for_member(member_id)
+            except ValueError:
+                table_code = None
+            if table_code:
+                member = table_service.get_table(table_code).members[member_id]
+                if member.name != name:
+                    raise ValueError("Save your display name before choosing a badge.")
+            if account_id and account_service is not None:
+                account_service.update_table_nickname(account_id, name, label)
+            if table_code:
+                member.badge_label = label
+                await _broadcast_table_state_update(table_code)
+            return {"updated": True, "badge_label": label}
         except Exception as exc:
             return _error_response(exc)
 

@@ -87,6 +87,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
 
     const seats = table?.seats.map((memberId: string | null, index: number) => ({
         name: memberId ? table.members[memberId]?.name ?? null : null,
+        badge_label: memberId ? table.members[memberId]?.badge_label : undefined,
         ready: false,
         selectionMethod: table.seat_selection_methods?.[index],
         seatingOrder: table.seat_orders?.[index],
@@ -238,6 +239,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         initialLabels={seatInitialLabels}
                         playerIndex={playerIndex}
                         isHost={canManageSeats}
+                        allowUnseatedManagement={!!table.group_id && !table.active_game_id}
                         tableState={table.state}
                         showSeatActions={!table.active_game_id && !seatingBlocked}
                         seatingBlocked={seatingBlocked}

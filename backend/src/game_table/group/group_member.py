@@ -7,3 +7,4 @@ class GroupMember:
     account_id: str
     username: str
     table_nickname: str | None
+    badge_label: str | None = None

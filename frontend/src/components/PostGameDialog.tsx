@@ -8,7 +8,7 @@ import type { PostGameTeamPreference, PostGameTransitionView } from 'game-table/
 
 function DialogButton(props: ComponentProps<typeof Button>) {
     return <Button large rounded colors={{
-        fillBgIos: 'bg-ios-light-surface-variant active:bg-ios-light-surface dark:bg-ios-dark-surface-variant dark:active:bg-ios-dark-surface-1-tint',
+        fillBgIos: 'bg-ios-light-surface-variant active:bg-ios-light-surface dark:bg-ios-dark-surface-1-tint dark:active:bg-ios-dark-surface-variant',
         fillBgMaterial: 'bg-md-light-surface-variant dark:bg-md-dark-surface-variant',
         fillTextIos: 'text-black dark:text-white',
         fillTextMaterial: 'text-md-light-on-surface-variant dark:text-md-dark-on-surface-variant',

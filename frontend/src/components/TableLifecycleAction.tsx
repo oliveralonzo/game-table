@@ -8,7 +8,10 @@ import { useTable } from "game-table/context/TableState";
 import { canEndTableGame } from "game-table/utils/tablePermissions";
 import { useTableSocket } from "game-table/context/TableSocket";
 
-export default function TableLifecycleAction({ onBackToLobby }: { onBackToLobby?: () => void } = {}) {
+export default function TableLifecycleAction({ onBackToLobby, iconDirection = "right" }: {
+    onBackToLobby?: () => void;
+    iconDirection?: "left" | "right";
+} = {}) {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { state } = useTable();
@@ -78,7 +81,7 @@ export default function TableLifecycleAction({ onBackToLobby }: { onBackToLobby?
                 onClick={() => hasActions ? setIsOpen((open) => !open) : leave()}
                 className="h-full aspect-square px-0 text-black/65 transition-opacity hover:opacity-70 active:opacity-55 dark:text-white/70 [--color-ios-hover-highlight:transparent]"
             >
-                <LogOut size={20} strokeWidth={2} />
+                <LogOut size={20} strokeWidth={2} style={iconDirection === "left" ? { transform: "scaleX(-1)" } : undefined} />
             </Button>
         </Glass>
         {hasActions ? <Popover

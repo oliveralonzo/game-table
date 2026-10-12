@@ -30,7 +30,7 @@ class PostgresGroupRepository:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute('''
-                    SELECT a.id AS account_id, a.username, a.table_nickname
+                    SELECT a.id AS account_id, a.username, a.table_nickname, a.badge_label
                     FROM group_memberships m
                     JOIN accounts a ON a.id = m.account_id
                     JOIN groups g ON g.id = m.group_id

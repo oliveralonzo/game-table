@@ -70,18 +70,14 @@ export default function PlatformSettingsPanel({
                     {pane === "general" ? (
                         <>
                             {hasProfile && !gameSettingsNested ? (
-                                <section className="grid gap-2">
-                                    <h3 className="px-safe-4 text-xs font-semibold uppercase text-black/45 dark:text-white/45">
-                                        {t("table.label.profile")}
-                                    </h3>
                                     <NicknameSettings
+                                        heading={t("table.label.profile")}
                                         value={displayName}
                                         onDraftChange={onDisplayNameDraftChange}
                                         onChange={onDisplayNameChange}
                                         showGenerator={showDisplayNameGenerator}
                                         compact={compactProfile}
                                     />
-                                </section>
                             ) : null}
                             {gameSettings}
                             {showLanguage && !gameSettingsNested ? (
@@ -109,20 +105,14 @@ export default function PlatformSettingsPanel({
     return (
         <div className="grid min-w-0 gap-5">
             {showProfile && displayName !== undefined && onDisplayNameChange ? (
-                <section>
-                    {!compactProfile ? (
-                        <h2 className="mb-3 min-w-0 truncate px-safe-4 text-[22px] font-bold leading-tight tracking-normal text-black dark:text-white">
-                            {t("table.label.profile")}
-                        </h2>
-                    ) : null}
                     <NicknameSettings
+                        heading={t("table.label.profile")}
                         value={displayName}
                         onDraftChange={onDisplayNameDraftChange}
                         onChange={onDisplayNameChange}
                         showGenerator={showDisplayNameGenerator}
                         compact
                     />
-                </section>
             ) : null}
             {gameSettings}
             {showLanguage ? (

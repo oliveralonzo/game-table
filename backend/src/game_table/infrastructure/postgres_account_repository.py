@@ -76,15 +76,17 @@ class PostgresAccountRepository:
                         username,
                         username_key,
                         table_nickname,
+                        badge_label,
                         rating,
                         created_at,
                         updated_at
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         username = EXCLUDED.username,
                         username_key = EXCLUDED.username_key,
                         table_nickname = EXCLUDED.table_nickname,
+                        badge_label = EXCLUDED.badge_label,
                         rating = EXCLUDED.rating,
                         updated_at = EXCLUDED.updated_at
                     """,
@@ -95,6 +97,7 @@ class PostgresAccountRepository:
                         account.username,
                         Account.username_key(account.username),
                         account.table_nickname,
+                        account.badge_label,
                         account.rating,
                         account.created_at,
                         account.updated_at,
@@ -138,4 +141,5 @@ class PostgresAccountRepository:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             table_nickname=row.get("table_nickname"),
+            badge_label=row.get("badge_label"),
         )

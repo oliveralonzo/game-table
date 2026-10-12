@@ -23,6 +23,7 @@ export type TableState = "open" | "in_game" | "game_blocked";
 export interface TableMember {
     /** Display name chosen by the member. */
     name: string;
+    badge_label?: string | null;
 
     /** Durable account id when this member is signed in, otherwise null. */
     account_id?: string | null;

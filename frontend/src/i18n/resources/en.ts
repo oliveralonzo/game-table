@@ -229,7 +229,7 @@ export const en = {
             joiningTable: "Joining Table",
             creatingTable: "Creating Table",
             tableNotFoundCode: "Table {{code}} was not found.", tableNotFound: "Table not found",
-            nameRequired: "Name is required",
+            nameTooLong: "Display name cannot exceed {{count}} characters.", nameRequired: "Name is required",
             tableClosed: "Table {{code}} was closed.",
             tableRemoved: "Host removed you from the table.",
             tableReplaced: "You joined table {{code}} in another device.",
@@ -272,7 +272,7 @@ export const en = {
             chat: "Chat",
             settings: "Settings",
         },
-        action: {
+        action: { edit: "Edit", editProfile: "Edit display name and badge",
             copied: "Copied",
             done: "Done",
             invite: "Invite",
@@ -304,7 +304,7 @@ export const en = {
             profile: "Profile",
             general: "General",
             game: "Game",
-            displayName: "Display Name",
+            badge: "Badge", badgeOption: "Badge {{badge}}", displayName: "Display Name",
         },
         status: {
             comingSoon: "Coming soon",

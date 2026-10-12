@@ -79,6 +79,7 @@ def register_group_events(sio, account_service, group_service, auth_verifier, se
                 return {'group_id': group_id, 'members': [
                     {'account_id': member.account_id, 'username': member.username,
                      'name': member.table_nickname or member.username,
+                     'badge_label': member.badge_label,
                      'is_self': member.account_id == account.id}
                     for member in members
                 ]}

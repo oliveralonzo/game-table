@@ -46,6 +46,7 @@ class Account:
         created_at: int,
         updated_at: int,
         table_nickname: str | None = None,
+        badge_label: str | None = None,
     ):
         if not account_id or not account_id.strip():
             raise ValueError("Account ID is required.")
@@ -58,6 +59,7 @@ class Account:
         self._auth_subject = auth_subject.strip()
         self._username = self.clean_username(username)
         self._table_nickname = self.clean_table_nickname(table_nickname)
+        self.badge_label = badge_label
         self._rating = rating
         self._created_at = created_at
         self._updated_at = updated_at
@@ -101,6 +103,7 @@ class Account:
             "auth_subject": self._auth_subject,
             "username": self._username,
             "table_nickname": self._table_nickname,
+            "badge_label": self.badge_label,
             "rating": self._rating,
             "created_at": self._created_at,
             "updated_at": self._updated_at,

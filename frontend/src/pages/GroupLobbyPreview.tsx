@@ -16,6 +16,7 @@ import GroupSettingsPanel from "game-table/components/GroupSettingsPanel";
 import TableEventNotice from "game-table/components/TableEventNotice";
 import TableCards from "game-table/components/TableCards";
 import TableFrame from "game-table/components/TableFrame";
+import { buildInitialLabelsById } from "game-table/utils/playerInitialLabels";
 import LobbyRoster, { type RosterPerson } from "game-table/components/LobbyRoster";
 import Chat from "game-table/components/Chat";
 export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNameChange, groupId, groupName, groupMembers, tables, closingTables, closingPending, onTableClosed, onCreateTable, onEnterTable, onRemoveTable, creating, tableError }: {
@@ -46,10 +47,11 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     const { presence } = useGroupsCache();
     const activeMembers = presence?.group_id === groupId ? presence.active_members : [];
     const activeById = new Map(activeMembers.map(member => [member.account_id, member]));
+    const groupBadges = buildInitialLabelsById(groupMembers.map(member => ({ id: member.account_id, name: member.name, badge_label: member.badge_label })));
     const groupRoster: RosterPerson[] = groupMembers.map(member => {
         const active = activeById.get(member.account_id);
         return {
-            id: member.account_id, name: member.name, accountUsername: member.username,
+            id: member.account_id, name: member.name, initialLabel: groupBadges[member.account_id]?.label, accountUsername: member.username,
             isSelf: member.is_self, isHost: false, hasSeat: false,
             presence: active ? { active: true, label: active.table_code
                 ? t("groups.preview.table", { number: active.table_code })

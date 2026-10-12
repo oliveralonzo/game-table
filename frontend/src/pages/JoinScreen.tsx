@@ -28,6 +28,7 @@ import {
 import { encodeTableCodePath, normalizeTableCode } from "game-table/utils/tableRoute";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import PlatformSettingsPanel from "game-table/components/PlatformSettingsPanel";
+import { saveBadge } from "game-table/utils/playerInitialLabels";
 import NicknameSettings from "game-table/components/NicknameSettings";
 import { ArrowLeft, Settings } from "lucide-react";
 import {
@@ -258,6 +259,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                 }
 
                 const nickname = response.account.table_nickname ?? "";
+                if (response.account.badge_label) saveBadge(nickname || response.account.username, response.account.badge_label);
                 setAccountUsername(response.account.username);
                 requestedAccountNicknameRef.current = nickname.trim();
                 if (!hasEditedJoinNameRef.current) {
@@ -741,7 +743,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                             className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-[28px] p-4"
                         >
                             <PlatformSettingsPanel
-                                displayName={inputName}
+                                displayName={committedName}
                                 onDisplayNameDraftChange={handleDraftNameChange}
                                 onDisplayNameChange={commitNicknamePreference}
                                 routed
@@ -837,6 +839,9 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                     </div>
 
                                     <NicknameSettings
+                                        editRequested={hasNameError}
+                                        showDone={false}
+                                        generatorIcon
                                         value={committedName}
                                         onDraftChange={handleDraftNameChange}
                                         onChange={(
@@ -849,11 +854,6 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                         showGenerator={!accountUsername}
                                         compact
                                     />
-                                    {nameErrorKey && (
-                                        <span className="px-1 text-xs text-red-500">
-                                            {t(nameErrorKey)}
-                                        </span>
-                                    )}
                                 </div>
 	                            ) : (
 	                                <Segmented
@@ -982,7 +982,10 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                 </p>
                             )}
 
-                            <div className="flex justify-end">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="min-w-0 flex-1 px-1 text-xs text-red-500" role={nameErrorKey ? "alert" : undefined}>
+                                    {nameErrorKey ? t(nameErrorKey) : null}
+                                </span>
                                 <Button
                                     type="button"
                                     inline
@@ -990,7 +993,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
                                     disabled={!canSubmit || !!joiningCode}
                                     aria-disabled={!canSubmit || !!joiningCode}
                                     onClick={isCreateMode ? handleCreate : handleJoin}
-                                    className="h-11 px-4 font-semibold"
+                                    className="h-11 shrink-0 px-4 font-semibold"
                                 >
                                     {joiningCode === inputCode.trim() ? (
                                         <span className="inline-flex items-center justify-center">

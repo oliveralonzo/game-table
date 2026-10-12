@@ -348,6 +348,7 @@ class TableSessionService(Generic[RulesT]):
         members = {
             member_id: {
                 "name": member.name,
+                "badge_label": member.badge_label,
                 "account_id": member.account_id,
                 "account_username": member.account_username,
             }

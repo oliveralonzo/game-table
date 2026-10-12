@@ -229,7 +229,7 @@ export const es = {
             joiningTable: "Entrando a la Mesa",
             creatingTable: "Creando la Mesa",
             tableNotFoundCode: "No se encontró la mesa {{code}}.", tableNotFound: "Mesa no encontrada",
-            nameRequired: "El apodo es obligatorio",
+            nameTooLong: "El nombre no puede superar {{count}} caracteres.", nameRequired: "El apodo es obligatorio",
             tableClosed: "La mesa {{code}} fue cerrada.",
             tableRemoved: "El anfitrión te sacó de la mesa.",
             tableReplaced: "Entraste a la mesa {{code}} en otro dispositivo.",
@@ -272,7 +272,7 @@ export const es = {
             chat: "Chat",
             settings: "Configuracion",
         },
-        action: {
+        action: { edit: "Editar", editProfile: "Editar nombre e iniciales",
             copied: "Copiado",
             done: "Listo",
             invite: "Invitar",
@@ -304,7 +304,7 @@ export const es = {
             profile: "Perfil",
             general: "General",
             game: "Juego",
-            displayName: "Apodo",
+            badge: "Iniciales", badgeOption: "Iniciales {{badge}}", displayName: "Apodo",
         },
         status: {
             comingSoon: "Disponible pronto",

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     username TEXT NOT NULL,
     username_key TEXT NOT NULL,
     table_nickname TEXT,
+    badge_label TEXT,
     rating INTEGER,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL,

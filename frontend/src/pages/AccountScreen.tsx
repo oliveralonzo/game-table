@@ -1,5 +1,5 @@
 import { HistoryParticipantCell, formatHistoryDate } from "game-table/components/HistoryCells";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     SignIn,
     SignOutButton,
@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useSession } from "game-table/context/SessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { generateNickname } from "game-table/utils/nicknameGenerator";
-import { getNameInitials } from "game-table/utils/playerInitialLabels";
+import { getBadgeOptions, getSavedBadge, saveBadge, DISPLAY_NAME_MAX_LENGTH, getNameInitials } from "game-table/utils/playerInitialLabels";
 import PlayerRecordsScreen, {
     cachePlayerRecordsPage,
     getCachedPlayerRecordsPage,
@@ -32,6 +32,7 @@ type AccountView = {
     id: string;
     username: string;
     table_nickname: string | null;
+    badge_label?: string | null;
     rating: number | null;
 };
 
@@ -138,6 +139,8 @@ function AccountProfileSkeleton() {
                     <div className="h-4 w-24 rounded-full bg-ios-light-surface-2 dark:bg-ios-dark-surface-2" />
                 </div>
             </section>
+
+
 
             <section className="grid gap-2">
                 <div className="grid grid-cols-2 gap-2">
@@ -267,9 +270,32 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
         listPlayerRecords,
         renameUsername,
         updateAccountTableNickname,
+        updateBadge,
     } = useTableSocket();
     const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
     const [account, setAccount] = useState<AccountView | null>(null);
+    const pendingBadge = useRef<{ name: string; option: string } | null>(null);
+    const badgeSaving = useRef(false);
+    const confirmedBadge = useRef<string | null>(null);
+    const savePendingBadge = () => {
+        const request = pendingBadge.current;
+        if (!request || badgeSaving.current) return;
+        badgeSaving.current = true;
+        updateBadge(request.name, request.option, () => {
+            badgeSaving.current = false;
+            confirmedBadge.current = request.option;
+            saveBadge(request.name, request.option);
+            if (pendingBadge.current !== request) { savePendingBadge(); return; }
+            pendingBadge.current = null;
+            setStatus(null);
+        }, message => {
+            badgeSaving.current = false;
+            if (pendingBadge.current !== request) { savePendingBadge(); return; }
+            pendingBadge.current = null;
+            setAccount(current => current ? { ...current, badge_label: confirmedBadge.current } : current);
+            setStatus(message);
+        });
+    };
     const [username, setUsername] = useState("");
     const [usernameAvailability, setUsernameAvailability] =
         useState<UsernameAvailabilityState>({ status: "idle" });
@@ -910,7 +936,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
 	                                    aria-hidden="true"
 	                                    className="grid h-16 w-16 place-items-center rounded-full bg-white text-xl font-semibold tabular-nums text-black ring-1 ring-[#A97142] dark:bg-white dark:text-black dark:ring-[#A97142]"
 	                                >
-	                                    {getNameInitials(displayName || account.username, "?")}
+	                                    {getBadgeOptions(displayName || account.username).includes(account.badge_label ?? "") ? account.badge_label : getSavedBadge(displayName || account.username) ?? getNameInitials(displayName || account.username, "?")}
 	                                </div>
 	                                <div className="min-w-0 max-w-full">
 	                                    <div
@@ -927,6 +953,28 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
 	                                    </div>
 	                                </div>
 	                            </section>
+                                {isEditingName ? (
+                                <fieldset className="px-2">
+                                    <legend className="mb-2 text-xs font-medium text-black/45 dark:text-white/45">{t("table.label.badge")}</legend>
+                                    <div role="radiogroup" aria-label={t("table.label.badge")} className="flex flex-wrap gap-2">
+                                        {getBadgeOptions(displayName || account.username).map(option => {
+                                            const selected = account.badge_label ?? getSavedBadge(displayName || account.username) ?? getNameInitials(displayName || account.username);
+                                            return <button key={option} type="button" role="radio" aria-checked={selected === option}
+                                                aria-label={t("table.label.badgeOption", { badge: option })}
+                                                className={`grid h-10 min-w-10 place-items-center rounded-full px-2 text-sm font-medium ring-1 ${selected === option ? "bg-primary text-white ring-primary" : "bg-ios-light-surface-2 text-black ring-black/10 dark:bg-ios-dark-surface-2 dark:text-white dark:ring-white/15"}`}
+                                                onClick={() => {
+                                                    const name = displayName || account.username;
+                                                    if (!pendingBadge.current) confirmedBadge.current = selected;
+                                                    pendingBadge.current = { name, option };
+                                                    setAccount(current => current ? { ...current, badge_label: option } : current);
+                                                    setStatus(null);
+                                                    savePendingBadge();
+                                                }}>{option}</button>;
+                                        })}
+                                    </div>
+                                </fieldset>
+                                ) : null}
+
 
                                 <section className="grid gap-2">
                                     <div className="grid grid-cols-2 gap-2">
@@ -958,6 +1006,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                             <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                                                 <input
                                                     type="text"
+                                                    maxLength={DISPLAY_NAME_MAX_LENGTH}
                                                     value={displayNameDraft}
                                                     onChange={(event) => setDisplayNameDraft(event.target.value)}
                                                     placeholder={t("account.placeholder.nickname")}

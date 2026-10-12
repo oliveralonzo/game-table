@@ -1,3 +1,4 @@
+from game_table.table.player_badge import valid_badge, MAX_DISPLAY_NAME_LENGTH
 """
 Table class
 Author: Oliver Alonzo
@@ -173,6 +174,8 @@ class Table(Generic[RulesT]):
         clean_name = name.strip()
         if not clean_name:
             raise ValueError("Host name is required.")
+        if len(clean_name) > MAX_DISPLAY_NAME_LENGTH:
+            raise ValueError("Display name cannot exceed 24 characters.")
 
         host = Member(
             member_id=member_id,
@@ -255,6 +258,8 @@ class Table(Generic[RulesT]):
         clean_name = name.strip()
         if not clean_name:
             raise ValueError("Name is required.")
+        if len(clean_name) > MAX_DISPLAY_NAME_LENGTH:
+            raise ValueError("Display name cannot exceed 24 characters.")
 
         for m in self._members.values():
             if m.name.lower() == clean_name.lower():
@@ -390,6 +395,7 @@ class Table(Generic[RulesT]):
             account_id=account_id,
             account_username=account_username or old_member.account_username,
         )
+        self._members[new_member_id].badge_label = old_member.badge_label
         del self._members[old_member_id]
         self._member_session_identities.pop(old_member_id, None)
 
@@ -429,6 +435,8 @@ class Table(Generic[RulesT]):
         clean_name = name.strip()
         if not clean_name:
             raise ValueError("Name is required.")
+        if len(clean_name) > MAX_DISPLAY_NAME_LENGTH:
+            raise ValueError("Display name cannot exceed 24 characters.")
 
         for other_member_id, member in self._members.items():
             if other_member_id == member_id:
@@ -438,6 +446,7 @@ class Table(Generic[RulesT]):
                 raise ValueError("Name already taken.")
 
         self._members[member_id].name = clean_name
+        self._members[member_id].badge_label = valid_badge(clean_name, self._members[member_id].badge_label)
 
 
     def remove_member(self, member_id: str) -> None:
@@ -1206,6 +1215,7 @@ class Member:
     ):
         self.member_id = member_id
         self.name = name
+        self.badge_label = None
         self.account_id = account_id
         self.account_username = account_username
 

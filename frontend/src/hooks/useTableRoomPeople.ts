@@ -116,6 +116,7 @@ export function useTableRoomPeople({
     const memberInitialLabels = buildInitialLabelsById(Object.entries(members).map(([id, member]) => ({
         id,
         name: member.name,
+        badge_label: member.badge_label,
     })));
     const seatInitialLabels = seats.slice(0, seatCount).map((memberId) => (
         memberId ? memberInitialLabels[memberId]?.label ?? null : null
@@ -148,6 +149,7 @@ export function useTableRoomPeople({
             return {
                 id,
                 name: member.name,
+        badge_label: member.badge_label,
                 accountUsername: member.account_username,
                 winPercentage: member.account_id
                     ? statsByAccountId[member.account_id]?.winPercentage

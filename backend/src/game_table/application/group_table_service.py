@@ -135,7 +135,7 @@ class GroupTableService(TableSessionService):
             return
         if occupant != member_id:
             self._require_group_member(member_id)
-            if not any(seat.member_id == member_id for seat in table.seats):
+            if table.active_game_id is not None and not any(seat.member_id == member_id for seat in table.seats):
                 raise PermissionError('Spectators cannot unseat players.')
             table.request_unseat(seat_index, time.time(), member_id)
             return

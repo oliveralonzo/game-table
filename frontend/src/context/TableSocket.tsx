@@ -1,3 +1,4 @@
+import { getSavedBadge } from "game-table/utils/playerInitialLabels";
 import { routeInvitation } from "game-table/utils/tableRoute";
 import type { PostGameTeamPreference } from 'game-table/types/table';
 /**
@@ -43,7 +44,7 @@ export type GroupSummary = { id: string; public_id: string; name: string; member
 export type GroupTable = { instance_id: string; table_code: string; group_id: string; state: "open" | "in_game" | "game_blocked"; seat_count: number; seats: (string | null)[]; members: { member_id: string; name: string; account_username: string | null }[] };
 type GroupTablesAck = { group_id: string; tables: GroupTable[] } | BackendErrorAck;
 type CreateGroupTableAck = { table: GroupTable } | BackendErrorAck;
-export type GroupMember = { account_id: string; username: string; name: string; is_self: boolean };
+export type GroupMember = { account_id: string; username: string; name: string; badge_label?: string | null; is_self: boolean };
 type GroupMembersAck = { group_id: string; members: GroupMember[] } | BackendErrorAck;
 type GroupsAck = { groups: GroupSummary[] } | BackendErrorAck;
 
@@ -96,6 +97,7 @@ type AccountView = {
     auth_subject: string;
     username: string;
     table_nickname: string | null;
+    badge_label?: string | null;
     rating: number | null;
     created_at: number;
     updated_at: number;
@@ -240,6 +242,7 @@ type TableSocketAPI = {
         table_code: string,
         onResult?: (response: TableMembershipAck) => void
     ) => void;
+    updateBadge: (name: string, badgeLabel: string, onSuccess?: () => void, onError?: SocketErrorHandler) => void;
     updateName: (
         name: string,
         onSuccess?: () => void,
@@ -588,6 +591,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                     {
                         table_code,
                         name,
+                        badge_label: getSavedBadge(name),
                         ...(authToken ? { auth_token: authToken } : {}),
                     },
                     (response: CreateJoinAck) => {
@@ -651,6 +655,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                     {
                         table_code,
                         name,
+                        badge_label: getSavedBadge(name),
                         ...(expectedInstanceId ? { instance_id: expectedInstanceId } : {}),
                         ...invitation,
                         ...(authToken ? { auth_token: authToken } : {}),
@@ -744,6 +749,13 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
                 onResult?.(response);
             }
         );
+    }
+
+    function updateBadge(name: string, badgeLabel: string, onSuccess?: () => void, onError?: SocketErrorHandler) {
+        getAuthToken().then(authToken => emit("table:update_badge", { name, badge_label: badgeLabel, auth_token: authToken }, (response: any) => {
+            if (response?.updated) onSuccess?.();
+            else if (response?.error) onError?.(response.message, response.code);
+        })).catch(() => onError?.("Could not save badge. Try again."));
     }
 
     function updateName(
@@ -1109,6 +1121,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         resolveTableRouteEntry,
         checkTableMembership,
         updateName,
+        updateBadge,
         leaveTable,
         removeMember,
         transferHost,
