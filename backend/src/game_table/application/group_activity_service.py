@@ -137,7 +137,17 @@ class GroupActivityService:
             sides = []
             for index, count in enumerate(game['team_player_counts']):
                 team = sorted((p for p in participants if p['team_index'] == index), key=lambda p: p['account_id'])
-                side = [dict(username=p['username'], is_guest=p['group_participation'] != 'member') for p in team]
+                display_team = {p['seat_index']: dict(p) for p in team}
+                for snapshot in game.get('participant_snapshots', []):
+                    if snapshot['team_index'] == index:
+                        original = display_team.get(snapshot['seat_index'], {})
+                        display_team[snapshot['seat_index']] = dict(
+                            original, **snapshot, username=original.get('username'))
+                side = [dict(username=p.get('username'),
+                             **({'account_id': p.get('account_id'), 'display_name': p.get('display_name')}
+                                if 'display_name' in p else {}),
+                             is_guest=p.get('group_participation') != 'member')
+                        for p in sorted(display_team.values(), key=lambda p: p['seat_index'])]
                 forfeits = [p for p in game.get('forfeited_seats', []) if p['team_index'] == index]
                 side.extend(dict(username=None, is_guest=False, forfeited=True) for _ in forfeits)
                 side.extend(dict(username=None, is_guest=True) for _ in range(max(0, count - len(side))))

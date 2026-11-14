@@ -40,9 +40,10 @@ class PostgresHistoryRepository:
                         winning_team_index,
                         group_id,
                         started_at,
-                        forfeited_seats
+                        forfeited_seats,
+                        participant_snapshots
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (
@@ -56,6 +57,7 @@ class PostgresHistoryRepository:
                         game_history.group_id,
                         game_history.started_at,
                         Jsonb(game_history.forfeited_seats),
+                        Jsonb(game_history.participant_snapshots),
                     ),
                 )
 
@@ -115,6 +117,7 @@ class PostgresHistoryRepository:
                         game_history.team_scores,
                         game_history.team_player_counts,
                         game_history.forfeited_seats,
+                        game_history.participant_snapshots,
                         game_history.winning_team_index,
                         account_game_results.seat_index,
                         account_game_results.team_index,
@@ -152,6 +155,7 @@ class PostgresHistoryRepository:
                         game_history.team_scores,
                         game_history.team_player_counts,
                         game_history.forfeited_seats,
+                        game_history.participant_snapshots,
                         game_history.winning_team_index,
                         account_game_results.seat_index,
                         account_game_results.team_index,
@@ -450,6 +454,15 @@ class PostgresHistoryRepository:
     @staticmethod
     def _history_entry_from_row(row: dict[str, Any]) -> AccountHistoryEntry:
         participants = list(row.get("participants") or [])
+        by_seat = {p['seat_index']: p for p in participants}
+        for snapshot in row.get('participant_snapshots') or []:
+            if snapshot['seat_index'] == row['seat_index']:
+                continue
+            original = by_seat.get(snapshot['seat_index'], {})
+            by_seat[snapshot['seat_index']] = dict(
+                original, **snapshot, username=original.get('username'),
+                is_guest=snapshot.get('group_participation') == 'guest' or not snapshot.get('account_id'))
+        participants = list(by_seat.values())
         participants.extend(dict(p, account_id=None, username=None, forfeited=True)
                             for p in row.get("forfeited_seats") or [])
         team_index = row["team_index"]

@@ -3,8 +3,8 @@ import type { LeaderboardEntry } from "game-table/components/LeaderboardContent"
 export type GroupHighlight = { value: number | null; usernames: string[] };
 export type GroupHistoryEntry = {
     id: string; date: number; score: string;
-    winners: { username: string | null; is_guest: boolean; forfeited?: boolean }[];
-    others: { username: string | null; is_guest: boolean; forfeited?: boolean }[];
+    winners: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest: boolean; forfeited?: boolean }[];
+    others: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest: boolean; forfeited?: boolean }[];
 };
 export type GroupActivity = {
     group_id: string; season: string; current_season: string; seasons: string[];

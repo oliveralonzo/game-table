@@ -22,7 +22,7 @@ export function groupMonthLabel(language: string, season = new Date().toISOStrin
         .join("");
 }
 
-export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data?: GroupActivity }) {
+export function GroupStatsOverview({ onOpen, data, compact = false }: { onOpen?: () => void; data?: GroupActivity; compact?: boolean }) {
     const { t, i18n } = useTranslation();
     const highlights = ([
         ["best_percentage", "bestPercentage"], ["most_wins", "mostWins"],
@@ -45,7 +45,7 @@ export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data
         };
     });
     return <section className="mb-5" aria-label={t("groups.stats.title")}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className={`grid grid-cols-2 gap-3 ${compact ? "" : "lg:grid-cols-4"}`}>
             {highlights.map(item =>
                 <Card key={item.label} className="!m-0" contentWrap={false}>
                     <div className="px-4 py-3 space-y-2 sm:py-4 sm:space-y-3">{(item.records.length ? item.records : [item]).map((record, index) => <div key={index}>
@@ -128,7 +128,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="px-1 text-black/55 dark:text-white/55">{playerReference
             ? `@${selectedPlayer?.username ?? playerReference}`
-            : t("groups.stats.activity")}</p>
+            : t("groups.playMode.activity")}</p>
         <div ref={seasonRow} role="group" aria-label={t("groups.stats.seasons")}
             className="mt-4 mb-5 grid grid-flow-col auto-cols-max grid-rows-[auto_auto] gap-x-2 gap-y-1 overflow-x-auto py-1">
             <div className="row-span-2 grid grid-rows-subgrid">

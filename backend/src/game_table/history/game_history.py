@@ -21,6 +21,7 @@ class GameHistory:
         group_id: str | None = None,
         started_at: int | None = None,
         forfeited_seats: list[dict] | None = None,
+        participant_snapshots: list[dict] | None = None,
     ):
         if not history_id or not history_id.strip():
             raise ValueError("Game history ID is required.")
@@ -63,6 +64,7 @@ class GameHistory:
         if len({p['seat_index'] for p in forfeited_seats}) != len(forfeited_seats):
             raise ValueError("Forfeited seats must be unique.")
         self._forfeited_seats = [dict(p) for p in forfeited_seats]
+        self._participant_snapshots = [dict(p) for p in (participant_snapshots or [])]
         self._group_id = group_id
         self._started_at = started_at
         self._id = history_id.strip()
@@ -72,6 +74,10 @@ class GameHistory:
         self._team_scores = list(team_scores)
         self._team_player_counts = list(team_player_counts)
         self._winning_team_index = winning_team_index
+
+    @property
+    def participant_snapshots(self) -> list[dict]:
+        return [dict(p) for p in self._participant_snapshots]
 
     @property
     def forfeited_seats(self) -> list[dict]:
@@ -134,6 +140,7 @@ class GameHistory:
             **({"group_id": self._group_id} if self._group_id is not None else {}),
             **({"started_at": self._started_at} if self._started_at is not None else {}),
             **({"forfeited_seats": self.forfeited_seats} if self._forfeited_seats else {}),
+            **({"participant_snapshots": self.participant_snapshots} if self._participant_snapshots else {}),
             "id": self._id,
             "completed_at": self._completed_at,
             "table_code": self._table_code,

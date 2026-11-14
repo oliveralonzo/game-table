@@ -164,7 +164,8 @@ class TableSessionService(Generic[RulesT]):
         seat_index = self.get_seat_index_for_member(member_id)
         if seat_index is None:
             raise ValueError("Only seated players can participate in a game.")
-        return dict(member_id=member_id, account_id=table.members[member_id].account_id,
+        return dict(member_id=member_id, display_name=table.members[member_id].name,
+                    account_id=table.members[member_id].account_id,
                     seat_index=seat_index, identity=table.get_member_identity(member_id))
 
     def get_seat_account_participants(self, table_code: str) -> list[dict]:
@@ -179,6 +180,7 @@ class TableSessionService(Generic[RulesT]):
             participants.append({
                 "member_id": member.member_id,
                 "account_id": member.account_id,
+                "display_name": member.name,
                 "seat_index": seat.index,
             })
 

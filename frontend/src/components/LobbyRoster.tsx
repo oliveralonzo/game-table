@@ -19,7 +19,7 @@
  * - This component is presentational only. No store access, no actions.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
     Badge,
@@ -48,6 +48,7 @@ export type RosterPerson = {
     viewingHandNames?: string[];
     viewingHandPlayers?: Array<Pick<RosterPerson, 'id' | 'name' | 'initialLabel' | 'isHost' | 'hasSeat' | 'isSelf'>>;
     statusLabel?: string;
+    statusIndicator?: ReactNode;
     queuePosition?: number;
     presence?: { active: boolean; label: string };
 };
@@ -66,6 +67,7 @@ type Props = {
     people: RosterPerson[];
     seatCount?: number;
     title?: string | null;
+    subtitle?: ReactNode;
     flush?: boolean;
     className?: string;
     showSeatLocation?: boolean;
@@ -100,6 +102,7 @@ function getAvatarClass(person: RosterPerson): string {
 export default function LobbyRoster({
     people,
     title = "People in Lobby",
+    subtitle,
     flush = false,
     className = "",
     showSeatLocation = true,
@@ -226,6 +229,7 @@ export default function LobbyRoster({
                     {title}
                 </h2>
             )}
+            {subtitle && <p className="mb-3 px-safe-4 text-sm text-black/55 dark:text-white/55">{subtitle}</p>}
             <List
                 inset
                 nested={false}
@@ -397,6 +401,7 @@ export default function LobbyRoster({
                                         </div>
                                     ) : null}
                                 </div>
+                                {p.statusIndicator && <div className="flex shrink-0 items-center">{p.statusIndicator}</div>}
                                 {showTrailing && (
                                     <div className="flex shrink-0 items-center gap-1">
                                         {hasActions ? (

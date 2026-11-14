@@ -2,6 +2,8 @@ export const es = {
     groupTables: { create: "Crea una mesa de grupo" },
     privateTables: { groupsHaveTables: "Tus grupos tienen mesas abiertas.", viewGroups: "Ver grupos", statsNote: "Estas mesas no cuentan para las posiciones de grupos ni de la liga.", create: "Crea una mesa individual", subtitle: "Individuales", receivedCode: "¿Recibiste un código?", joinLink: "Únete a una mesa", joinByCode: "Unirse por código", remove: "Quitar {{code}} de mis mesas", unavailable: "No se pudo conectar con la mesa. Inténtalo de nuevo." },
     groups: {
+        tournaments: { start: "Iniciar torneo", awaitingAdmin: "Esperando al administrador", tournament: "Torneo", leave: "Salir del torneo", attendanceSummary: "{{yes}} sí, {{maybe}} quizás, {{no}} no", attendanceListSummary: "Asistencia: {{yes}} sí, {{maybe}} quizás", declinedCount_one: "{{count}} no asistirá", declinedCount_other: "{{count}} no asistirán", declinedStatus: "No asistirá", acceptedStatus: "Asistirá", tentativeStatus: "Quizás", "attendance": "Asistencia", "goingRoster": "Asistirán ({{count}})", "maybeRoster": "Quizás ({{count}})", "noResponses": "Todavía no hay respuestas de asistencia.", savingResponse: "Guardando respuesta…", "yourResponse": "¿Asistirás?", "maybeCount": "{{count}} quizás", "response": {"yes": "Sí", "maybe": "Quizás", "no": "No"}, planningToAttend: "Planeo asistir", intentError: "No se pudo actualizar tu intención de asistir. Inténtalo de nuevo.", attendanceUnknown: "— asistirán", attending_one: "{{count}} asistirá", attending_other: "{{count}} asistirán", startsIn: "Empieza en {{duration}}", awaitingStart: "Pendiente de inicio", localTime: "{{time}} ({{zone}})", open: "Abrir torneo del {{date}}", gameSettings: "Configuración de los juegos", "new": "Nuevo torneo", "cancel": "Cancelar", "createShort": "Crear", "back": "Atrás", "group": "Grupo", timeZone: "Zona horaria", games: "Juegos", configuration: "Configuración", openCalendar: "Abrir calendario", "upcoming": "Próximos", "empty": "No hay próximos torneos", "create": "Crear torneo", "date": "Fecha", "time": "Hora de inicio", "rulesNote": "Los cambios solo se aplican a este torneo.", "adminOnly": "Solo los administradores del grupo pueden crear torneos.", "loading": "Cargando…", "scheduled": "Programado", "loadError": "No se pudieron cargar los torneos.", "createError": "No se pudo crear el torneo. Inténtalo de nuevo.", "futureError": "Elige una fecha y hora futuras."},
+        playMode: { activity: "Actividad de la liga", "label": "Juego en grupo", "league": "Liga", "tournaments": "Torneos", "empty": "Todavía no hay torneos."},
         settings: { loadError: "No se pudieron cargar los ajustes del grupo.", saveError: "No se pudieron guardar los ajustes del grupo." },
         tables: { enterError: "No se pudo entrar a la mesa. Inténtalo de nuevo.", loadError: "No se pudieron actualizar las mesas.", closeError: "No se pudo cerrar la mesa. Puede que ya tenga participantes.", createError: "No se pudo crear la mesa. Inténtalo de nuevo." },
         roster: { active: "Activos", offline: "Desconectados", loadError: "No se pudieron cargar los miembros del grupo." },
@@ -139,7 +141,7 @@ export const es = {
             previous: "Página anterior",
             next: "Página siguiente",
             empty: "Los juegos completados con cuenta aparecerán aquí.",
-            forfeit: "Abandono", guestFallback: "Sin cuenta",
+            forfeit: "Abandono", guestFallback: "Invitado",
             noPartnerFallback: "Nadie",
             win: "Ganado",
             loss: "Perdido",

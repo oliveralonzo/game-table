@@ -6,7 +6,7 @@ import { generateNickname } from "game-table/utils/nicknameGenerator";
 import { backendErrorToJoinKey } from "game-table/i18n/backendErrors";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
-import { getBadgeOptions, getSavedBadge, saveBadge, DISPLAY_NAME_MAX_LENGTH, getNameInitials } from "game-table/utils/playerInitialLabels";
+import { getOrderedBadgeOptions, getBadgeOptions, getSavedBadge, saveBadge, DISPLAY_NAME_MAX_LENGTH, getNameInitials } from "game-table/utils/playerInitialLabels";
 
 export type NicknameChangeHandler = (
     name: string,
@@ -46,7 +46,7 @@ export default function NicknameSettings({
     const [draft, setDraft] = useState(value);
     const [editing, setEditing] = useState(editRequested || !value.trim());
     const options = getBadgeOptions(draft);
-    const visibleBadge = options.includes(badge) ? badge : options[0] ?? "?";
+    const visibleBadge = options.includes(badge) ? badge : getNameInitials(draft, "?");
     const [error, setError] = useState<string | null>(null);
     const latestDraftRef = useRef(draft);
     const latestValueRef = useRef(value);
@@ -203,7 +203,7 @@ export default function NicknameSettings({
             {options.length > 0 ? <fieldset className="min-w-0">
                 <legend className="mb-2 text-xs font-medium text-black/45 dark:text-white/45">{t("table.label.badge")}</legend>
                 <div role="radiogroup" aria-label={t("table.label.badge")} className="flex flex-wrap gap-2">
-                    {options.map(option => <button key={option} type="button" role="radio"
+                    {getOrderedBadgeOptions(draft, visibleBadge).map(option => <button key={option} type="button" role="radio"
                         aria-checked={visibleBadge === option} aria-label={t("table.label.badgeOption", { badge: option })}
                         className={`grid h-10 min-w-10 place-items-center rounded-full px-2 text-sm font-medium ring-1 ${visibleBadge === option ? "bg-primary text-white ring-primary" : "bg-ios-light-surface-2 text-black ring-black/10 dark:bg-ios-dark-surface-2 dark:text-white dark:ring-white/15"}`}
                         onMouseDown={event => event.preventDefault()}

@@ -25,7 +25,16 @@ export function getBadgeOptions(name?: string | null): string[] {
 }
 
 export function getNameInitials(name?: string | null, fallback = ""): string {
-    return getBadgeOptions(name)[0] ?? fallback;
+    const options = getBadgeOptions(name);
+    return options.find(label => Array.from(label).length === 2) ?? options[0] ?? fallback;
+}
+
+/** Keep the active choice first without changing the allowed options. */
+export function getOrderedBadgeOptions(name: string, selected?: string | null): string[] {
+    const options = getBadgeOptions(name);
+    const current = options.includes(selected ?? "") ? selected! : getNameInitials(name);
+    return [current, ...options.filter(option => option !== current)
+        .sort((a, b) => a.localeCompare(b))].filter(Boolean);
 }
 
 export function getSavedBadge(name: string): string | undefined {

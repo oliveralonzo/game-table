@@ -2,6 +2,8 @@ export const en = {
     groupTables: { create: "Create a group table" },
     privateTables: { groupsHaveTables: "Your groups have open tables.", viewGroups: "View groups", statsNote: "These tables don’t count toward group or league standings.", create: "Create an individual table", subtitle: "Individual", receivedCode: "Received a code?", joinLink: "Join a table", joinByCode: "Join by code", remove: "Remove {{code}} from my tables", unavailable: "Could not reach the table. Try again." },
     groups: {
+        tournaments: { start: "Start tournament", awaitingAdmin: "Waiting for an admin", tournament: "Tournament", leave: "Leave tournament", attendanceSummary: "{{yes}} yes, {{maybe}} maybe, {{no}} no", attendanceListSummary: "Attendance: {{yes}} yes, {{maybe}} maybe", declinedCount_one: "{{count}} not attending", declinedCount_other: "{{count}} not attending", declinedStatus: "Not attending", acceptedStatus: "Going", tentativeStatus: "Maybe", "attendance": "Attendance", "goingRoster": "Going ({{count}})", "maybeRoster": "Maybe ({{count}})", "noResponses": "No attendance responses yet.", savingResponse: "Saving response…", "yourResponse": "Attending?", "maybeCount": "{{count}} maybe", "response": {"yes": "Yes", "maybe": "Maybe", "no": "No"}, planningToAttend: "Planning to attend", intentError: "Couldn’t update attendance intent. Try again.", attendanceUnknown: "— planning to attend", attending_one: "{{count}} planning to attend", attending_other: "{{count}} planning to attend", startsIn: "Starts in {{duration}}", awaitingStart: "Awaiting start", localTime: "{{time}} ({{zone}})", open: "Open tournament on {{date}}", gameSettings: "Game settings", "new": "New tournament", "cancel": "Cancel", "createShort": "Create", "back": "Back", "group": "Group", timeZone: "Time zone", games: "Games", configuration: "Settings", openCalendar: "Open calendar", "upcoming": "Upcoming", "empty": "No upcoming tournaments", "create": "Create tournament", "date": "Date", "time": "Start time", "rulesNote": "Changes apply only to this tournament.", "adminOnly": "Only group admins can create tournaments.", "loading": "Loading…", "scheduled": "Scheduled", "loadError": "Couldn’t load tournaments.", "createError": "Couldn’t create the tournament. Try again.", "futureError": "Choose a date and time in the future."},
+        playMode: { activity: "League activity", "label": "Group play", "league": "League", "tournaments": "Tournaments", "empty": "No tournaments yet."},
         settings: { loadError: "Could not load group settings.", saveError: "Could not save group settings." },
         tables: { enterError: "Couldn’t enter the table. Try again.", loadError: "Couldn’t refresh the tables.", closeError: "Could not close the table. It may now have participants.", createError: "Couldn’t create the table. Try again." },
         roster: { active: "Active", offline: "Offline", loadError: "Couldn’t load group members." },
@@ -139,7 +141,7 @@ export const en = {
             previous: "Previous page",
             next: "Next page",
             empty: "Completed signed-in games will appear here.",
-            forfeit: "Forfeit", guestFallback: "Not signed in",
+            forfeit: "Forfeit", guestFallback: "Guest",
             noPartnerFallback: "None",
             win: "Win",
             loss: "Loss",

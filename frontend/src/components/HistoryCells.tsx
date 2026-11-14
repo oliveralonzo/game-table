@@ -10,7 +10,7 @@ export function formatHistoryDate(timestamp: number, language: string, timeZone?
 }
 
 function formatParticipants(
-    participants: { username: string | null; is_guest?: boolean; forfeited?: boolean }[],
+    participants: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest?: boolean; forfeited?: boolean }[],
     fallback: string,
     guestLabel: string | undefined,
     forfeitLabel: string
@@ -23,10 +23,13 @@ function formatParticipants(
     }
 
     return {
-        text: participants.map(participant => participant.forfeited ? forfeitLabel : participant.username
-            ? `@${participant.username}${participant.is_guest && guestLabel ? ` (${guestLabel})` : ""}`
-            : fallback).join(", "),
-        isPlaceholder: participants.every(participant => !participant.username),
+        text: participants.map(participant => {
+            if (participant.forfeited) return forfeitLabel;
+            const name = participant.display_name || (participant.username ? `@${participant.username}` : "");
+            if (!name) return fallback;
+            return `${name}${(participant.is_guest || (!participant.account_id && !participant.username)) ? ` (${guestLabel || fallback})` : ""}`;
+        }).join(", "),
+        isPlaceholder: participants.every(participant => !participant.username && !participant.display_name),
     };
 }
 
@@ -35,7 +38,7 @@ export function HistoryParticipantCell({
     fallback,
     guestLabel,
 }: {
-    participants: { username: string | null; is_guest?: boolean; forfeited?: boolean }[];
+    participants: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest?: boolean; forfeited?: boolean }[];
     fallback: string;
     guestLabel?: string;
 }) {

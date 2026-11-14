@@ -9,9 +9,10 @@ import { useGroupActivity } from "game-table/hooks/useGroupActivity";
 import { useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Button, Glass } from "konsta/react";
+import { Button, Glass, Segmented, SegmentedButton } from "konsta/react";
 import { LogOut } from "lucide-react";
 import GroupStatsPreview, { GroupStatsOverview, groupMonthLabel } from "game-table/components/GroupStatsPreview";
+import GroupTournaments from "game-table/components/GroupTournaments";
 import GroupSettingsPanel from "game-table/components/GroupSettingsPanel";
 import TableEventNotice from "game-table/components/TableEventNotice";
 import TableCards from "game-table/components/TableCards";
@@ -26,7 +27,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     onCreateTable: () => void; onEnterTable: (code: string) => void; onRemoveTable: (table: GroupTable) => void;
     creating: boolean; tableError: string | null;
 }) {
-    const { groupPublicId } = useParams();
+    const { groupPublicId, tournamentId } = useParams();
     const groupUrl = `/g/${encodeURIComponent(groupPublicId ?? "")}`;
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
@@ -34,6 +35,8 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     const returnToGame = typeof location.state?.returnToGame === "string"
         && /^\/[^/]+$/.test(location.state.returnToGame)
         ? location.state.returnToGame : null;
+    const [playMode, setPlayMode] = useState<"league" | "tournaments">(location.state?.groupPlayMode === "tournaments" || tournamentId ? "tournaments" : "league");
+    const isTournamentContext = !!tournamentId && tournamentId !== "new";
     const showingStats = location.pathname.endsWith("/activity");
     const activity = useGroupActivity(groupId, "current", 1, !showingStats);
     const self = groupMembers.find(member => member.is_self);
@@ -71,13 +74,15 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
             visibleTables.push(table);
         }
     }
-    return <TableFrame fixedChrome key={room} memberCount={memberCount}
+    return <TableFrame fixedChrome key={isTournamentContext ? `${room}:tournament:${tournamentId}` : room} memberCount={memberCount}
         chatUnreadCount={chatUnreadCount} onActiveToolChange={setActiveTool} reactions={[]} onEmitReaction={() => {}}
-        onRemoveReaction={() => {}} showReactions={false} mainClassName="w-full max-w-3xl pb-24"
+        onRemoveReaction={() => {}} showReactions={false} mainClassName={`w-full ${showingStats ? "max-w-3xl" : "max-w-md"} pb-24`}
         lifecycleAction={<Glass highlight={false} className="h-11 rounded-full">
             <Button clear rounded inline className="h-11 w-11 !px-0 !text-black/65 dark:!text-white/70"
-                aria-label={t("groups.preview.exit")}
-                onClick={() => navigate("/", { state: { homeTab: "groups" } })}><LogOut size={20} /></Button>
+                aria-label={t(isTournamentContext ? "groups.tournaments.leave" : "groups.preview.exit")}
+                onClick={() => isTournamentContext
+                    ? navigate(groupUrl, { state: { groupPlayMode: "tournaments" } })
+                    : navigate("/", { state: { homeTab: "groups" } })}><LogOut size={20} /></Button>
         </Glass>}
         renderToolContent={(tool) => tool === "people" ? <section className="min-h-0 overflow-y-auto pb-3">
             <p className="mb-3 px-safe-4 text-sm text-black/55 dark:text-white/55">{t("groups.members", { count: groupMembers.length })}</p>
@@ -90,9 +95,14 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
             chatDraft={chatDraft} setChatDraft={setChatDraft} onSendChat={handleSendChat} /> : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
     >
         {showingStats ? <GroupStatsPreview backToTable={!!returnToGame} groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
-        <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
+        {!isTournamentContext && <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>}
+        {(!tournamentId || tournamentId === "new") && <Segmented strong rounded className="my-5 w-full" aria-label={t("groups.playMode.label")}>
+            <SegmentedButton type="button" active={playMode === "league"} aria-pressed={playMode === "league"} onClick={() => setPlayMode("league")}>{t("groups.playMode.league")}</SegmentedButton>
+            <SegmentedButton type="button" active={playMode === "tournaments"} aria-pressed={playMode === "tournaments"} onClick={() => setPlayMode("tournaments")}>{t("groups.playMode.tournaments")}</SegmentedButton>
+        </Segmented>}
+        {!tournamentId && playMode === "league" ? <>
         <p className="mb-5 px-1 text-black/55 dark:text-white/55">{groupMonthLabel(i18n.language, activity.data?.current_season)}</p>
-            <GroupStatsOverview data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />
+            <GroupStatsOverview compact data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />
             {activity.error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{activity.error} <Button inline clear onClick={activity.retry}>{t("groups.list.retry")}</Button></p>}
             <h2 className="mb-3 px-1 text-[22px] font-bold">{t("navigation.tables")}</h2>
             {tableError && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{tableError}</p>}
@@ -101,8 +111,9 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
                 isClosing={table => !!closingTables[table.table_code] && !closingPending.includes(table.table_code)} onClosed={table => onTableClosed(table.table_code)}
                 onEnter={table => onEnterTable(table.table_code)} onRemove={onRemoveTable} canRemove={table => table.members.length === 0}
                 removeLabel={t("table.action.closeTable")} creating={creating} onCreate={onCreateTable}
-                className="sm:grid-cols-3 sm:gap-4" />
+                className="sm:grid-cols-2 sm:gap-4" />
             <div className="flex justify-center"><TableEventNotice groupId={groupId} /></div>
+        </> : <GroupTournaments groupMembers={groupMembers} groupName={groupName} groupId={groupId} groupUrl={groupUrl} gamePlugin={gamePlugin} />}
         </>}
     </TableFrame>;
 }

@@ -457,3 +457,20 @@ def test_opponents_ahead_highlight_uses_exact_fraction(same_fraction):
     highlight = service(Repository(games)).read('owner', 'g')['highlights']['head_to_head']
     assert highlight['usernames'] == expected
     assert highlight['value'] == value
+
+
+def test_display_snapshots_preserve_signed_in_and_signed_out_guests_without_member_credit():
+    value = game(guest=True)
+    value['participants'] = [p for p in value['participants'] if p['account_id'] != 'd']
+    value['participant_snapshots'] = [
+        dict(account_id='b', display_name='Jonathan', seat_index=2, team_index=0, group_participation='guest'),
+        dict(account_id=None, display_name='El Chepe', seat_index=3, team_index=1, group_participation='guest'),
+    ]
+    result = service(Repository([value])).read('owner', 'g')
+    entry = result['history']['entries'][0]
+    assert entry['winners'][1] == dict(username='b', account_id='b', display_name='Jonathan', is_guest=True)
+    assert entry['others'][1] == dict(username=None, account_id=None, display_name='El Chepe', is_guest=True)
+    assert not result['teams']
+    players = {p['account_id']: p for p in result['players']}
+    assert players['b']['games_played'] == 0
+    assert players['d']['games_played'] == 0

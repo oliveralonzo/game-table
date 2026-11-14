@@ -54,6 +54,13 @@ class GameHistoryRecorder:
             winning_team_index=result["winning_team_index"],
             account_participants=account_participants,
             forfeited_seats=forfeited_seats,
+            participant_snapshots=[
+                dict(account_id=p.get('account_id'), display_name=p.get('display_name'),
+                     seat_index=p['seat_index'], team_index=result['seat_team_indices'][p['seat_index']],
+                     group_participation=p.get('group_participation'))
+                for p in seat_account_participants
+                if not p.get('forfeited') and p['seat_index'] in result['seat_team_indices']
+            ],
         )
         if game_id is not None:
             self._recorded_game_ids.add(game_id)

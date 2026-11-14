@@ -295,6 +295,7 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
                 <Routes>
                   <Route path="/" element={<AppContent gamePlugin={gamePlugin} />} />
                   <Route path="/g/:groupPublicId" element={<AppContent gamePlugin={gamePlugin} />} />
+                  <Route path="/g/:groupPublicId/tournaments/:tournamentId" element={<AppContent gamePlugin={gamePlugin} />} />
                   <Route path="/g/:groupPublicId/activity" element={<AppContent gamePlugin={gamePlugin} />} />
                   <Route path="/:code" element={<AppContent gamePlugin={gamePlugin} />} />
                 </Routes>

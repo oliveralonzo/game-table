@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useSession } from "game-table/context/SessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { generateNickname } from "game-table/utils/nicknameGenerator";
-import { getBadgeOptions, getSavedBadge, saveBadge, DISPLAY_NAME_MAX_LENGTH, getNameInitials } from "game-table/utils/playerInitialLabels";
+import { getOrderedBadgeOptions, getBadgeOptions, getSavedBadge, saveBadge, DISPLAY_NAME_MAX_LENGTH, getNameInitials } from "game-table/utils/playerInitialLabels";
 import PlayerRecordsScreen, {
     cachePlayerRecordsPage,
     getCachedPlayerRecordsPage,
@@ -68,6 +68,8 @@ type AccountHistoryEntry = {
 type AccountHistoryParticipant = {
     account_id: string | null;
     username: string | null;
+    display_name?: string | null;
+    is_guest?: boolean;
     forfeited?: boolean;
     seat_index: number;
     team_index: number;
@@ -957,7 +959,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                 <fieldset className="px-2">
                                     <legend className="mb-2 text-xs font-medium text-black/45 dark:text-white/45">{t("table.label.badge")}</legend>
                                     <div role="radiogroup" aria-label={t("table.label.badge")} className="flex flex-wrap gap-2">
-                                        {getBadgeOptions(displayName || account.username).map(option => {
+                                        {getOrderedBadgeOptions(displayName || account.username, account.badge_label ?? getSavedBadge(displayName || account.username)).map(option => {
                                             const selected = account.badge_label ?? getSavedBadge(displayName || account.username) ?? getNameInitials(displayName || account.username);
                                             return <button key={option} type="button" role="radio" aria-checked={selected === option}
                                                 aria-label={t("table.label.badgeOption", { badge: option })}
