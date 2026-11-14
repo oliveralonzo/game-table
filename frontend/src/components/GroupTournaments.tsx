@@ -90,21 +90,19 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
         if (isCreating) return;
         const update = () => setNow(Date.now());
         update();
-        const timer = window.setInterval(update, 10000);
+        const timer = window.setInterval(update, 1000);
         window.addEventListener("focus", update);
         return () => { window.clearInterval(timer); window.removeEventListener("focus", update); };
     }, [isCreating]);
     const countdown = (scheduledAt: number) => {
         if (scheduledAt <= now) return t("groups.tournaments.awaitingStart");
-        const minutes = Math.ceil((scheduledAt - now) / 60000);
-        const parts = [
-            ["day", Math.floor(minutes / 1440)],
-            ["hour", Math.floor(minutes % 1440 / 60)],
-            ["minute", minutes % 60],
-        ] as const;
-        const duration = parts.filter(([, value]) => value > 0).map(([unit, value]) =>
-            new Intl.NumberFormat(i18n.language, { style: "unit", unit, unitDisplay: "narrow" }).format(value)
-        ).join(" ");
+        const remaining = scheduledAt - now;
+        const [unit, milliseconds] = remaining >= 86_400_000 ? ["day", 86_400_000]
+            : remaining >= 3_600_000 ? ["hour", 3_600_000]
+            : remaining >= 60_000 ? ["minute", 60_000]
+            : ["second", 1_000];
+        const duration = new Intl.NumberFormat(i18n.language, { style: "unit", unit, unitDisplay: "narrow" })
+            .format(Math.max(1, Math.floor(remaining / milliseconds)));
         return t("groups.tournaments.startsIn", { duration });
     };
     const request = useCallback(async <T,>(event: string, data: object = {}): Promise<T> => {
