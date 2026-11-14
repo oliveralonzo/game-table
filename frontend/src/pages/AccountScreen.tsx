@@ -1,4 +1,4 @@
-import { HistoryParticipantCell, formatHistoryDate } from "game-table/components/HistoryCells";
+import { HistoryParticipantCell, formatRatingChange, type RatingChanges, formatHistoryDate } from "game-table/components/HistoryCells";
 import { useEffect, useRef, useState } from "react";
 import {
     SignIn,
@@ -50,6 +50,7 @@ type AccountAck =
 
 type AccountHistoryEntry = {
     game_history_id: string;
+    rating_changes?: RatingChanges;
     completed_at: number;
     table_code: string;
     rounds_played: number;
@@ -264,6 +265,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
     const { user } = useUser();
     const { displayName, setDisplayName } = useSession();
     const {
+        emit,
         checkUsernameAvailability,
         createAccount,
         deleteAccount,
@@ -276,6 +278,18 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
     } = useTableSocket();
     const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
     const [account, setAccount] = useState<AccountView | null>(null);
+    const [ratingProfile, setRatingProfile] = useState<{ rating: number; reliability: number } | null>(null);
+    const ratingUsername = account?.username;
+    useEffect(() => {
+        setRatingProfile(null);
+        if (!ratingUsername) return;
+        let current = true;
+        emit("domino:rating_profiles", { usernames: [ratingUsername] },
+            (result: { profiles?: Record<string, { rating: number; reliability: number }> }) => {
+                if (current) setRatingProfile(result.profiles?.[ratingUsername] ?? null);
+            });
+        return () => { current = false; };
+    }, [emit, ratingUsername]);
     const pendingBadge = useRef<{ name: string; option: string } | null>(null);
     const badgeSaving = useRef(false);
     const confirmedBadge = useRef<string | null>(null);
@@ -858,6 +872,9 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                                                 }`}
                                                         >
                                                             {entry.won ? t("account.history.win") : t("account.history.loss")}
+                                                            {account && entry.rating_changes?.[account.id] && (
+                                                                <span className="ml-2 tabular-nums">{formatRatingChange(entry.rating_changes[account.id], i18n.language)}</span>
+                                                            )}
                                                         </div>
                                                         </TableCell>
                                                         <TableCell className="whitespace-nowrap !pl-2 !pr-6 text-right font-semibold tabular-nums text-black dark:text-white">
@@ -866,6 +883,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                                         <TableCell className="whitespace-nowrap !pl-2 !pr-6">
                                                             <HistoryParticipantCell
                                                                 participants={entry.teammates}
+                                                                ratingChanges={entry.rating_changes}
                                                                 fallback={
                                                                     entry.team_player_count === 1
                                                                         ? t("account.history.noPartnerFallback")
@@ -876,6 +894,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                                         <TableCell className="whitespace-nowrap !pl-2 !pr-6">
                                                             <HistoryParticipantCell
                                                                 participants={entry.opponents}
+                                                                ratingChanges={entry.rating_changes}
                                                                 fallback={t("account.history.guestFallback")}
                                                             />
                                                         </TableCell>
@@ -1089,6 +1108,18 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                         {t("account.action.signOut")}
                                     </Button>
                                 </SignOutButton>
+
+                                {ratingProfile && (
+                                    <section className="grid gap-2">
+                                        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-black/35 dark:text-white/35">
+                                            {t("table.label.rating")}
+                                        </h2>
+                                        <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
+                                            <span className="text-2xl font-semibold tabular-nums">{ratingProfile.rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+                                            <span className="ml-2 text-sm opacity-60">({t("table.label.ratingReliability", { percent: ratingProfile.reliability })})</span>
+                                        </div>
+                                    </section>
+                                )}
 
                                 <section className="grid gap-2">
                                     <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-black/35 dark:text-white/35">

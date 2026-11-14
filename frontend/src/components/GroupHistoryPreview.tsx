@@ -2,7 +2,7 @@ import type { GroupActivity } from "game-table/types/groupActivity";
 import { useTranslation } from "react-i18next";
 import { Button, Table, TableBody, TableCell, TableHead, TableRow } from "konsta/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { HistoryParticipantCell, formatHistoryDate } from "game-table/components/HistoryCells";
+import { HistoryParticipantCell, type RatingChanges, formatHistoryDate } from "game-table/components/HistoryCells";
 
 const PAGE_SIZE = 10;
 export default function GroupHistoryPreview({ data, loading, onPageChange }: {
@@ -29,8 +29,8 @@ export default function GroupHistoryPreview({ data, loading, onPageChange }: {
                     <TableCell header scope="col" className="whitespace-nowrap !px-3 !text-right">{t("account.history.column.date")}{timeZoneLabel ? ` (${timeZoneLabel})` : ""}</TableCell>
                 </TableRow></TableHead>
                 <TableBody>{visibleGames.map(game => <TableRow key={game.id}>
-                    <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.winners} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
-                    <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.others} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
+                    <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.winners} ratingChanges={(game as typeof game & { rating_changes?: RatingChanges }).rating_changes} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
+                    <TableCell className="whitespace-nowrap !px-3 !text-left"><HistoryParticipantCell participants={game.others} ratingChanges={(game as typeof game & { rating_changes?: RatingChanges }).rating_changes} guestLabel={t("account.history.guestFallback")} fallback={t("account.history.guestFallback")} /></TableCell>
                     <TableCell className="whitespace-nowrap !px-3 text-right font-semibold tabular-nums">{game.score}</TableCell>
                     <TableCell className="whitespace-nowrap !px-3 text-right text-xs text-black/45 dark:text-white/45">{formatHistoryDate(game.date, i18n.language)}</TableCell>
                 </TableRow>)}

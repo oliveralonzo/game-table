@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTableSocket } from "game-table/context/TableSocket";
 import { createPortal } from "react-dom";
 import {
     Badge,
@@ -28,7 +29,7 @@ import {
     List,
     ListItem,
 } from "konsta/react";
-import { ChartNoAxesColumn, Circle, Eye, Flame, MoreHorizontal } from "lucide-react";
+import { Circle, Eye, Flame, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
@@ -109,7 +110,23 @@ export default function LobbyRoster({
     showHandViewStatus = false,
     getActions,
 }: Props) {
-    const { t } = useTranslation();
+    const { emit } = useTableSocket();
+    const [ratings, setRatings] = useState<Record<string, { rating: number }>>({});
+    const usernameKey = JSON.stringify([...new Set(people.flatMap(person =>
+        person.accountUsername ? [person.accountUsername] : []))].sort());
+    useEffect(() => {
+        const usernames: string[] = JSON.parse(usernameKey);
+        let current = true;
+        for (let offset = 0; offset < usernames.length; offset += 100) {
+            emit("domino:rating_profiles", { usernames: usernames.slice(offset, offset + 100) },
+                (result: { profiles?: Record<string, { rating: number }> }) => {
+                    if (current && result.profiles) setRatings(previous => ({ ...previous, ...result.profiles }));
+                });
+        }
+        return () => { current = false; };
+    }, [emit, usernameKey]);
+
+    const { t, i18n } = useTranslation();
     const [openActionId, setOpenActionId] = useState<string | null>(null);
     const [actionMenuPosition, setActionMenuPosition] = useState<{
         top: number;
@@ -353,22 +370,6 @@ export default function LobbyRoster({
 	                                                        <span className="min-w-0 truncate font-medium text-black/40 dark:text-white/45">
 	                                                            {accountUsernameLabel}
 	                                                        </span>
-	                                                        {p.winPercentage !== undefined ? (
-	                                                            <span
-	                                                                className="inline-flex items-center gap-1 font-medium tabular-nums text-black/40 dark:text-white/45"
-	                                                                title={t("table.roster.winPercentageLabel", {
-	                                                                    percentage: Math.round(p.winPercentage * 100),
-	                                                                })}
-	                                                                aria-label={t("table.roster.winPercentageLabel", {
-	                                                                    percentage: Math.round(p.winPercentage * 100),
-	                                                                })}
-	                                                            >
-	                                                                <ChartNoAxesColumn aria-hidden="true" size={13} strokeWidth={2.2} />
-	                                                                {t("table.roster.winPercentage", {
-	                                                                    percentage: Math.round(p.winPercentage * 100),
-	                                                                })}
-	                                                            </span>
-	                                                        ) : null}
 	                                                        {p.winStreak !== undefined && p.winStreak >= 2 ? (
 	                                                            <span
 	                                                                className="inline-flex items-center gap-0.5 font-medium tabular-nums text-black/40 dark:text-white/45"
@@ -401,6 +402,12 @@ export default function LobbyRoster({
                                         </div>
                                     ) : null}
                                 </div>
+                                {p.accountUsername && ratings[p.accountUsername] && (
+                                    <span className="shrink-0 tabular-nums"
+                                        aria-label={t("table.label.playerRating", { rating: ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}>
+                                        {ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    </span>
+                                )}
                                 {p.statusIndicator && <div className="flex shrink-0 items-center">{p.statusIndicator}</div>}
                                 {showTrailing && (
                                     <div className="flex shrink-0 items-center gap-1">
