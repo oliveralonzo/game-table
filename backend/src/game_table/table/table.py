@@ -390,6 +390,10 @@ class Table(Generic[RulesT]):
             self.unseat_cooldowns[new_member_id] = self.unseat_cooldowns.pop(old_member_id)
         if self.end_game_confirmation is not None:
             self.end_game_confirmation.replace_player(old_member_id, new_member_id)
+        if self.start_game_confirmation is not None:
+            self.start_game_confirmation.replace_player(old_member_id, new_member_id)
+        if self.start_game_requester == old_member_id:
+            self.start_game_requester = new_member_id
         self._player_queue.replace(old_member_id, new_member_id)
         if self._post_game_transition is not None:
             self._post_game_transition.replace_player(old_member_id, new_member_id)

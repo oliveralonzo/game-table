@@ -34,7 +34,8 @@ class EndGameConfirmation:
 
     def replace_player(self, old, new):
         if old in self.responses:
-            self.responses[new] = self.responses.pop(old)
+            self.responses = {new if player == old else player: vote
+                              for player, vote in self.responses.items()}
 
     def snapshot(self):
         return {'id': self.id, 'game_id': self.game_id, 'deadline': self.deadline,

@@ -31,7 +31,7 @@ import {
     List,
     ListItem,
 } from "konsta/react";
-import { Circle, Eye, Flame, MoreHorizontal } from "lucide-react";
+import { Circle, Eye, Flame, ChartNoAxesColumnIncreasing, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
@@ -133,7 +133,7 @@ export default function LobbyRoster({
         return () => { current = false; };
     }, [emit, usernameKey, showRatings]);
 
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const [openActionId, setOpenActionId] = useState<string | null>(null);
     const [actionMenuPosition, setActionMenuPosition] = useState<{
         top: number;
@@ -333,6 +333,15 @@ export default function LobbyRoster({
                     const accountUsernameLabel = p.accountUsername
                         ? `@${p.accountUsername}`
                         : null;
+                    const rating = p.accountUsername ? ratings[p.accountUsername]?.rating : undefined;
+                    const ratingLabel = rating?.toFixed(0);
+                    const ratingBadge = showRatings && accountUsernameLabel && (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-normal tabular-nums opacity-80"
+                            aria-label={ratingLabel ? t("table.label.playerRating", { rating: ratingLabel }) : t("table.label.unrated")}>
+                            <ChartNoAxesColumnIncreasing size={12} aria-hidden="true" />
+                            {ratingLabel ?? "—"}
+                        </span>
+                    );
                     const showSubtitleRow = !!p.statusLabel || showSeatLocation || showHandViewStatus || !!accountUsernameLabel || !!p.presence;
 
                     return (
@@ -369,6 +378,7 @@ export default function LobbyRoster({
 	                                            <span className={`inline-flex w-full min-w-0 items-center gap-x-2 ${p.statusLabel ? "flex-nowrap" : "flex-wrap gap-y-1"}`}>
 	                                                {p.statusLabel && accountUsernameLabel ? <>
                                                     <span className="min-w-0 truncate font-medium" title={accountUsernameLabel}>{accountUsernameLabel}</span>
+                                                    {ratingBadge}
                                                     <span aria-hidden="true" className="shrink-0">·</span>
                                                 </> : null}
                                                 {p.statusLabel ? <span className="shrink-0 whitespace-nowrap">{p.statusLabel}</span> : null}
@@ -377,6 +387,7 @@ export default function LobbyRoster({
 	                                                        <span className="min-w-0 truncate font-medium text-black/40 dark:text-white/45">
 	                                                            {accountUsernameLabel}
 	                                                        </span>
+                                                        {ratingBadge}
 	                                                        {p.winStreak !== undefined && p.winStreak >= 2 ? (
 	                                                            <span
 	                                                                className="inline-flex items-center gap-0.5 font-medium tabular-nums text-black/40 dark:text-white/45"
@@ -409,12 +420,6 @@ export default function LobbyRoster({
                                         </div>
                                     ) : null}
                                 </div>
-                                {showRatings && p.accountUsername && ratings[p.accountUsername] && (
-                                    <span className="shrink-0 tabular-nums"
-                                        aria-label={t("table.label.playerRating", { rating: ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}>
-                                        {ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                    </span>
-                                )}
                                 {p.statusIndicator && <div className="flex shrink-0 items-center">{p.statusIndicator}</div>}
                                 {showTrailing && (
                                     <div className="flex shrink-0 items-center gap-1">
