@@ -70,6 +70,7 @@ type Props = {
     children: ReactNode;
     memberCount: number;
     chatUnreadCount?: number;
+    settingsIndicator?: { label: string; icon: ReactNode };
     renderToolContent: (tool: TableTool, context: TableToolRenderContext) => ReactNode;
     reactions: ViewerReactionView[];
     onEmitReaction: (reaction: string) => void;
@@ -94,6 +95,7 @@ export default function TableFrame({
     children,
     memberCount,
     chatUnreadCount = 0,
+    settingsIndicator,
     renderToolContent,
     reactions,
     onEmitReaction,
@@ -309,7 +311,8 @@ export default function TableFrame({
         >
             {visibleTableTools.map(({ id, icon: Icon }) => {
                 const active = activeTool === id;
-                const label = t(`table.tool.${id}`);
+                const toolLabel = t(`table.tool.${id}`);
+                const label = id === "settings" && settingsIndicator ? `${toolLabel} · ${settingsIndicator.label}` : toolLabel;
                 const badgeVisibilityClass = active
                     ? "opacity-0"
                     : "opacity-100";
@@ -336,6 +339,12 @@ export default function TableFrame({
                                 className={`pointer-events-none absolute right-1 top-1 min-w-4 ring-1 ring-black/10 transition-opacity dark:ring-white/15 ${badgeVisibilityClass}`}
                             >
                                 {memberCount}
+                            </Badge>
+                        )}
+                        {id === "settings" && settingsIndicator && (
+                            <Badge small colors={{ bg: "bg-ios-light-surface-2 dark:bg-ios-dark-surface-2", text: "text-black/65 dark:text-white/70" }}
+                                className={`pointer-events-none absolute right-1 top-1 min-w-4 ring-1 ring-black/10 transition-opacity dark:ring-white/15 ${badgeVisibilityClass}`}>
+                                {settingsIndicator.icon}
                             </Badge>
                         )}
                         {id === "chat" && chatUnreadCount > 0 && (

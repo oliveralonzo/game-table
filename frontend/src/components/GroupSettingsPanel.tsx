@@ -10,13 +10,17 @@ import { useAuthSession } from "game-table/context/AuthSessionContext";
 import { useTableSocket } from "game-table/context/TableSocket";
 
 type Settings = { rules: unknown; seat_count: number; can_edit: boolean };
-export default function GroupSettingsPanel({ groupId, gamePlugin, displayName, onDisplayNameChange }: {
+export default function GroupSettingsPanel({ groupId, gamePlugin, displayName, onDisplayNameChange, onRulesChange }: {
+    onRulesChange?: (rules: unknown) => void;
     groupId: string; gamePlugin: FrontendGamePlugin; displayName: string; onDisplayNameChange: NicknameChangeHandler;
 }) {
     const { t } = useTranslation();
     const { getAuthToken } = useAuthSession();
     const { emit } = useTableSocket();
     const [settings, setSettings] = useState<Settings | null>(null);
+    const reportRules = useRef(onRulesChange);
+    reportRules.current = onRulesChange;
+    useEffect(() => { if (settings) reportRules.current?.(settings.rules); }, [settings]);
     const [error, setError] = useState<string | null>(null);
     const [nested, setNested] = useState(false);
     const latest = useRef<Settings | null>(null);

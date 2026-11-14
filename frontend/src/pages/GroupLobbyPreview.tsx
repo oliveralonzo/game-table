@@ -7,7 +7,7 @@ import { useRoomChat } from "game-table/hooks/useRoomChat";
 import type { TableTool } from "game-table/components/TableFrame";
 import { useGroupsCache } from "game-table/context/GroupsCacheContext";
 import { useGroupActivity } from "game-table/hooks/useGroupActivity";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button, Glass, Segmented, SegmentedButton } from "konsta/react";
@@ -20,6 +20,8 @@ import TableCards from "game-table/components/TableCards";
 import TableFrame from "game-table/components/TableFrame";
 import { buildInitialLabelsById } from "game-table/utils/playerInitialLabels";
 import LobbyRoster, { type RosterPerson } from "game-table/components/LobbyRoster";
+import { useAuthSession } from "game-table/context/AuthSessionContext";
+import { useTableSocket } from "game-table/context/TableSocket";
 import Chat from "game-table/components/Chat";
 export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNameChange, groupId, groupName, groupMembers, tables, closingTables, closingPending, onTableClosed, onCreateTable, onEnterTable, onRemoveTable, creating, tableError }: {
     gamePlugin: FrontendGamePlugin; displayName: string; onDisplayNameChange: NicknameChangeHandler;
@@ -40,6 +42,23 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     const [openedTournaments, setOpenedTournaments] = useState(false);
     const isTournamentContext = !!tournamentId && tournamentId !== "new";
     const [tournamentSettings, setTournamentSettings] = useState<{ id: string; rules: unknown } | null>(null);
+    const [groupSettings, setGroupSettings] = useState<{ id: string; rules: unknown } | null>(null);
+    const { getAuthToken } = useAuthSession();
+    const { emit, groupConnectionVersion } = useTableSocket();
+    useEffect(() => {
+        if (isTournamentContext || !gamePlugin.features.settings || !gamePlugin.settingsIndicator) return;
+        let current = true;
+        getAuthToken().then(token => {
+            if (!current || !token) return;
+            emit("group:settings", { token, group_id: groupId }, (response?: { rules?: unknown; error?: string }) => {
+                if (current && response && !response.error) setGroupSettings({ id: groupId, rules: response.rules });
+            });
+        }).catch(() => {});
+        return () => { current = false; };
+    }, [emit, getAuthToken, groupConnectionVersion, groupId, gamePlugin, isTournamentContext]);
+    const scopedSettings = isTournamentContext
+        ? tournamentSettings?.id === tournamentId ? tournamentSettings : null
+        : groupSettings?.id === groupId ? groupSettings : null;
     const SettingsPanel = gamePlugin.SettingsPanel;
     const showingStats = location.pathname.endsWith("/activity");
     const activity = useGroupActivity(groupId, "current", 1, !showingStats);
@@ -79,6 +98,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
         }
     }
     return <TableFrame fixedChrome key={isTournamentContext ? `${room}:tournament:${tournamentId}` : room} memberCount={memberCount}
+        settingsIndicator={scopedSettings && gamePlugin.features.settings ? gamePlugin.settingsIndicator?.(scopedSettings.rules, i18n.language) : undefined}
         chatUnreadCount={chatUnreadCount} onActiveToolChange={setActiveTool} reactions={[]} onEmitReaction={() => {}}
         onRemoveReaction={() => {}} showReactions={false} mainClassName="w-full max-w-md pb-24"
         lifecycleAction={<Glass highlight={false} className="h-11 rounded-full">
@@ -99,7 +119,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
                     value={gamePlugin.resolveSettings(tournamentSettings.rules)} readOnly isFourPlayer seatCount={4}
                     gameOnly collapsible={false} flush title={t("groups.tournaments.games")}
                     sections={{ profile: false, display: false, language: false }} />
-            ) : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
+            ) : <GroupSettingsPanel onRulesChange={rules => setGroupSettings({ id: groupId, rules })} groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
     >
         {showingStats ? <GroupStatsPreview backToTable={!!returnToGame} groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
         {isTournamentContext && <GroupBackButton onClick={() => navigate(groupUrl, { state: { groupPlayMode: "tournaments" } })}>

@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import { ListItem } from "konsta/react";
 import { Check } from "lucide-react";
 
 type Props = {
     title: string;
+    media?: ReactNode;
     type: "radio" | "checkbox";
     name?: string;
     checked: boolean;
@@ -12,12 +14,13 @@ type Props = {
 
 /** Native selection semantics with the trailing checkmark used by iOS lists. */
 export default function SettingsSelectionItem({
-    title, type, name, checked, disabled = false, onChange,
+    title, media, type, name, checked, disabled = false, onChange,
 }: Props) {
     return (
         <ListItem
             label
             title={title}
+            media={media}
             after={(
                 <span className="relative flex h-6 w-6 items-center justify-center">
                     <input

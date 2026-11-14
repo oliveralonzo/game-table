@@ -39,7 +39,7 @@ type Props = {
 };
 
 export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { state } = useTable();
     const {
         assignSeat,
@@ -214,6 +214,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
 
     return (
         <TableFrame
+            settingsIndicator={gamePlugin.features.settings ? gamePlugin.settingsIndicator?.(lobbyConfig, i18n.language) : undefined}
             memberCount={memberCount}
             chatUnreadCount={chatUnreadCount}
             onActiveToolChange={setActiveTableTool}

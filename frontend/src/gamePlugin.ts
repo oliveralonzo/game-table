@@ -1,4 +1,4 @@
-import type { ComponentType, PropsWithChildren } from "react";
+import type { ComponentType, PropsWithChildren, ReactNode } from "react";
 import type { PlatformBranding } from "game-table/context/BrandingContext";
 
 export type GameScreenProps = {
@@ -22,6 +22,7 @@ export type FrontendGamePlugin = {
     SettingsPanel: ComponentType<Record<string, unknown>>;
     defaultSettings: unknown;
     resolveSettings: (settings: unknown) => unknown;
+    settingsIndicator?: (rules: unknown, language: string) => { label: string; icon: ReactNode };
     translations?: GameTranslations;
     Provider?: ComponentType<PropsWithChildren>;
 };
