@@ -147,7 +147,7 @@ export default function JoinScreen({ gamePlugin, urlTableCode }: Props) {
     const { state, dispatch } = useTable();
     const { displayName, setDisplayName } = useSession();
     const { getAuthToken, isAuthLoaded, isSignedIn, signOut } = useAuthSession();
-    const clerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    const clerkEnabled = (!!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || (import.meta.env.DEV && !!import.meta.env.VITE_PLAYTEST_TOKENS));
     const accountsEnabled = gamePlugin.features.accounts && clerkEnabled;
     const {
         createTable,

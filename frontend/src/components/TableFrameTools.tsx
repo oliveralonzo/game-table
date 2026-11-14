@@ -1,9 +1,8 @@
+import InviteButton from "game-table/components/InviteButton";
 import TableIdentity from "game-table/components/TableIdentity";
 import QueueAction from 'game-table/components/QueueAction';
 import { type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import { Share } from "lucide-react";
-import { Button } from "konsta/react";
 import TableSponsor from "game-table/components/TableSponsor";
 import TableInviteDialog from "game-table/components/TableInviteDialog";
 
@@ -117,18 +116,7 @@ export default function TableFrameTools({
                 <div className="grid shrink-0 gap-2 px-safe-4 pt-1">
                     <TableIdentity linkGroup />
                     {tableCode && <TableSponsor className="text-center" />}
-                    <Button
-                        type="button"
-                        clear
-                        rounded
-                        onClick={onInvite}
-                        className="h-10 w-full px-3 font-semibold"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <Share size={18} strokeWidth={2.2} aria-hidden="true" />
-                            {inviteCopied ? t("table.action.copied") : t("table.action.invite")}
-                        </span>
-                    </Button>
+                    <InviteButton onInvite={onInvite} inviteCopied={inviteCopied} fullWidth />
                 </div>
                 <TableInviteDialog
                     fallbackInviteUrl={fallbackInviteUrl}

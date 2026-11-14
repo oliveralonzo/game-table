@@ -105,7 +105,12 @@ class GameTableService:
 
     def _close_game(self, table, *, player_checks=False):
         game_id = table.active_game_id
-        transition = self._build_post_game_transition(table, game_id) if self._game_service.is_over(game_id) else (self._build_abort_transition(table) if player_checks else None)
+        transition = None
+        if not table.tournament_id:
+            if self._game_service.is_over(game_id):
+                transition = self._build_post_game_transition(table, game_id)
+            elif player_checks:
+                transition = self._build_abort_transition(table)
         self.record_completed_game_for_table(table.table_code, game_id)
         table.release_game()
         table.finished_game_close = None
@@ -284,7 +289,7 @@ class GameTableService:
             raise ValueError('Game does not match its table history context.')
         if game_id is not None and self._game_service.is_over(game_id):
             table.clear_game_seat_locks()
-        if self._game_history_recorder is None:
+        if table.tournament_id or self._game_history_recorder is None:
             return
 
         context = self._history_contexts.get(table)

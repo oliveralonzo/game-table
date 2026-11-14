@@ -288,8 +288,8 @@ export default function App({ gamePlugin }: { gamePlugin: FrontendGamePlugin }) 
       <SessionProvider>
         <TableProvider>
           <TableSocketProvider>
-            <SavedTablesProvider enabled={gamePlugin.features.accounts && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
-            <GroupsCacheProvider enabled={gamePlugin.features.accounts && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+            <SavedTablesProvider enabled={gamePlugin.features.accounts && (!!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || (import.meta.env.DEV && !!import.meta.env.VITE_PLAYTEST_TOKENS))}>
+            <GroupsCacheProvider enabled={gamePlugin.features.accounts && (!!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || (import.meta.env.DEV && !!import.meta.env.VITE_PLAYTEST_TOKENS))}>
             <BrowserRouter>
               <GameProvider>
                 <Routes>

@@ -6,6 +6,11 @@
 @source "../../../konsta/shared";
 @source "../../../konsta/styles";
 
+/* Konsta sources when GameTable is built from a sibling checkout. */
+@source "../../node_modules/konsta/react";
+@source "../../node_modules/konsta/shared";
+@source "../../node_modules/konsta/styles";
+
 /* Global page background + text colors */
 html,
 body,

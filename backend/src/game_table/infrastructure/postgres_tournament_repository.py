@@ -22,6 +22,17 @@ class PostgresTournamentRepository:
                 RETURNING id
             """, values).fetchone() is not None
 
+    def delete(self, tournament_id, account_id):
+        with self.connection_factory() as connection:
+            return connection.execute("""
+                DELETE FROM tournaments t USING groups g
+                WHERE t.id = %s AND t.status = 'scheduled'
+                    AND g.id = t.group_id AND g.deleted_at IS NULL
+                    AND EXISTS (SELECT 1 FROM group_memberships m WHERE m.group_id = g.id
+                        AND m.account_id = %s AND m.left_at IS NULL AND m.role IN ('owner', 'admin'))
+                RETURNING t.id
+            """, (tournament_id, account_id)).fetchone() is not None
+
     def _read(self, condition, params, account_id):
         with self.connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:

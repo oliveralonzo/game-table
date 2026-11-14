@@ -42,12 +42,23 @@ class GroupTableService(TableSessionService):
         self._group_public_ids[table.instance_id] = getattr(group, 'public_id', None)
         return self.table_preview(table)
 
+    def create_tournament_table(self, tournament, assignment):
+        rules = self._settings_provider.parse_settings(tournament['rules']) if self._settings_provider else None
+        table = self._registry.create_empty(
+            group_id=tournament['group_id'], code_factory=self._code_factory, rules=rules,
+            tournament_id=tournament['id'], tournament_seats=assignment.seats)
+        table.group_name = tournament.get('group_name')
+        self._group_public_ids[table.instance_id] = tournament.get('group_public_id')
+        return table
+
     _view = staticmethod(TableSessionService.table_preview)
 
     def join_table(self, member_id: str, table_code: str, name: str,
                    account_id: str | None = None, account_username: str | None = None,
                    creator_identity: str | None = None):
         table = self._get_table(table_code)
+        if getattr(table, 'tournament_assignment_closed', False):
+            raise ValueError('This tournament assignment has closed.')
         if member_id in self._member_to_table:
             raise ValueError("Member already belongs to a table.")
         # Resolve the joining account once, outside the registry lock. Guests
@@ -56,6 +67,8 @@ class GroupTableService(TableSessionService):
             self._sessions.admit(account_id, table.group_id, f'table:{member_id}')
         is_member = self._groups.is_member(account_id, table.group_id) if account_id else False
         try:
+            if table.tournament_id and not is_member:
+                raise PermissionError('Only group members may join tournament tables.')
             with self._registry._lock:
                 if self._get_table(table_code) is not table:
                     raise ValueError('Table does not exist.')
@@ -63,6 +76,12 @@ class GroupTableService(TableSessionService):
                                               account_username, creator_identity)
                 if is_member:
                     self._group_member_ids.add(member_id)
+                if table.tournament_id and account_id in table.tournament_seats and (
+                        getattr(table, 'tournament_stage', None) != 'knockout'
+                        or getattr(table, 'tournament_keep_seats', False)):
+                    seat = table.tournament_seats.index(account_id)
+                    if table.seats[seat].member_id is None:
+                        table.assign_seat(member_id=member_id, seat_index=seat, selection_method='manual')
                 return replaced
         except Exception:
             if self._sessions:
@@ -91,7 +110,7 @@ class GroupTableService(TableSessionService):
         code, table = self._get_table_for_member(member_id)
         table.remove_member(member_id)
         self._remove_member_identity(member_id)
-        if not table.members:
+        if not table.members and not table.tournament_id:
             self._tables.pop(code, None)
             self._last_activity.pop(code, None)
             self._group_public_ids.pop(table.instance_id, None)
@@ -100,6 +119,8 @@ class GroupTableService(TableSessionService):
         code, table = self._get_table_for_member(member_id)
         if code != table_code:
             raise ValueError('Acting member not in specified table.')
+        if table.tournament_id:
+            raise PermissionError('The tournament manages this table.')
         if len(table.members) != 1:
             raise PermissionError('Only the last participant may close the table.')
         game_id = table.active_game_id
@@ -120,19 +141,30 @@ class GroupTableService(TableSessionService):
         return table
 
     def add_seat(self, member_id: str) -> None:
-        self._require_group_member(member_id).add_seat()
+        table = self._require_group_member(member_id)
+        if table.tournament_id:
+            raise PermissionError('Tournament seats are locked.')
+        table.add_seat()
 
     def remove_seat(self, member_id: str) -> None:
-        self._require_group_member(member_id).remove_seat()
+        table = self._require_group_member(member_id)
+        if table.tournament_id:
+            raise PermissionError('Tournament seats are locked.')
+        table.remove_seat()
 
     def reset_seating(self, member_id: str) -> None:
-        self._require_group_member(member_id).reset_seating()
+        table = self._require_group_member(member_id)
+        if table.tournament_id:
+            raise PermissionError('Tournament seats are locked.')
+        table.reset_seating()
 
     def unassign_seat(self, member_id: str, seat_index: int) -> None:
         _, table = self._get_table_for_member(member_id)
         occupant = table.get_seat_occupant(seat_index)
         if occupant is None:
             return
+        if table.tournament_id and occupant != member_id:
+            raise PermissionError('Tournament seats are locked.')
         if occupant != member_id:
             self._require_group_member(member_id)
             if table.active_game_id is not None and not any(seat.member_id == member_id for seat in table.seats):
@@ -150,6 +182,12 @@ class GroupTableService(TableSessionService):
                                     if (self._sessions.is_member(member.account_id, table.group_id)
                                         if self._sessions else key in self._group_member_ids)]
         if view['group_member_ids']:
+            view['tournament_id'] = table.tournament_id
+            if table.tournament_id:
+                view['tournament_seat_options'] = {
+                    member_id: table.tournament_seat_options(member_id)
+                    for member_id in table.members
+                }
             view['group_public_id'] = self._group_public_ids.get(table.instance_id)
         return view
 
@@ -164,6 +202,10 @@ class GroupTableService(TableSessionService):
     def prepare_game_start(self, member_id: str):
         table = self._require_group_member(member_id)
         group = self._groups.get_group(table.members[member_id].account_id, table.group_id)
+        if table.tournament_id and getattr(table, 'tournament_game_started', False):
+            raise ValueError('The tournament game has already started.')
+        if table.tournament_id and (member_id not in [seat.member_id for seat in table.seats] or not all(seat.member_id for seat in table.seats)):
+            raise PermissionError('All assigned players must be seated.')
         player_count = table.prepare_game_start()
         participants = self.get_seat_account_participants(table.table_code)
         for participant in participants:
@@ -174,10 +216,16 @@ class GroupTableService(TableSessionService):
                 'rules': table.pending_rules, 'participants': participants}
 
     def attach_game(self, member_id: str, game_id: str):
-        self._require_group_member(member_id).attach_game(game_id)
+        table = self._require_group_member(member_id)
+        table.attach_game(game_id)
+        if table.tournament_id:
+            table.tournament_game_started = True
 
     def update_rules(self, member_id: str, rules):
-        self._require_group_member(member_id).set_pending_rules(rules)
+        table = self._require_group_member(member_id)
+        if table.tournament_id:
+            raise PermissionError('Tournament rules are locked.')
+        table.set_pending_rules(rules)
 
     def transfer_host(self, member_id: str, new_host_id: str):
         raise PermissionError('Group tables do not have hosts.')

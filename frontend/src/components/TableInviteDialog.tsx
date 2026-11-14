@@ -3,15 +3,16 @@ import { useTranslation } from "react-i18next";
 import { Dialog, DialogButton } from "konsta/react";
 
 type Props = {
+    shareText?: string;
     fallbackInviteUrl?: string | null;
     onCloseInviteFallback?: () => void;
 };
 
-export default function TableInviteDialog({ fallbackInviteUrl, onCloseInviteFallback }: Props) {
+export default function TableInviteDialog({ fallbackInviteUrl, onCloseInviteFallback, shareText }: Props) {
     const { t } = useTranslation();
     const fallbackInviteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const fallbackInviteText = fallbackInviteUrl
-        ? `${t("table.dialog.inviteShareText")}\n${fallbackInviteUrl}`
+        ? `${shareText ?? t("table.dialog.inviteShareText")}\n${fallbackInviteUrl}`
         : "";
     const [editableFallbackInviteText, setEditableFallbackInviteText] = useState(fallbackInviteText);
 

@@ -81,6 +81,8 @@ export interface TableView {
     /** Member ID of the current host. */
     host_id: string | null;
     group_id?: string | null;
+    tournament_id?: string | null;
+    tournament_seat_options?: Record<string, number[]>;
     group_public_id?: string | null;
     group_member_ids?: string[];
 

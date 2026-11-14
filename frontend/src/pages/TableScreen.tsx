@@ -1,3 +1,4 @@
+import InviteButton from "game-table/components/InviteButton";
 import TableIdentity from "game-table/components/TableIdentity";
 /**
  * TableScreen.tsx
@@ -8,7 +9,6 @@ import TableIdentity from "game-table/components/TableIdentity";
  */
 
 import { useState } from "react";
-import { Share } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
@@ -244,6 +244,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                         showSeatActions={!table.active_game_id && !seatingBlocked}
                         seatingBlocked={seatingBlocked}
                         lockedSeatIndex={selfId ? table.game_seat_locks?.[selfId] : undefined}
+                        allowedSeatIndices={table.tournament_id ? table.tournament_seat_options?.[selfId ?? ""] ?? [] : undefined}
                         onAssignSeat={assignSeat}
                         onUnassignSeat={unassignSeat}
                         footerAction={
@@ -286,19 +287,7 @@ export default function TableScreen({ gamePlugin, onOpenGame }: Props) {
                 <div className="mt-3 flex flex-col items-center">
                     <TableIdentity linkGroup />
                     <TableSponsor className="text-center" />
-                    <Button
-                        type="button"
-                        inline
-                        clear
-                        rounded
-                        onClick={handleInvite}
-                        className="h-10 px-4 font-semibold"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <Share size={18} strokeWidth={2.2} aria-hidden="true" />
-                            {inviteCopied ? t("table.action.copied") : t("table.action.invite")}
-                        </span>
-                    </Button>
+                    <InviteButton onInvite={handleInvite} inviteCopied={inviteCopied} />
                 </div>
             </div>
             <TableInviteDialog

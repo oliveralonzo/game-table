@@ -41,6 +41,7 @@ type Props = {
     showHeadToHead?: boolean;
     onHeadToHeadSort?: () => void;
     ranks?: number[];
+    minimumGames?: number;
     onBack?: () => void;
     onPlayerOpen?: (player: LeaderboardEntry) => void;
     onSortChange: (sort: LeaderboardSort) => void;
@@ -53,12 +54,12 @@ function formatWinPercentage(value: number): string {
     return `${Math.round(value * 100)}%`;
 }
 
-export default function LeaderboardContent({ entries, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, onBack, onPlayerOpen, onSortChange, onPrevious, onNext }: Props) {
+export default function LeaderboardContent({ entries, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, minimumGames = MIN_WIN_PERCENTAGE_GAMES, onBack, onPlayerOpen, onSortChange, onPrevious, onNext }: Props) {
     const { t } = useTranslation();
     const canGoBack = page > 1 && !isLoading;
     const canGoForward = hasMore && !isLoading;
     const hasUnrankedEntries = sort === "win_percentage"
-        && entries.some((entry) => entry.games_played < MIN_WIN_PERCENTAGE_GAMES);
+        && entries.some((entry) => entry.games_played < minimumGames);
 
     return (
         <div className={`grid min-w-0 max-w-full gap-4 p-1 ${embedded ? "w-full" : "sm:w-[28rem]"}`}>
@@ -164,7 +165,7 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
                                     className={onPlayerOpen ? "cursor-pointer hover:bg-black/5 focus-within:bg-black/5 dark:hover:bg-white/5 dark:focus-within:bg-white/5" : ""}>
                                 <TableCell className="w-px whitespace-nowrap !pl-3 !pr-3 text-xs font-semibold tabular-nums text-black/45 dark:text-white/45">
                                         {(sort === "win_percentage" || sort === "head_to_head")
-                                            && entry.games_played < MIN_WIN_PERCENTAGE_GAMES
+                                            && entry.games_played < minimumGames
                                             ? t("leaderboard.rank.notRankedShort")
                                             : ranks?.[index] ?? (page - 1) * LEADERBOARD_PAGE_SIZE + index + 1}
                                     </TableCell>
@@ -222,7 +223,7 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
             {hasUnrankedEntries ? (
                 <p className="-mt-2 px-2 text-xs leading-5 text-black/45 dark:text-white/45">
                     {t("leaderboard.rank.notRankedExplanation", {
-                        count: MIN_WIN_PERCENTAGE_GAMES,
+                        count: minimumGames,
                     })}
                 </p>
             ) : null}

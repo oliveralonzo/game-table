@@ -19,6 +19,7 @@ type Response = { keep_playing: boolean } | { team_preference: PostGameTeamPrefe
 type Props = {
     transition: PostGameTransitionView;
     selfId: string;
+    promptContext?: string;
     memberNames?: Record<string, string>;
     canQueue?: boolean;
     onQueue?: (onResult: (saved: boolean) => void) => void;
@@ -71,7 +72,7 @@ function SelectionNotice({ notification, canQueue = false, onQueue, memberNames 
         </div>} />;
 }
 
-function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props) {
+function PlayerPrompt({ transition, selfId, onRespond, promptContext, memberNames = {} }: Props) {
     const { t } = useTranslation();
     const player = transition.players[selfId];
     const [now, setNow] = useState(Date.now());
@@ -146,7 +147,7 @@ function PlayerPrompt({ transition, selfId, onRespond, memberNames = {} }: Props
             backdrop
             role="dialog"
             aria-label={title ?? status}
-            title={title ? <span className="block text-center">{title}</span> : undefined}
+            title={title ? <span className="block text-center">{promptContext && <span className="block">{promptContext}</span>}{title}</span> : undefined}
             style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
             className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
             buttons={(

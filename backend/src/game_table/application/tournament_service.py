@@ -31,6 +31,10 @@ class TournamentService:
             raise PermissionError('Only group admins may create tournaments.')
         return tournament
 
+    def delete(self, account_id, tournament_id):
+        if not self.repository.delete(tournament_id, account_id):
+            raise PermissionError('Only group admins may delete scheduled tournaments.')
+
     def list_for_group(self, account_id, group_id):
         self.groups.get_group(account_id, group_id)
         return self.repository.list_for_group(group_id, account_id)

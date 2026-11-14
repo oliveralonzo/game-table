@@ -6,10 +6,12 @@ import { useBranding } from "game-table/context/BrandingContext";
 
 type UseTableInviteArgs = {
     tableCode?: string | null;
+    pageUrl?: string;
+    pageShareText?: string;
     t: (key: string, options?: Record<string, unknown>) => string;
 };
 
-export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
+export function useTableInvite({ tableCode, pageUrl, pageShareText, t }: UseTableInviteArgs) {
     const { name } = useBranding();
     const { state } = useTable();
     const [inviteCopied, setInviteCopied] = useState(false);
@@ -26,22 +28,23 @@ export function useTableInvite({ tableCode, t }: UseTableInviteArgs) {
     }, [inviteCopied]);
 
     const handleInvite = async () => {
-        if (!tableCode) return;
+        if (!tableCode && !pageUrl) return;
 
         setFallbackInviteUrl(null);
-        const table = state.tableView;
+        const table = pageUrl ? null : state.tableView;
         const host = table?.host_id ? table.members[table.host_id] : null;
         const username = host?.account_username ?? table?.host_username;
         const hostName = username ? `@${username}` : host?.name ?? table?.host_name;
         const groupName = table?.group_name;
         const context = groupName ? { key: t("table.inviteParam.group"), value: groupName }
             : hostName ? { key: t("table.inviteParam.host"), value: hostName } : undefined;
-        const inviteUrl = tableInviteUrl(window.location.origin, tableCode, table?.invite_token, context);
+        const inviteUrl = pageUrl ? new URL(pageUrl, window.location.origin).href
+            : tableInviteUrl(window.location.origin, tableCode!, table?.invite_token, context);
         const shareData: ShareData = {
             title: name,
             text: groupName ? t("table.dialog.inviteGroup", { group: groupName })
                 : hostName ? t("table.dialog.inviteHost", { host: hostName })
-                : t("table.dialog.inviteShareText"),
+                : pageShareText ?? t("table.dialog.inviteShareText"),
             url: inviteUrl,
         };
 

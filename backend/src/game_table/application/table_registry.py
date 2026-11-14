@@ -29,13 +29,15 @@ class TableRegistry:
             target = self.group_tables if table.group_id is not None else self.private_tables
             target[table.table_code] = table
 
-    def create_empty(self, *, group_id=None, rules=None, code_factory=generate_table_code, seat_count=4, creator_identity=None) -> Table:
+    def create_empty(self, *, group_id=None, rules=None, code_factory=generate_table_code, seat_count=4, creator_identity=None, tournament_id=None, tournament_seats=()) -> Table:
         with self._lock:
             for _ in range(100):
                 code = code_factory()
                 if self.contains(code):
                     continue
                 table = Table(code, None, group_id=group_id, rules=rules, start_empty=True)
+                table.tournament_id = tournament_id
+                table.tournament_seats = tuple(tournament_seats)
                 if creator_identity:
                     table.reserve_host(creator_identity)
                 for _ in range(4 - seat_count):
@@ -51,4 +53,4 @@ class TableRegistry:
 
     def for_group(self, group_id: str) -> list[Table]:
         with self._lock:
-            return [table for table in self.group_tables.values() if table.group_id == group_id]
+            return [table for table in self.group_tables.values() if table.group_id == group_id and table.tournament_id is None]

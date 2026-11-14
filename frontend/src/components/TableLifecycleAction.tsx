@@ -23,14 +23,16 @@ export default function TableLifecycleAction({ onBackToLobby, iconDirection = "r
     const isHost = !!table && table.host_id === state.selfMemberId;
     const isLastGroupParticipant = !!table?.group_id && !!state.selfMemberId
         && Object.keys(table.members).length === 1 && !!table.members[state.selfMemberId];
-    const canClose = isHost || isLastGroupParticipant;
+    const canClose = !table?.tournament_id && (isHost || isLastGroupParticipant);
     const hasGroupPresence = !!table?.group_id && !!state.selfMemberId
         && !!table.group_member_ids?.includes(state.selfMemberId);
-    const returnUrl = table?.group_id
+    const returnUrl = table?.tournament_id && table.group_public_id
+        ? `/g/${encodeURIComponent(table.group_public_id)}/tournaments/${encodeURIComponent(table.tournament_id)}`
+        : table?.group_id
         ? (hasGroupPresence && table.group_public_id
             ? `/g/${encodeURIComponent(table.group_public_id!)}` : "/")
         : "/";
-    const canEndGame = canEndTableGame(table, state.selfMemberId);
+    const canEndGame = !table?.tournament_id && canEndTableGame(table, state.selfMemberId);
     const hasActions = !onBackToLobby && (canClose || canEndGame);
     const actionLabel = onBackToLobby ? t("table.action.viewSeats")
         : hasActions ? t("table.action.tableActions") : t("table.action.leaveTable");

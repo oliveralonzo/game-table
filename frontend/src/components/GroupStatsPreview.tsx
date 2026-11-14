@@ -11,7 +11,7 @@ import PlayerStatsTableSkeleton from "game-table/components/PlayerStatsTableSkel
 import DismissibleNotice from "game-table/components/DismissibleNotice";
 import PlayerRecordsScreen from "game-table/pages/PlayerRecordsScreen";
 import type { LeaderboardEntry } from "game-table/components/LeaderboardContent";
-import { ArrowLeft } from "lucide-react";
+import GroupBackButton from "game-table/components/GroupBackButton";
 
 export function groupMonthLabel(language: string, season = new Date().toISOString().slice(0, 7)) {
     return new Intl.DateTimeFormat(language, { month: "long", year: "numeric", timeZone: "UTC" })
@@ -124,7 +124,9 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
         else if (target.right > bounds.right) row.scrollLeft += target.right - bounds.right;
     }, [selectedSeason, seasons, i18n.language]);
     return <>
-        <Button clear inline rounded onClick={playerReference ? backToActivity : onBack} className="mb-3 h-11 !px-1"><ArrowLeft size={18} className="mr-1" />{playerReference ? t("groups.stats.activity") : backToTable ? t("groups.preview.returnToTable") : groupName}</Button>
+        <GroupBackButton onClick={playerReference ? backToActivity : onBack}>
+            {playerReference ? t("groups.stats.activity") : backToTable ? t("groups.preview.returnToTable") : groupName}
+        </GroupBackButton>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
         <p className="px-1 text-black/55 dark:text-white/55">{playerReference
             ? `@${selectedPlayer?.username ?? playerReference}`

@@ -448,6 +448,10 @@ def register_table_events(
                 member_id,
             )
 
+            tournament_join = getattr(sio, 'tournament_table_joined', None)
+            if tournament_join:
+                tournament_join(table_service.get_table(table_code))
+
             return {
                 "table_code": table_code,
                 "member_id": member_id,
@@ -630,6 +634,9 @@ def register_table_events(
             )
 
             await _broadcast_table_state_update(table_code)
+            tournament_join = getattr(sio, 'tournament_table_joined', None)
+            if tournament_join:
+                tournament_join(table_service.get_table(table_code))
 
             return {
                 "assigned": True,

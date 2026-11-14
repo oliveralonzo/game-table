@@ -4,11 +4,11 @@ import type { SavedTable } from "game-table/context/SavedTablesContext";
 
 type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count"> & { host_id?: string | null };
 export default function TableCards<T extends Preview>({ tables, getKey, isClosing, onClosed, onEnter, onRemove, canRemove, removeLabel, isPending,
-    creating, onCreate, createLabel, disabled = false, className = "" }: {
+    creating, onCreate, createLabel, disabled = false, showCreate = true, className = "" }: {
     tables: T[]; getKey: (table: T) => string; isClosing: (table: T) => boolean;
     onClosed: (table: T) => void; onEnter: (table: T) => void; onRemove?: (table: T) => void;
     canRemove?: (table: T) => boolean; removeLabel?: string;
-    createLabel: string; isPending?: (table: T) => boolean; creating: boolean; onCreate: () => void; disabled?: boolean; className?: string;
+    createLabel: string; isPending?: (table: T) => boolean; creating: boolean; onCreate: () => void; disabled?: boolean; showCreate?: boolean; className?: string;
 }) {
     const tableGrid = useRef<HTMLDivElement | null>(null);
     const cardPositions = useRef(new Map<string, { left: number; top: number }>());
@@ -43,6 +43,6 @@ export default function TableCards<T extends Preview>({ tables, getKey, isClosin
         </div>)}
         {creating && <div data-card-key="pending" className="min-w-0"><TableCard pending
             table={{ table_code: "…", seats: [null, null, null, null], seat_count: 4, members: [] }} onEnter={() => {}} /></div>}
-        <div data-card-key="add" className="min-w-0"><NewTableCard label={createLabel} disabled={creating || disabled} onCreate={onCreate} /></div>
+        {showCreate && <div data-card-key="add" className="min-w-0"><NewTableCard label={createLabel} disabled={creating || disabled} onCreate={onCreate} /></div>}
     </div>;
 }

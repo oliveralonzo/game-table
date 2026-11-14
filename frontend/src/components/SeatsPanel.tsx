@@ -64,6 +64,7 @@ type Props = {
     footerAction?: ReactNode;
     sizeToContent?: boolean;
     lockedSeatIndex?: number;
+    allowedSeatIndices?: number[];
     showSeatActions?: boolean;
     seatingBlocked?: boolean;
     allowUnseatedManagement?: boolean;
@@ -81,12 +82,16 @@ export default function SeatsPanel({
     footerAction,
     sizeToContent = false,
     lockedSeatIndex,
+    allowedSeatIndices,
     showSeatActions = false,
     seatingBlocked = false,
     allowUnseatedManagement = false,
 }: Props) {
     const { t } = useTranslation();
     const hasASeat = playerIndex !== null;
+    const isAllowedSeat = (index: number) =>
+        (lockedSeatIndex === undefined || lockedSeatIndex === index)
+        && (allowedSeatIndices === undefined || allowedSeatIndices.includes(index));
     const availableSeatIndices = seats.slice(0, seatCount).flatMap((seat, index) => {
         const { canClaimSeat } = getSeatPermissions({
             claimed: !!seat.name,
@@ -97,12 +102,12 @@ export default function SeatsPanel({
             seatingBlocked,
             allowUnseatedManagement,
         });
-        return canClaimSeat && (lockedSeatIndex === undefined || lockedSeatIndex === index)
+        return canClaimSeat && isAllowedSeat(index)
 
             ? [index]
             : [];
     });
-    const canPickSeat = availableSeatIndices.length > 1;
+    const canPickSeat = availableSeatIndices.length > (allowedSeatIndices === undefined ? 1 : 0);
     const seatButtonBaseClass =
         "group absolute z-0 h-[30%] w-[30%] touch-pan-y rounded-full ring-1 transition-[opacity,filter,transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] [container-type:size]";
     const emptySeatClass =
@@ -183,10 +188,11 @@ export default function SeatsPanel({
                                 allowUnseatedManagement,
                             });
                             const canInteract = permissions.canInteract
-                                && (claimed || lockedSeatIndex === undefined || lockedSeatIndex === index);
+                                && (allowedSeatIndices === undefined || !claimed || isSelf)
+                                && (claimed || isAllowedSeat(index));
                             const initials = initialLabels?.[index] ?? seatInitialLabels[index]?.label ?? "";
                             const isUnavailableEmptySeat = !claimed && (hasASeat
-                                || (lockedSeatIndex !== undefined && lockedSeatIndex !== index));
+                                || !isAllowedSeat(index));
                             const seatStateClass = isSelf
                                 ? ownSeatClass
                                 : claimed

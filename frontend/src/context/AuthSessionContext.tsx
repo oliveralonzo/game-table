@@ -73,3 +73,14 @@ export function ClerkAuthSessionProvider({ children }: { children: ReactNode }) 
 export function useAuthSession() {
     return useContext(AuthSessionContext);
 }
+
+
+export function PlaytestAuthSessionProvider({ player, token, children }: {
+    player: string; token: string; children: ReactNode;
+}) {
+    if (!import.meta.env.DEV) throw new Error("Playtest sessions require the development server.");
+    return <AuthSessionContext.Provider value={{
+        authUserId: player, isAuthLoaded: true, isSignedIn: true,
+        getAuthToken: async () => token, signOut: async () => undefined,
+    }}>{children}</AuthSessionContext.Provider>;
+}

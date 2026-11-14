@@ -94,6 +94,9 @@ class Table(Generic[RulesT]):
             raise ValueError("Empty tables cannot have an initial host.")
 
         self._group_id = group_id
+        self.tournament_id = None
+        self.tournament_seats = ()
+        self.tournament_stage = None
         self.instance_id = str(uuid4())
         self.invite_token: str | None = None
         self.group_name: str | None = None
@@ -571,6 +574,17 @@ class Table(Generic[RulesT]):
         self._seats.pop()
 
 
+    def tournament_seat_options(self, member_id: str) -> tuple[int, ...] | None:
+        if not self.tournament_id:
+            return None
+        account = self._members[member_id].account_id
+        if account not in self.tournament_seats:
+            return ()
+        index = self.tournament_seats.index(account)
+        if self.tournament_stage == 'knockout' and not getattr(self, 'tournament_keep_seats', False):
+            return (index, (index + 2) % 4)
+        return (index,)
+
     def assign_seat(self, member_id: str, seat_index: int, selection_method: str = "manual") -> int:
         """
         Assign a member to a seat.
@@ -599,15 +613,16 @@ class Table(Generic[RulesT]):
                 raise ValueError("You can only reclaim your original seat until this game ends.")
             seat_index = game_seat
             selection_method = self._previous_seat_methods.get(identity, selection_method)
-        elif selection_method == "random":
-            if random_seat is not None and 0 <= random_seat < self.seat_count and self._seats[random_seat].member_id is None:
-                seat_index = random_seat
-            else:
-                available = [seat.index for seat in self._seats if seat.member_id is None]
-                if not available:
-                    raise ValueError("No available seats.")
-                seat_index = choice(available)
+        allowed = self.tournament_seat_options(member_id)
+        if game_seat is None and random_requested:
+            available = [seat.index for seat in self._seats
+                         if seat.member_id is None and (allowed is None or seat.index in allowed)]
+            if not available:
+                raise ValueError("No available seats.")
+            seat_index = random_seat if random_seat in available else choice(available)
 
+        if allowed is not None and seat_index not in allowed:
+            raise PermissionError("That seat is not assigned to you.")
         self._ensure_seat_index_valid(seat_index)
 
         seat = self._seats[seat_index]

@@ -1,3 +1,4 @@
+import GroupBackButton from "game-table/components/GroupBackButton";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import type { NicknameChangeHandler } from "game-table/components/NicknameSettings";
 import type { GroupMember, GroupTable } from "game-table/context/TableSocket";
@@ -36,7 +37,10 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
         && /^\/[^/]+$/.test(location.state.returnToGame)
         ? location.state.returnToGame : null;
     const [playMode, setPlayMode] = useState<"league" | "tournaments">(location.state?.groupPlayMode === "tournaments" || tournamentId ? "tournaments" : "league");
+    const [openedTournaments, setOpenedTournaments] = useState(false);
     const isTournamentContext = !!tournamentId && tournamentId !== "new";
+    const [tournamentSettings, setTournamentSettings] = useState<{ id: string; rules: unknown } | null>(null);
+    const SettingsPanel = gamePlugin.SettingsPanel;
     const showingStats = location.pathname.endsWith("/activity");
     const activity = useGroupActivity(groupId, "current", 1, !showingStats);
     const self = groupMembers.find(member => member.is_self);
@@ -76,13 +80,11 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     }
     return <TableFrame fixedChrome key={isTournamentContext ? `${room}:tournament:${tournamentId}` : room} memberCount={memberCount}
         chatUnreadCount={chatUnreadCount} onActiveToolChange={setActiveTool} reactions={[]} onEmitReaction={() => {}}
-        onRemoveReaction={() => {}} showReactions={false} mainClassName={`w-full ${showingStats ? "max-w-3xl" : "max-w-md"} pb-24`}
+        onRemoveReaction={() => {}} showReactions={false} mainClassName="w-full max-w-md pb-24"
         lifecycleAction={<Glass highlight={false} className="h-11 rounded-full">
             <Button clear rounded inline className="h-11 w-11 !px-0 !text-black/65 dark:!text-white/70"
-                aria-label={t(isTournamentContext ? "groups.tournaments.leave" : "groups.preview.exit")}
-                onClick={() => isTournamentContext
-                    ? navigate(groupUrl, { state: { groupPlayMode: "tournaments" } })
-                    : navigate("/", { state: { homeTab: "groups" } })}><LogOut size={20} /></Button>
+                aria-label={t("groups.preview.exit")}
+                onClick={() => navigate("/", { state: { homeTab: "groups" } })}><LogOut size={20} /></Button>
         </Glass>}
         renderToolContent={(tool) => tool === "people" ? <section className="min-h-0 overflow-y-auto pb-3">
             <p className="mb-3 px-safe-4 text-sm text-black/55 dark:text-white/55">{t("groups.members", { count: groupMembers.length })}</p>
@@ -92,13 +94,21 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
         </section> : tool === "chat" ? <Chat messages={messages} selfId={self?.account_id ?? ""}
             displayName={self?.name ?? displayName}
             memberNamesById={Object.fromEntries(groupMembers.map(member => [member.account_id, member.name]))}
-            chatDraft={chatDraft} setChatDraft={setChatDraft} onSendChat={handleSendChat} /> : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
+            chatDraft={chatDraft} setChatDraft={setChatDraft} onSendChat={handleSendChat} /> : isTournamentContext ? (
+                tournamentSettings && tournamentSettings.id === tournamentId && <SettingsPanel
+                    value={gamePlugin.resolveSettings(tournamentSettings.rules)} readOnly isFourPlayer seatCount={4}
+                    gameOnly collapsible={false} flush title={t("groups.tournaments.games")}
+                    sections={{ profile: false, display: false, language: false }} />
+            ) : <GroupSettingsPanel groupId={groupId} gamePlugin={gamePlugin} displayName={displayName} onDisplayNameChange={onDisplayNameChange} />}
     >
         {showingStats ? <GroupStatsPreview backToTable={!!returnToGame} groupId={groupId} groupName={groupName} onBack={() => navigate(returnToGame ?? groupUrl)} /> : <>
+        {isTournamentContext && <GroupBackButton onClick={() => navigate(groupUrl, { state: { groupPlayMode: "tournaments" } })}>
+            {groupName}
+        </GroupBackButton>}
         {!isTournamentContext && <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>}
         {(!tournamentId || tournamentId === "new") && <Segmented strong rounded className="my-5 w-full" aria-label={t("groups.playMode.label")}>
             <SegmentedButton type="button" active={playMode === "league"} aria-pressed={playMode === "league"} onClick={() => setPlayMode("league")}>{t("groups.playMode.league")}</SegmentedButton>
-            <SegmentedButton type="button" active={playMode === "tournaments"} aria-pressed={playMode === "tournaments"} onClick={() => setPlayMode("tournaments")}>{t("groups.playMode.tournaments")}</SegmentedButton>
+            <SegmentedButton type="button" active={playMode === "tournaments"} aria-pressed={playMode === "tournaments"} onClick={() => { setOpenedTournaments(true); setPlayMode("tournaments"); }}>{t("groups.playMode.tournaments")}</SegmentedButton>
         </Segmented>}
         {!tournamentId && playMode === "league" ? <>
         <p className="mb-5 px-1 text-black/55 dark:text-white/55">{groupMonthLabel(i18n.language, activity.data?.current_season)}</p>
@@ -113,7 +123,10 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
                 removeLabel={t("table.action.closeTable")} creating={creating} onCreate={onCreateTable}
                 className="sm:grid-cols-2 sm:gap-4" />
             <div className="flex justify-center"><TableEventNotice groupId={groupId} /></div>
-        </> : <GroupTournaments groupMembers={groupMembers} groupName={groupName} groupId={groupId} groupUrl={groupUrl} gamePlugin={gamePlugin} />}
+        </> : null}
+        {(tournamentId || playMode === "tournaments" || openedTournaments) && <div hidden={!tournamentId && playMode !== "tournaments"}>
+            <GroupTournaments groupMembers={groupMembers} groupName={groupName} groupId={groupId} groupUrl={groupUrl} gamePlugin={gamePlugin} onTournamentRules={setTournamentSettings} />
+        </div>}
         </>}
     </TableFrame>;
 }
