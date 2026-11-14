@@ -1140,7 +1140,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                         </div>
                                         <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
                                             <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
-                                                {ratingProfile?.rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ?? t("table.label.unrated")}
+                                                {ratingProfile?.rating.toFixed(2) ?? t("table.label.unrated")}
                                             </div>
                                             <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
                                                 {t("table.label.rating")}

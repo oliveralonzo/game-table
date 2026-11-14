@@ -334,7 +334,7 @@ export default function LobbyRoster({
                         ? `@${p.accountUsername}`
                         : null;
                     const rating = p.accountUsername ? ratings[p.accountUsername]?.rating : undefined;
-                    const ratingLabel = rating?.toFixed(0);
+                    const ratingLabel = rating?.toFixed(2);
                     const ratingBadge = showRatings && accountUsernameLabel && (
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-normal tabular-nums opacity-80"
                             aria-label={ratingLabel ? t("table.label.playerRating", { rating: ratingLabel }) : t("table.label.unrated")}>
