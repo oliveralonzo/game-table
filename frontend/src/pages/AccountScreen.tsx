@@ -1109,18 +1109,6 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                     </Button>
                                 </SignOutButton>
 
-                                {ratingProfile && (
-                                    <section className="grid gap-2">
-                                        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-black/35 dark:text-white/35">
-                                            {t("table.label.rating")}
-                                        </h2>
-                                        <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
-                                            <span className="text-2xl font-semibold tabular-nums">{ratingProfile.rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
-                                            <span className="ml-2 text-sm opacity-60">({t("table.label.ratingReliability", { percent: ratingProfile.reliability })})</span>
-                                        </div>
-                                    </section>
-                                )}
-
                                 <section className="grid gap-2">
                                     <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-black/35 dark:text-white/35">
                                         {t("account.section.history")}
@@ -1140,6 +1128,23 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                             </div>
                                             <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
                                                 {t("account.history.gamesPlayed")}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
+                                            <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
+                                                {gamesPlayed > 0 ? (gamesWon / gamesPlayed).toLocaleString(i18n.language, { style: "percent" }) : "—"}
+                                            </div>
+                                            <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
+                                                {t("table.label.winPercentage")}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
+                                            <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
+                                                {ratingProfile?.rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ?? t("table.label.unrated")}
+                                            </div>
+                                            <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
+                                                {t("table.label.rating")}
+                                                {ratingProfile && <> ({t("table.label.ratingReliability", { percent: ratingProfile.reliability })})</>}
                                             </div>
                                         </div>
                                     </div>
