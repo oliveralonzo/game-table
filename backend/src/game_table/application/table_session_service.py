@@ -383,6 +383,7 @@ class TableSessionService(Generic[RulesT]):
             "active_game_id": table.active_game_id,
             "finished_game_close": table.finished_game_close,
             "unseat": table.get_unseat_view(),
+            "start_game_confirmation": table.start_game_confirmation.snapshot() if table.start_game_confirmation else None,
             "end_game_confirmation": table.end_game_confirmation.snapshot() if table.end_game_confirmation else None,
             "queue": table.get_queue(),
             "post_game_transition": table.get_post_game_transition_view(),

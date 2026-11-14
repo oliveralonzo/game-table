@@ -67,6 +67,7 @@ export interface PostGameTransitionView {
 export interface TableView {
     finished_game_close?: { game_id: string; deadline: number | null; reviewing: boolean; reviewed: boolean } | null;
     unseat?: { confirmations: Record<string, { id: string; seat_index: number; deadline: number; requester_name?: string | null }>; cooldowns: Record<string, number> };
+    start_game_confirmation?: { id: string; deadline: number; status: "pending" | "approved" | "cancelled"; responses: Record<string, boolean | null> } | null;
     end_game_confirmation?: { id: string; game_id: string; deadline: number; status: "pending" | "approved" | "cancelled"; responses: Record<string, boolean | null> } | null;
     host_name?: string | null;
     host_username?: string | null;

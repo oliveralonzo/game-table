@@ -37,6 +37,41 @@ class GameTableService:
         # A closed table releases its context without a second persistent registry.
         self._history_contexts = WeakKeyDictionary()
 
+    def request_game_start(self, member_id):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        if table.tournament_id:
+            raise ValueError('Tournament games start automatically.')
+        self._table_service.prepare_game_start(member_id)
+        players = tuple(seat.member_id for seat in table.seats if seat.member_id)
+        existing = table.start_game_confirmation
+        if existing:
+            existing.expire(self._clock_ms() / 1000)
+            if existing.status == 'pending' and tuple(existing.responses) == players:
+                return
+        table.start_game_confirmation = EndGameConfirmation(
+            None, players, now=self._clock_ms() / 1000,
+            response_seconds=self._post_game_response_seconds, require_response=True)
+        table.start_game_requester = member_id
+
+    def respond_game_start(self, member_id, confirmation_id, ready):
+        code = self._table_service.get_table_code_for_member(member_id)
+        table = self._table_service.get_table(code)
+        confirmation = table.start_game_confirmation
+        if confirmation is None or confirmation.id != confirmation_id:
+            raise ValueError('Start confirmation is no longer current.')
+        if tuple(confirmation.responses) != tuple(seat.member_id for seat in table.seats if seat.member_id):
+            confirmation.status = 'cancelled'
+            raise ValueError('Seating changed during the readiness check.')
+        confirmation.respond(member_id, ready, now=self._clock_ms() / 1000)
+        if confirmation.status == 'approved':
+            try:
+                self.start_game_for_table(table.start_game_requester)
+            except Exception:
+                confirmation.status = 'cancelled'
+                raise
+            table.start_game_confirmation = None
+
     def start_game_for_table(self, member_id: str) -> str:
         table_code = self._table_service.get_table_code_for_member(member_id)
         table = self._table_service.get_table(table_code)
@@ -277,6 +312,9 @@ class GameTableService:
         confirmation = self._table_service.get_table(table_code).end_game_confirmation
         if confirmation is not None and confirmation.status == 'pending':
             deadline = confirmation.deadline if deadline is None else min(deadline, confirmation.deadline)
+        start = self._table_service.get_table(table_code).start_game_confirmation
+        if start and start.status == 'pending':
+            deadline = start.deadline if deadline is None else min(deadline, start.deadline)
         return None if deadline is None else max(0, deadline - self._clock_ms() / 1000)
 
     def record_completed_game_for_table(

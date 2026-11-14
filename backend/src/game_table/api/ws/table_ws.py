@@ -750,13 +750,17 @@ def register_table_events(
             while (table_service.table_exists(table_code)
                    and table_service.get_table(table_code) is table):
                 before = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view(), dict(table.finished_game_close) if table.finished_game_close else None)
+                start = table.start_game_confirmation
+                prior_start = start.status if start else None
+                if start:
+                    start.expire(time.time())
                 table.expire_unseat(time.time())
                 if game_table_service:
                     game_table_service.expire_finished_game_for_table(table_code)
                     game_table_service.expire_game_end_for_table(table_code)
                     game_table_service.expire_post_game_for_table(table_code)
                 after = (table.get_post_game_transition_view(), table.end_game_confirmation.snapshot() if table.end_game_confirmation else None, table.get_unseat_view(), dict(table.finished_game_close) if table.finished_game_close else None)
-                if after != before:
+                if after != before or (start and start.status != prior_start):
                     await _broadcast_table_state_update(table_code)
                 delay = _table_wait_seconds(table_code)
                 if delay is None:
@@ -828,20 +832,30 @@ def register_table_events(
 
     # ---------------------------- Game Control ---------------------------- #
 
+    @sio.on("table:start_game_response")
+    async def respond_start_game(sid, data):
+        try:
+            member_id = session_registry.resolve_member_id(sid)
+            table_code = table_service.get_table_code_for_member(member_id)
+            game_table_service.respond_game_start(member_id, data['confirmation_id'], data['yes'])
+            return {"updated": True}
+        except Exception as exc:
+            return _error_response(exc)
+        finally:
+            if "table_code" in locals() and table_service.table_exists(table_code):
+                _schedule_post_game_deadline(table_code)
+                await _broadcast_table_state_update(table_code)
+
     @sio.on("table:start_game")
     async def start_game(sid, data):
         try:
             member_id = session_registry.resolve_member_id(sid)
             table_code = table_service.get_table_code_for_member(member_id)
 
-            game_id = game_table_service.start_game_for_table(member_id)
-
+            game_table_service.request_game_start(member_id)
+            _schedule_post_game_deadline(table_code)
             await _broadcast_table_state_update(table_code)
-
-            return {
-                "started": True,
-                "game_id": game_id,
-            }
+            return {"pending": True}
 
         except Exception as exc:
             if "table_code" in locals() and table_service.table_exists(table_code):

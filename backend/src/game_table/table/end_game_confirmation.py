@@ -2,7 +2,7 @@
 from uuid import uuid4
 
 class EndGameConfirmation:
-    def __init__(self, game_id, players, *, now, response_seconds):
+    def __init__(self, game_id, players, *, now, response_seconds, require_response=False):
         if not players or response_seconds <= 0:
             raise ValueError('Players and a positive response window are required.')
         self.id = str(uuid4())
@@ -10,9 +10,13 @@ class EndGameConfirmation:
         self.deadline = now + response_seconds
         self.responses = {player: None for player in players}
         self.status = 'pending'
+        self.require_response = require_response
 
     def expire(self, now):
         if self.status == 'pending' and now >= self.deadline:
+            if self.require_response:
+                self.status = 'cancelled'
+                return
             self.responses = {p: True if vote is None else vote for p, vote in self.responses.items()}
             self.status = 'approved'
 

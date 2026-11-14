@@ -107,6 +107,8 @@ class Table(Generic[RulesT]):
         self.finished_game_close = None
         self.end_game_confirmation = None
         self._player_queue = PlayerQueue()
+        self.start_game_confirmation = None
+        self.start_game_requester = None
         self._post_game_transition: PostGameTransition | None = None
         self._post_game_transition_id: str | None = None
         self._post_game_seats_applied = False

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import InviteButton from "game-table/components/InviteButton";
 import TableIdentity from "game-table/components/TableIdentity";
 import QueueAction from 'game-table/components/QueueAction';
@@ -66,9 +67,24 @@ export default function TableFrameTools({
 }: Props) {
     const { t } = useTranslation();
     const { state } = useTable();
+    const start = state.tableView?.start_game_confirmation;
+    const end = state.tableView?.end_game_confirmation;
+    const transitionDeadline = state.tableView?.post_game_transition?.seating_blocked;
+    const [now, setNow] = useState(Date.now);
+    useEffect(() => {
+        if (!transitionDeadline && start?.status !== "pending" && end?.status !== "pending") return;
+        setNow(Date.now());
+        const timer = window.setInterval(() => setNow(Date.now()), 250);
+        return () => window.clearInterval(timer);
+    }, [transitionDeadline, start?.status, end?.status]);
+    const waiting = (deadline: number | null) => {
+        if (deadline == null) return t("table.startConfirmation.waiting");
+        const seconds = Math.max(0, Math.ceil(deadline - now / 1000));
+        return `${t("table.startConfirmation.waiting")} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    };
     if (tool === "people") {
         const transition = state.tableView?.post_game_transition;
-        const vote = state.tableView?.end_game_confirmation;
+        const vote = start?.status === "pending" ? start : end;
         const voting = vote?.status === 'pending';
         const checking = !!transition?.seating_blocked;
         const roster = [...seatedRoster, ...(queuedRoster ?? []), ...viewerRoster];
@@ -76,7 +92,14 @@ export default function TableFrameTools({
             const check = transition?.players[person.id];
             if (voting && vote && person.id in vote.responses) {
                 const response = vote.responses[person.id];
-                return { ...person, statusLabel: t(response === null ? 'table.postGame.answering' : response ? 'table.endConfirmation.yes' : 'table.endConfirmation.no') };
+                return { ...person, statusLabel: response === null ? waiting(vote.deadline) : t(start?.status === "pending"
+                    ? response ? "table.queue.readyStatus" : "table.startConfirmation.no"
+                    : response ? "table.endConfirmation.yes" : "table.endConfirmation.no") };
+            }
+            if (start?.status === "cancelled" && person.id in start.responses) {
+                const response = start.responses[person.id];
+                return { ...person, statusLabel: t(response === true ? "table.queue.readyStatus"
+                    : response === null && !Object.values(start.responses).includes(false) ? "table.postGame.expired" : "table.startConfirmation.no") };
             }
             if (!check) return person;
             const key = check.decision === 'accepted'
@@ -89,14 +112,14 @@ export default function TableFrameTools({
                 : check.decision === 'team_choice' ? 'table.postGame.choosingPartner'
                 : check.decision === 'partner_choice' ? 'table.postGame.choosingPlayer'
                 : 'table.postGame.answering';
-            return { ...person, statusLabel: t(key) };
+            return { ...person, statusLabel: check.deadline != null && !["accepted", "left", "timed_out"].includes(check.decision) ? waiting(check.deadline) : t(key) };
         };
         const pending = voting && vote ? roster.filter(person => vote.responses[person.id] === null).map(status) : checking ? roster.filter(person => {
             const decision = transition?.players[person.id]?.decision;
             return decision && !['accepted', 'left', 'timed_out'].includes(decision)
                 && !(decision === 'waiting' && transition?.challengers?.includes(person.id));
         }).map(status) : [];
-        const accepted = checking ? roster.filter(person => transition?.players[person.id]?.decision === 'accepted').map(status) : voting ? seatedRoster.filter(person => vote?.responses[person.id] !== null).map(status) : seatedRoster;
+        const accepted = checking ? roster.filter(person => transition?.players[person.id]?.decision === 'accepted').map(status) : voting ? seatedRoster.filter(person => vote?.responses[person.id] !== null).map(status) : start?.status === "cancelled" ? seatedRoster.map(status) : seatedRoster;
         const queued = checking ? (queuedRoster ?? []).filter(person => transition?.players[person.id]?.decision === 'waiting').map(status) : queuedRoster;
         const displayed = new Set([...pending, ...accepted, ...(queued ?? [])].map(person => person.id));
         const viewers = checking ? roster.filter(person => !displayed.has(person.id)).map(status) : viewerRoster;

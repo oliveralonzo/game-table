@@ -117,15 +117,16 @@ export default function TableFrame({
     const [activeTool, setActiveTool] = useState<TableTool | null>(null);
     const { state: progressState } = useTable();
     const { respondPostGame, setQueued } = useTableSocket();
-    const progressId = progressState.tableView?.post_game_transition?.seating_blocked
+    const start = progressState.tableView?.start_game_confirmation;
+    const progressId = start?.status === "pending" ? start.id : progressState.tableView?.post_game_transition?.seating_blocked
         ? progressState.tableView.post_game_transition.id
         : progressState.tableView?.end_game_confirmation?.status === 'pending' ? progressState.tableView.end_game_confirmation.id : null;
     const seenProgressId = useRef<string | null>(null);
     useEffect(() => {
         if (!progressId || seenProgressId.current === progressId) return;
         seenProgressId.current = progressId;
-        setActiveTool(current => current ?? 'people');
-    }, [progressId]);
+        setActiveTool(current => start?.id === progressId ? 'people' : current ?? 'people');
+    }, [progressId, start?.id]);
     const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
     const [isContentTranslucent, setIsContentTranslucent] = useState(false);
     const [suppressHighlightSlide, setSuppressHighlightSlide] = useState(false);
