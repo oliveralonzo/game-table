@@ -1,3 +1,4 @@
+import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
 import { compareHeadToHead, compareHeadToHeadScore, formatOpponentsAhead, opponentCount } from "game-table/utils/headToHead";
 import type { GroupActivity } from "game-table/types/groupActivity";
 import { useGroupActivity } from "game-table/hooks/useGroupActivity";
@@ -83,7 +84,9 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
         ? navigate(-1) : navigate(location.pathname, { replace: true });
     const [historyPage, setHistoryPage] = useState(1);
     const [view, setView] = useState<"standings" | "history">("standings");
+    const showRatings = useGroupRatingVisibility(groupId);
     const { data, loading, error, retry } = useGroupActivity(groupId, season, historyPage);
+    useEffect(() => { if (showRatings) retry(); }, [showRatings, retry]);
     const selectedPlayer = data?.players.find(player => player.username === playerReference)
         ?? data?.players.find(player => player.account_id === playerReference);
     useEffect(() => {
@@ -168,7 +171,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
         {view === "standings" ? <>
             <GroupStatsOverview data={data} />
             <GroupStandings key={season} data={data} loading={loading} onPlayerOpen={openPlayer} />
-        </> : <GroupHistoryPreview data={data?.history} loading={loading} onPageChange={setHistoryPage} /> }
+        </> : <GroupHistoryPreview showRatings={showRatings} data={data?.history} loading={loading} onPageChange={setHistoryPage} /> }
         </div>
         {playerReference && (selectedPlayer ? <PlayerRecordsScreen key={`${selectedPlayer.account_id}:${selectedSeason}`} accountId={selectedPlayer.account_id}
             groupId={groupId} season={selectedSeason} availability={{ teammates: true, opponents: true }} />

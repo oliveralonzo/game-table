@@ -355,7 +355,7 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                     {t("groups.tournaments.start")}
                 </Button>}
             </div>
-            {!!selected.champions?.length && <LobbyRoster
+            {!!selected.champions?.length && <LobbyRoster groupId={groupId}
                 title={t("groups.tournaments.champions")} flush showSeatLocation={false}
                 className="mb-5 [&>h2]:!px-1 [&>.k-list]:!mx-0"
                 people={selected.champions.map(id => {
@@ -435,7 +435,7 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                             enterTable(selected.assignment.table_code, done);
                         } else { setDismissedAssignment(id); done(true); }
                     }} />}
-                {selected.stage === "qualification" && <TableCards tables={selected.tables ?? []} getKey={table => table.instance_id}
+                {selected.stage === "qualification" && <TableCards tables={(selected.tables ?? []).map(table => ({ ...table, group_id: groupId }))} getKey={table => table.instance_id}
                     isClosing={() => false} onClosed={() => {}} onEnter={table => enterTable(table.table_code)}
                     showCreate={false} creating={false} onCreate={() => {}} createLabel="" />}
             </>}
@@ -459,7 +459,7 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                 </div>
                 <TableInviteDialog shareText={inviteText} fallbackInviteUrl={fallbackInviteUrl} onCloseInviteFallback={closeInviteFallback} />
                 <section aria-label={t("groups.tournaments.attendance")}>
-                    {attendancePeople.length > 0 ? <LobbyRoster people={attendancePeople} flush showSeatLocation={false}
+                    {attendancePeople.length > 0 ? <LobbyRoster groupId={groupId} people={attendancePeople} flush showSeatLocation={false}
                         title={t("groups.tournaments.attendance")} className="[&>h2]:!px-1 [&>p]:!px-1 [&>.k-list]:!mx-0"
                         subtitle={t("groups.tournaments.attendanceSummary", {
                             yes: selected.attendance_intent_count ?? 0,

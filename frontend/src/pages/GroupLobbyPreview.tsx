@@ -88,8 +88,8 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
         </Glass>}
         renderToolContent={(tool) => tool === "people" ? <section className="min-h-0 overflow-y-auto pb-3">
             <p className="mb-3 px-safe-4 text-sm text-black/55 dark:text-white/55">{t("groups.members", { count: groupMembers.length })}</p>
-            {activeRoster.length > 0 && <LobbyRoster people={activeRoster} title={t("groups.roster.active")} flush showSeatLocation={false} />}
-            {offlineRoster.length > 0 && <LobbyRoster people={offlineRoster} title={t("groups.roster.offline")} flush
+            {activeRoster.length > 0 && <LobbyRoster groupId={groupId} people={activeRoster} title={t("groups.roster.active")} flush showSeatLocation={false} />}
+            {offlineRoster.length > 0 && <LobbyRoster groupId={groupId} people={offlineRoster} title={t("groups.roster.offline")} flush
                 className={activeRoster.length ? "mt-3" : ""} showSeatLocation={false} />}
         </section> : tool === "chat" ? <Chat messages={messages} selfId={self?.account_id ?? ""}
             displayName={self?.name ?? displayName}
@@ -116,7 +116,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
             {activity.error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{activity.error} <Button inline clear onClick={activity.retry}>{t("groups.list.retry")}</Button></p>}
             <h2 className="mb-3 px-1 text-[22px] font-bold">{t("navigation.tables")}</h2>
             {tableError && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{tableError}</p>}
-            <TableCards createLabel={t("groupTables.create")} tables={visibleTables.map(table => ({ ...table, group_name: groupName }))} getKey={table => table.table_code}
+            <TableCards createLabel={t("groupTables.create")} tables={visibleTables.map(table => ({ ...table, group_id: groupId, group_name: groupName }))} getKey={table => table.table_code}
                 isPending={table => closingPending.includes(table.table_code)}
                 isClosing={table => !!closingTables[table.table_code] && !closingPending.includes(table.table_code)} onClosed={table => onTableClosed(table.table_code)}
                 onEnter={table => onEnterTable(table.table_code)} onRemove={onRemoveTable} canRemove={table => table.members.length === 0}

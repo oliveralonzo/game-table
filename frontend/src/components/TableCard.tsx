@@ -8,7 +8,7 @@ import type { SavedTable } from "game-table/context/SavedTablesContext";
 import { Plus } from "lucide-react";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 
-type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods" | "seat_orders"> & { host_id?: string | null; group_name?: string | null; host_name?: string | null; host_username?: string | null };
+type Preview = Pick<SavedTable, "table_code" | "seats" | "members" | "seat_count" | "seat_selection_methods" | "seat_orders"> & { host_id?: string | null; group_name?: string | null; group_id?: string | null; host_name?: string | null; host_username?: string | null };
 export default function TableCard({ table, onEnter, pending = false, closing = false, onClosed, onRemove, removeLabel }: {
     table: Preview; onEnter: () => void; pending?: boolean; closing?: boolean;
     onClosed?: (code: string) => void; onRemove?: () => void; removeLabel?: string;
@@ -31,7 +31,7 @@ export default function TableCard({ table, onEnter, pending = false, closing = f
         peopleLabel={t("groups.preview.peopleAt", { number: label ? `${label} · ${table.table_code}` : table.table_code })}
         enterLabel={pending ? t("join.status.creatingTable") : t("groups.preview.enter", { number: label ? `${label} · ${table.table_code}` : table.table_code })}
         backLabel={t("groups.preview.showTable", { number: table.table_code })}
-        roster={roster.length ? <PeoplePanel seatedRoster={roster.filter(person => person.hasSeat)}
+        roster={roster.length ? <PeoplePanel groupId={table.group_id ?? null} seatedRoster={roster.filter(person => person.hasSeat)}
             viewerRoster={roster.filter(person => !person.hasSeat)} seatCount={table.seat_count} showSeatLocation={false} />
             : <p className="px-safe-4 py-3 text-sm text-black/45 dark:text-white/45">{t("groups.preview.empty")}</p>}
     >

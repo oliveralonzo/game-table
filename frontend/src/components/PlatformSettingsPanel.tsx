@@ -18,9 +18,11 @@ type Props = {
     gameSettings?: ReactNode;
     gameSettingsNested?: boolean;
     routed?: boolean;
+    renderGameSettings?: (extraRow: ReactNode) => ReactNode;
+    extraPane?: { title: string; content: ReactNode };
 };
 
-type SettingsPane = "general" | "language";
+type SettingsPane = "general" | "language" | "extra";
 
 export default function PlatformSettingsPanel({
     displayName,
@@ -33,6 +35,8 @@ export default function PlatformSettingsPanel({
     gameSettings,
     gameSettingsNested = false,
     routed = false,
+    extraPane,
+    renderGameSettings,
 }: Props) {
     const { t } = useTranslation();
     const [pane, setPane] = useState<SettingsPane>("general");
@@ -44,7 +48,7 @@ export default function PlatformSettingsPanel({
     if (routed) {
         const paneTitle = pane === "general"
             ? t("table.label.general")
-            : t("common.language.label");
+            : pane === "extra" ? extraPane?.title : t("common.language.label");
 
         return (
             <div className="grid min-w-0 gap-3">
@@ -79,7 +83,9 @@ export default function PlatformSettingsPanel({
                                         compact={compactProfile}
                                     />
                             ) : null}
-                            {gameSettings}
+                            {renderGameSettings ? renderGameSettings(extraPane && <ListItem
+                                title={extraPane.title} link chevron onClick={() => setPane("extra")}
+                                strongTitle={false} titleFontSizeIos="text-[17px]" />) : gameSettings}
                             {showLanguage && !gameSettingsNested ? (
                                 <List inset nested={false} outline strong className="m-0 overflow-hidden">
                                     <ListItem
@@ -94,6 +100,7 @@ export default function PlatformSettingsPanel({
                             ) : null}
                         </>
                     ) : null}
+                    {pane === "extra" && extraPane?.content}
                     {pane === "language" && showLanguage ? (
                         <LanguageSettingsList radioName="platform-language" />
                     ) : null}

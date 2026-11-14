@@ -20,6 +20,8 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
+import { useTable } from "game-table/context/TableState";
 import { useTableSocket } from "game-table/context/TableSocket";
 import { createPortal } from "react-dom";
 import {
@@ -66,6 +68,7 @@ export type RosterAction = {
 
 type Props = {
     people: RosterPerson[];
+    groupId?: string | null;
     seatCount?: number;
     title?: string | null;
     subtitle?: ReactNode;
@@ -102,6 +105,7 @@ function getAvatarClass(person: RosterPerson): string {
 
 export default function LobbyRoster({
     people,
+    groupId,
     title = "People in Lobby",
     subtitle,
     flush = false,
@@ -110,11 +114,14 @@ export default function LobbyRoster({
     showHandViewStatus = false,
     getActions,
 }: Props) {
+    const { state } = useTable();
+    const showRatings = useGroupRatingVisibility(groupId === undefined ? state.tableView?.group_id : groupId);
     const { emit } = useTableSocket();
     const [ratings, setRatings] = useState<Record<string, { rating: number }>>({});
     const usernameKey = JSON.stringify([...new Set(people.flatMap(person =>
         person.accountUsername ? [person.accountUsername] : []))].sort());
     useEffect(() => {
+        if (!showRatings) return;
         const usernames: string[] = JSON.parse(usernameKey);
         let current = true;
         for (let offset = 0; offset < usernames.length; offset += 100) {
@@ -124,7 +131,7 @@ export default function LobbyRoster({
                 });
         }
         return () => { current = false; };
-    }, [emit, usernameKey]);
+    }, [emit, usernameKey, showRatings]);
 
     const { t, i18n } = useTranslation();
     const [openActionId, setOpenActionId] = useState<string | null>(null);
@@ -402,7 +409,7 @@ export default function LobbyRoster({
                                         </div>
                                     ) : null}
                                 </div>
-                                {p.accountUsername && ratings[p.accountUsername] && (
+                                {showRatings && p.accountUsername && ratings[p.accountUsername] && (
                                     <span className="shrink-0 tabular-nums"
                                         aria-label={t("table.label.playerRating", { rating: ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}>
                                         {ratings[p.accountUsername].rating.toLocaleString(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}

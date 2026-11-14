@@ -8,6 +8,7 @@ import LobbyRoster, {
 
 type Props = {
     seatedRoster: RosterPerson[];
+    groupId?: string | null;
     viewerRoster: RosterPerson[];
     queuedRoster?: RosterPerson[];
     pendingRoster?: RosterPerson[];
@@ -20,6 +21,7 @@ type Props = {
 
 export default function PeoplePanel({
     seatedRoster,
+    groupId,
     viewerRoster,
     queuedRoster = [],
     pendingRoster = [],
@@ -36,7 +38,7 @@ export default function PeoplePanel({
     return (
         <div className="min-h-0 flex-1 overflow-y-auto pb-3">
             {hasPlayers && (
-                <LobbyRoster
+                <LobbyRoster groupId={groupId}
                     title={t("table.roster.players")}
                     people={seatedRoster}
                     seatCount={seatCount}
@@ -46,7 +48,7 @@ export default function PeoplePanel({
                     getActions={getActions}
                 />
             )}
-            {pendingRoster.length > 0 ? <LobbyRoster
+            {pendingRoster.length > 0 ? <LobbyRoster groupId={groupId}
                 title={t('table.postGame.pending')}
                 people={pendingRoster}
                 seatCount={seatCount}
@@ -55,7 +57,7 @@ export default function PeoplePanel({
                 showSeatLocation={false}
             /> : null}
             {queuedRoster.length > 0 ? (
-                <LobbyRoster
+                <LobbyRoster groupId={groupId}
                     title={t('table.queue.title')}
                     people={queuedRoster}
                     seatCount={seatCount}
@@ -68,7 +70,7 @@ export default function PeoplePanel({
             ) : null}
             {middleAction}
             {hasViewers && (
-                <LobbyRoster
+                <LobbyRoster groupId={groupId}
                     title={t("table.roster.viewers")}
                     people={viewerRoster}
                     seatCount={seatCount}
