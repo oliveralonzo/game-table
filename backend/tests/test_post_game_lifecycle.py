@@ -245,3 +245,27 @@ def test_rejected_account_replacement_does_not_transfer_offer():
         s.table.replace_member_id('a', 'imposter', 'wrong-account')
     view = s.table.get_post_game_transition_view()
     assert 'a' in view['players'] and 'imposter' not in view['players']
+
+
+@pytest.mark.parametrize('change', [None, 'replacement', 'leave_and_reseat'])
+def test_start_after_handoff_reuses_readiness_only_for_unchanged_lineup(change):
+    s = setup()
+    offer = close(s)
+    with pytest.raises(ValueError, match='blocked'):
+        s.service.request_game_start('a')
+    for player in ('a', 'b', 'c', 'd'):
+        accept(s, offer, player)
+
+    if change:
+        s.table.unassign_seat(1)
+        s.table.assign_seat('viewer' if change == 'replacement' else 'b', 1)
+        assert s.service.request_game_start('a') is None
+        assert s.table.start_game_confirmation.status == 'pending'
+        assert s.table.active_game_id is None
+    else:
+        assert s.service.request_game_start('a') == 'next-game'
+        assert s.table.active_game_id == 'next-game'
+        assert s.table.start_game_confirmation is None
+        s.table.release_game()
+        assert s.service.request_game_start('a') is None
+        assert s.table.start_game_confirmation.status == 'pending'

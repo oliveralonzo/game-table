@@ -852,10 +852,10 @@ def register_table_events(
             member_id = session_registry.resolve_member_id(sid)
             table_code = table_service.get_table_code_for_member(member_id)
 
-            game_table_service.request_game_start(member_id)
+            game_id = game_table_service.request_game_start(member_id)
             _schedule_post_game_deadline(table_code)
             await _broadcast_table_state_update(table_code)
-            return {"pending": True}
+            return {"started": True, "game_id": game_id} if game_id is not None else {"pending": True}
 
         except Exception as exc:
             if "table_code" in locals() and table_service.table_exists(table_code):

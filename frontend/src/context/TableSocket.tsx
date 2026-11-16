@@ -55,6 +55,7 @@ type CreateJoinAck =
     | BackendErrorAck;
 
 type StartGameAck =
+    | { pending: true }
     | { started: true; game_id: string }
     | BackendErrorAck;
 

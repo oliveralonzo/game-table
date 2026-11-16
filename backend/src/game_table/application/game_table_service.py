@@ -37,12 +37,14 @@ class GameTableService:
         # A closed table releases its context without a second persistent registry.
         self._history_contexts = WeakKeyDictionary()
 
-    def request_game_start(self, member_id):
+    def request_game_start(self, member_id) -> str | None:
         code = self._table_service.get_table_code_for_member(member_id)
         table = self._table_service.get_table(code)
         if table.tournament_id:
             raise ValueError('Tournament games start automatically.')
         self._table_service.prepare_game_start(member_id)
+        if table.has_post_game_ready_lineup:
+            return self.start_game_for_table(member_id)
         players = tuple(seat.member_id for seat in table.seats if seat.member_id)
         existing = table.start_game_confirmation
         if existing:

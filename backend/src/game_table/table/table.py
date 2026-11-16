@@ -112,6 +112,7 @@ class Table(Generic[RulesT]):
         self._post_game_transition: PostGameTransition | None = None
         self._post_game_transition_id: str | None = None
         self._post_game_seats_applied = False
+        self._post_game_ready_lineup = None
         self._post_game_clock = None
         self._state: TableState = TableState.OPEN
 
@@ -413,6 +414,7 @@ class Table(Generic[RulesT]):
 
         for seat in self._seats:
             if seat.member_id == old_member_id:
+                self._post_game_ready_lineup = None
                 seat.member_id = new_member_id
 
         if old_member_id in self._hand_view_permissions:
@@ -486,6 +488,7 @@ class Table(Generic[RulesT]):
         if seat_index is not None:
             if self._active_game_id is not None:
                 self._game_changed_seats.add(seat_index)
+            self._post_game_ready_lineup = None
             self._seats[seat_index].member_id = None
             self._seats[seat_index].selection_method = None
 
@@ -552,6 +555,7 @@ class Table(Generic[RulesT]):
             raise ValueError("Maximum seat count reached.")
 
         new_index = len(self._seats)
+        self._post_game_ready_lineup = None
         self._seats.append(Seat(index=new_index))
 
 
@@ -577,6 +581,7 @@ class Table(Generic[RulesT]):
         # Automatically unassign if occupied
         last_seat.member_id = None
 
+        self._post_game_ready_lineup = None
         self._seats.pop()
 
 
@@ -675,6 +680,7 @@ class Table(Generic[RulesT]):
             seat.forced_seating_order = None
         self._previous_seating_sequences[identity] = seat.seating_sequence
         self._player_queue.leave(member_id)
+        self._post_game_ready_lineup = None
         seat.member_id = member_id
         seat.selection_method = selection_method
         if random_requested:
@@ -765,6 +771,7 @@ class Table(Generic[RulesT]):
         if self._active_game_id is not None:
             self._game_changed_seats.add(seat_index)
 
+        self._post_game_ready_lineup = None
         seat.member_id = None
         seat.selection_method = None
 
@@ -852,6 +859,8 @@ class Table(Generic[RulesT]):
         self._ensure_no_game_exists("Game already exists.")
 
         self.end_game_confirmation = None
+        self.start_game_confirmation = None
+        self._post_game_ready_lineup = None
         self._post_game_transition = None
         self._post_game_transition_id = None
         self._game_changed_seats.clear()
@@ -921,6 +930,7 @@ class Table(Generic[RulesT]):
         self._post_game_transition = transition
         self._post_game_transition_id = str(uuid4())
         self._post_game_seats_applied = False
+        self._post_game_ready_lineup = None
 
     def apply_post_game_seats(self) -> None:
         transition = self._post_game_transition
@@ -932,6 +942,13 @@ class Table(Generic[RulesT]):
             if member_id is not None and member_id in self._members:
                 self.assign_seat(member_id, index)
         self._post_game_seats_applied = True
+        lineup = tuple(seat.member_id for seat in self._seats)
+        if all(lineup) and lineup == transition.proposed_seats:
+            self._post_game_ready_lineup = lineup
+
+    @property
+    def has_post_game_ready_lineup(self) -> bool:
+        return self._post_game_ready_lineup == tuple(seat.member_id for seat in self._seats)
 
     def _ensure_post_game_seating_open(self) -> None:
         if self._post_game_transition is not None and self._post_game_transition.seating_blocked:
