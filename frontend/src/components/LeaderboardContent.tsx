@@ -1,3 +1,6 @@
+import PlayerRatingBadge from "game-table/components/PlayerRatingBadge";
+import { usePlayerRatings } from "game-table/hooks/usePlayerRatings";
+import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
 import { opponentCount } from "game-table/utils/headToHead";
 import type { ReactNode } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Flame } from "lucide-react";
@@ -29,6 +32,7 @@ export type LeaderboardEntry = {
 
 type Props = {
     entries: LeaderboardEntry[];
+    groupId?: string;
     sort: LeaderboardSort | "head_to_head";
     page: number;
     hasMore: boolean;
@@ -54,8 +58,10 @@ function formatWinPercentage(value: number): string {
     return `${Math.round(value * 100)}%`;
 }
 
-export default function LeaderboardContent({ entries, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, minimumGames = MIN_WIN_PERCENTAGE_GAMES, onBack, onPlayerOpen, onSortChange, onPrevious, onNext }: Props) {
+export default function LeaderboardContent({ entries, groupId, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, minimumGames = MIN_WIN_PERCENTAGE_GAMES, onBack, onPlayerOpen, onSortChange, onPrevious, onNext }: Props) {
     const { t } = useTranslation();
+    const showRatings = useGroupRatingVisibility(groupId);
+    const ratings = usePlayerRatings(entries.flatMap(entry => entry.usernames ?? [entry.username]), showRatings);
     const canGoBack = page > 1 && !isLoading;
     const canGoForward = hasMore && !isLoading;
     const hasUnrankedEntries = sort === "win_percentage"
@@ -171,8 +177,13 @@ export default function LeaderboardContent({ entries, sort, page, hasMore, total
                                     </TableCell>
                                 <TableCell className="whitespace-nowrap !pl-2 !pr-4">
                                         <span className="inline-flex items-center gap-1.5 font-semibold text-black dark:text-white">
-                                            {onPlayerOpen ? <button type="button" className="cursor-pointer text-left focus-visible:outline-none">@{entry.username}</button>
-                                                : (entry.usernames ?? [entry.username]).map(username => `@${username}`).join(", ")}
+                                            {(entry.usernames ?? [entry.username]).map((username, index) => (
+                                                <span key={username} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                                                    {onPlayerOpen ? <button type="button" className="cursor-pointer text-left focus-visible:outline-none">@{username}</button> : <span>@{username}</span>}
+                                                    {ratings[username] && <PlayerRatingBadge username={username} rating={ratings[username].rating} reliability={ratings[username].reliability} />}
+                                                    {index + 1 < (entry.usernames?.length ?? 1) && <span>,</span>}
+                                                </span>
+                                            ))}
                                             {entry.win_streak >= 2 ? (
                                                 <span
                                                     className="inline-flex items-center gap-0.5 text-black/40 dark:text-white/45"

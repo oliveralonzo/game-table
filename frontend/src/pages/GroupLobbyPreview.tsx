@@ -1,3 +1,4 @@
+import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
 import GroupBackButton from "game-table/components/GroupBackButton";
 import type { FrontendGamePlugin } from "game-table/gamePlugin";
 import type { NicknameChangeHandler } from "game-table/components/NicknameSettings";
@@ -63,6 +64,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
     const showingStats = location.pathname.endsWith("/activity");
     const activity = useGroupActivity(groupId, "current", 1, !showingStats);
     const self = groupMembers.find(member => member.is_self);
+    useGroupRatingVisibility(groupId);
     const room = `group:${groupId}:${self?.account_id ?? ""}`;
     const [activeTool, setActiveTool] = useState<TableTool | null>(null);
     const { messages, sendMessage } = useActivity(undefined, undefined, self?.account_id, groupId);

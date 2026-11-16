@@ -22,7 +22,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
 import { useTable } from "game-table/context/TableState";
-import { useTableSocket } from "game-table/context/TableSocket";
+import { usePlayerRatings } from "game-table/hooks/usePlayerRatings";
+import PlayerRatingBadge from "game-table/components/PlayerRatingBadge";
 import { createPortal } from "react-dom";
 import {
     Badge,
@@ -31,7 +32,7 @@ import {
     List,
     ListItem,
 } from "konsta/react";
-import { Circle, Eye, Flame, ChartNoAxesColumnIncreasing, MoreHorizontal } from "lucide-react";
+import { Circle, Eye, Flame, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { glassWithoutLightInsetShadow } from "game-table/styles/glass";
 import { getNameInitials } from "game-table/utils/playerInitialLabels";
@@ -116,22 +117,8 @@ export default function LobbyRoster({
 }: Props) {
     const { state } = useTable();
     const showRatings = useGroupRatingVisibility(groupId === undefined ? state.tableView?.group_id : groupId);
-    const { emit } = useTableSocket();
-    const [ratings, setRatings] = useState<Record<string, { rating: number }>>({});
-    const usernameKey = JSON.stringify([...new Set(people.flatMap(person =>
-        person.accountUsername ? [person.accountUsername] : []))].sort());
-    useEffect(() => {
-        if (!showRatings) return;
-        const usernames: string[] = JSON.parse(usernameKey);
-        let current = true;
-        for (let offset = 0; offset < usernames.length; offset += 100) {
-            emit("domino:rating_profiles", { usernames: usernames.slice(offset, offset + 100) },
-                (result: { profiles?: Record<string, { rating: number }> }) => {
-                    if (current && result.profiles) setRatings(previous => ({ ...previous, ...result.profiles }));
-                });
-        }
-        return () => { current = false; };
-    }, [emit, usernameKey, showRatings]);
+    const ratings = usePlayerRatings(people.flatMap(person =>
+        person.accountUsername ? [person.accountUsername] : []), showRatings);
 
     const { t } = useTranslation();
     const [openActionId, setOpenActionId] = useState<string | null>(null);
@@ -333,15 +320,8 @@ export default function LobbyRoster({
                     const accountUsernameLabel = p.accountUsername
                         ? `@${p.accountUsername}`
                         : null;
-                    const rating = p.accountUsername ? ratings[p.accountUsername]?.rating : undefined;
-                    const ratingLabel = rating?.toFixed(2);
-                    const ratingBadge = showRatings && accountUsernameLabel && (
-                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-normal tabular-nums opacity-80"
-                            aria-label={ratingLabel ? t("table.label.playerRating", { rating: ratingLabel }) : t("table.label.unrated")}>
-                            <ChartNoAxesColumnIncreasing size={12} aria-hidden="true" />
-                            {ratingLabel ?? "—"}
-                        </span>
-                    );
+                    const profile = p.accountUsername ? ratings[p.accountUsername] : undefined;
+                    const ratingBadge = showRatings && accountUsernameLabel && <PlayerRatingBadge username={p.accountUsername} rating={profile?.rating} reliability={profile?.reliability} refreshing={profile?.refreshing} />;
                     const showSubtitleRow = !!p.statusLabel || showSeatLocation || showHandViewStatus || !!accountUsernameLabel || !!p.presence;
 
                     return (

@@ -1,3 +1,4 @@
+import RatingDetailsCard, { type RatingProfile } from "game-table/components/RatingDetailsCard";
 import { HistoryParticipantCell, formatRatingChange, type RatingChanges, formatHistoryDate } from "game-table/components/HistoryCells";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -278,15 +279,15 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
     } = useTableSocket();
     const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
     const [account, setAccount] = useState<AccountView | null>(null);
-    const [ratingProfile, setRatingProfile] = useState<{ rating: number; reliability: number } | null>(null);
+    const [ratingProfile, setRatingProfile] = useState<RatingProfile | null | undefined>(undefined);
     const ratingUsername = account?.username;
     useEffect(() => {
-        setRatingProfile(null);
+        setRatingProfile(undefined);
         if (!ratingUsername) return;
         let current = true;
-        emit("domino:rating_profiles", { usernames: [ratingUsername] },
-            (result: { profiles?: Record<string, { rating: number; reliability: number }> }) => {
-                if (current) setRatingProfile(result.profiles?.[ratingUsername] ?? null);
+        emit("domino:rating_profiles", { usernames: [ratingUsername], include_career_high: true },
+            (result: { profiles?: Record<string, RatingProfile> }) => {
+                if (current && result?.profiles) setRatingProfile(result.profiles[ratingUsername] ?? null);
             });
         return () => { current = false; };
     }, [emit, ratingUsername]);
@@ -873,7 +874,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                                         >
                                                             {entry.won ? t("account.history.win") : t("account.history.loss")}
                                                             {account && entry.rating_changes?.[account.id] && (
-                                                                <span className="ml-2 tabular-nums">{formatRatingChange(entry.rating_changes[account.id], i18n.language)}</span>
+                                                                <span className="ml-2 tabular-nums">{formatRatingChange(entry.rating_changes[account.id])}</span>
                                                             )}
                                                         </div>
                                                         </TableCell>
@@ -1113,7 +1114,7 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                     <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-black/35 dark:text-white/35">
                                         {t("account.section.history")}
                                     </h2>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
                                             <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
                                                 {gamesWon}
@@ -1132,21 +1133,18 @@ export default function AccountScreen({ onBack, afterAuthUrl, rootTab = false }:
                                         </div>
                                         <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
                                             <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
-                                                {gamesPlayed > 0 ? (gamesWon / gamesPlayed).toLocaleString(i18n.language, { style: "percent" }) : "—"}
+                                                {gamesPlayed > 0
+                                                    ? (gamesWon / gamesPlayed).toLocaleString(i18n.language, { style: "percent" }).replace(/\s+%/u, "%")
+                                                    : "—"}
                                             </div>
                                             <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
                                                 {t("table.label.winPercentage")}
                                             </div>
                                         </div>
-                                        <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 text-center dark:bg-ios-dark-surface-2">
-                                            <div className="text-2xl font-semibold tabular-nums text-black dark:text-white">
-                                                {ratingProfile?.rating.toFixed(2) ?? t("table.label.unrated")}
-                                            </div>
-                                            <div className="mt-0.5 text-xs font-medium text-black/45 dark:text-white/45">
-                                                {t("table.label.rating")}
-                                                {ratingProfile && <> ({t("table.label.ratingReliability", { percent: ratingProfile.reliability })})</>}
-                                            </div>
-                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl bg-ios-light-surface-2 px-4 py-3 dark:bg-ios-dark-surface-2">
+                                        <RatingDetailsCard profile={ratingProfile} />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2">

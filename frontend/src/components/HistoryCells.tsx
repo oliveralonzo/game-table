@@ -2,9 +2,10 @@ import { useTranslation } from "react-i18next";
 
 export type RatingChanges = Record<string, { before: number; after: number; change?: number }>;
 
-export function formatRatingChange(change: RatingChanges[string], language: string) {
+export function formatRatingChange(change: RatingChanges[string]) {
     const delta = change.change ?? change.after - change.before;
-    return (delta || 0).toLocaleString(language, {
+    return (delta || 0).toLocaleString("en-US", {
+        useGrouping: false,
         signDisplay: "always",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -25,7 +26,6 @@ function formatParticipants(
     fallback: string,
     guestLabel: string | undefined,
     forfeitLabel: string,
-    language: string,
     ratingChanges?: RatingChanges
 ) {
     if (participants.length === 0) {
@@ -41,7 +41,7 @@ function formatParticipants(
             const name = participant.display_name || (participant.username ? `@${participant.username}` : "");
             if (!name) return fallback;
             const change = participant.account_id ? ratingChanges?.[participant.account_id] : undefined;
-            if (change) return `${name} · ${formatRatingChange(change, language)}`;
+            if (change) return `${name} · ${formatRatingChange(change)}`;
             return `${name}${(participant.is_guest || (!participant.account_id && !participant.username)) ? ` (${guestLabel || fallback})` : ""}`;
         }).join(", "),
         isPlaceholder: participants.every(participant => !participant.username && !participant.display_name),
@@ -59,8 +59,8 @@ export function HistoryParticipantCell({
     guestLabel?: string;
     ratingChanges?: RatingChanges;
 }) {
-    const { t, i18n } = useTranslation();
-    const value = formatParticipants(participants, fallback, guestLabel, t("account.history.forfeit"), i18n.language, ratingChanges);
+    const { t } = useTranslation();
+    const value = formatParticipants(participants, fallback, guestLabel, t("account.history.forfeit"), ratingChanges);
 
     return (
         <div

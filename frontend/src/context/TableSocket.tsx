@@ -296,6 +296,8 @@ type TableSocketAPI = {
     listGroupMembers: (token: string, groupId: string, onResult: (response: GroupMembersAck) => void) => void;
     groupTablesVersion: number;
     groupConnectionVersion: number;
+    groupRatingVisibility: Partial<Record<string, boolean>>;
+    rememberGroupRatingVisibility: (groupId: string, visible: boolean) => void;
     listGroups: (token: string, onResult: (response: GroupsAck) => void) => void;
     getAccount: (
         token: string,
@@ -370,6 +372,12 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
     const [isSessionReady, setIsSessionReady] = useState(false);
     const [groupTablesVersion, setGroupTablesVersion] = useState(0);
     const [groupConnectionVersion, setGroupConnectionVersion] = useState(0);
+    const [groupRatingVisibility, setGroupRatingVisibility] = useState<Partial<Record<string, boolean>>>({});
+    const rememberGroupRatingVisibility = useCallback((groupId: string, visible: boolean) => {
+        setGroupRatingVisibility(previous => previous[groupId] === undefined
+            ? { ...previous, [groupId]: visible }
+            : previous);
+    }, []);
 
     const { clientSessionId } = useSession();
     const { getAuthToken } = useAuthSession();
@@ -458,6 +466,7 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         socketRef.current = socket;
 
         socket.on("connect", () => {
+            setGroupRatingVisibility({});
             setGroupConnectionVersion(value => value + 1);
             socket.emit("table:list");
             setIsSessionReady(true);
@@ -472,6 +481,9 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         socket.on("group:access_revoked", (data: { group_id: string }) => {
             dispatch({ type: "GROUP_ACCESS_REVOKED", payload: data.group_id });
             setGroupConnectionVersion(value => value + 1);
+        });
+        socket.on("domino:group_rating_visibility_changed", (data: { group_id: string; show_ratings: boolean }) => {
+            setGroupRatingVisibility(previous => ({ ...previous, [data.group_id]: data.show_ratings === true }));
         });
         socket.on("group:tables_changed", () => setGroupTablesVersion(value => value + 1));
         socket.on("table:list_updated", (data: { tables: TableList[] }) => {
@@ -1155,6 +1167,8 @@ export function TableSocketProvider({ children }: { children: ReactNode }) {
         listGroupMembers,
         groupTablesVersion,
         groupConnectionVersion,
+        groupRatingVisibility,
+        rememberGroupRatingVisibility,
         listGroups,
         getAccount,
         checkUsernameAvailability,

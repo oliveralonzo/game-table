@@ -1,3 +1,5 @@
+import PlayerRatingBadge from "game-table/components/PlayerRatingBadge";
+import { usePlayerRatings } from "game-table/hooks/usePlayerRatings";
 import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
 import { compareHeadToHead, compareHeadToHeadScore, formatOpponentsAhead, opponentCount } from "game-table/utils/headToHead";
 import type { GroupActivity } from "game-table/types/groupActivity";
@@ -89,6 +91,9 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
     useEffect(() => { if (showRatings) retry(); }, [showRatings, retry]);
     const selectedPlayer = data?.players.find(player => player.username === playerReference)
         ?? data?.players.find(player => player.account_id === playerReference);
+    const playerUsername = selectedPlayer?.username;
+    const ratings = usePlayerRatings(playerUsername ? [playerUsername] : [], showRatings);
+    const playerRating = playerUsername ? ratings[playerUsername]?.rating : undefined;
     useEffect(() => {
         if (!selectedPlayer || selectedPlayer.username === playerReference) return;
         const next = new URLSearchParams(location.search);
@@ -131,9 +136,10 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
             {playerReference ? t("groups.stats.activity") : backToTable ? t("groups.preview.returnToTable") : groupName}
         </GroupBackButton>
         <h1 className="mb-1 px-1 text-[34px] font-bold leading-tight">{groupName}</h1>
-        <p className="px-1 text-black/55 dark:text-white/55">{playerReference
-            ? `@${selectedPlayer?.username ?? playerReference}`
-            : t("groups.playMode.activity")}</p>
+        <p className="flex flex-wrap items-center gap-x-2 px-1 text-black/55 dark:text-white/55">
+            <span>{playerReference ? `@${selectedPlayer?.username ?? playerReference}` : t("groups.playMode.activity")}</span>
+            {playerRating != null && <PlayerRatingBadge username={playerUsername} rating={playerRating} reliability={playerUsername ? ratings[playerUsername]?.reliability : undefined} />}
+        </p>
         <div ref={seasonRow} role="group" aria-label={t("groups.stats.seasons")}
             className="mt-4 mb-5 grid grid-flow-col auto-cols-max grid-rows-[auto_auto] gap-x-2 gap-y-1 overflow-x-auto py-1">
             <div className="row-span-2 grid grid-rows-subgrid">
@@ -170,7 +176,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
         {error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{error} <Button inline clear onClick={retry}>{t("groups.list.retry")}</Button></p>}
         {view === "standings" ? <>
             <GroupStatsOverview data={data} />
-            <GroupStandings key={season} data={data} loading={loading} onPlayerOpen={openPlayer} />
+            <GroupStandings key={season} groupId={groupId} data={data} loading={loading} onPlayerOpen={openPlayer} />
         </> : <GroupHistoryPreview showRatings={showRatings} data={data?.history} loading={loading} onPageChange={setHistoryPage} /> }
         </div>
         {playerReference && (selectedPlayer ? <PlayerRecordsScreen key={`${selectedPlayer.account_id}:${selectedSeason}`} accountId={selectedPlayer.account_id}
@@ -180,7 +186,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
     </>;
 }
 
-function GroupStandings({ data, loading, onPlayerOpen }: { data?: GroupActivity; loading: boolean; onPlayerOpen: (player: LeaderboardEntry) => void }) {
+function GroupStandings({ groupId, data, loading, onPlayerOpen }: { groupId: string; data?: GroupActivity; loading: boolean; onPlayerOpen: (player: LeaderboardEntry) => void }) {
     const { t } = useTranslation();
     const [showTeams, setShowTeams] = useState(false);
     const [playerSort, setPlayerSort] = useState<LeaderboardSort | "head_to_head">("win_percentage");
@@ -207,7 +213,7 @@ function GroupStandings({ data, loading, onPlayerOpen }: { data?: GroupActivity;
     });
     const totalPages = Math.max(1, Math.ceil(entries.length / LEADERBOARD_PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
-    return <LeaderboardContent embedded isLoading={loading} totalPages={data ? totalPages : undefined}
+    return <LeaderboardContent groupId={groupId} embedded isLoading={loading} totalPages={data ? totalPages : undefined}
         showHeadToHead={!showTeams}
         onPlayerOpen={showTeams ? undefined : onPlayerOpen}
         onHeadToHeadSort={() => { setPlayerSort("head_to_head"); setPage(1); }}
