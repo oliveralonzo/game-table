@@ -62,7 +62,7 @@ function SelectionNotice({ notification, canQueue = false, onQueue, memberNames 
         });
     };
     return <Dialog opened backdrop role="dialog" aria-label={title}
-        title={<span className="block text-center">{title}</span>}
+        title={<span className="mx-auto block max-w-[18rem] whitespace-normal wrap-anywhere text-center">{title}</span>}
         style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
         className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
         buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">
@@ -147,7 +147,7 @@ function PlayerPrompt({ transition, selfId, onRespond, promptContext, memberName
             backdrop
             role="dialog"
             aria-label={title ?? status}
-            title={title ? <span className="block text-center">{promptContext && <span className="block">{promptContext}</span>}{title}</span> : undefined}
+            title={title ? <span className="mx-auto block max-w-[18rem] whitespace-normal wrap-anywhere text-center">{promptContext && <span className="block">{promptContext}</span>}{title}</span> : undefined}
             style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
             className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col:empty]:hidden [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
             buttons={(

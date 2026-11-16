@@ -49,7 +49,7 @@ function Confirmation({ deadline, answered, onRespond, responses, memberNames, s
     };
     const copy = starting ? "table.startConfirmation" : "table.endConfirmation";
     return <Dialog opened backdrop role="dialog" aria-label={t(`${copy}.question`)}
-        title={<span className="block text-center">{t(`${copy}.question`)}</span>}
+        title={<span className="mx-auto block max-w-[18rem] whitespace-normal wrap-anywhere text-center">{t(`${copy}.question`)}</span>}
         style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
         className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
         buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">

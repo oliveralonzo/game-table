@@ -41,7 +41,7 @@ function Confirmation({ deadline, answered, onRespond, requesterName }: {
     };
     const question = requesterName ? t('table.unseatConfirmation.requestedBy', { player: requesterName }) : t('table.unseatConfirmation.question');
     return <Dialog opened backdrop role="dialog" aria-label={question}
-        title={<span className="block text-center">{question}</span>}
+        title={<span className="mx-auto block max-w-[18rem] whitespace-normal wrap-anywhere text-center">{question}</span>}
         style={{ zIndex: 40, width: 'max-content', maxWidth: 'calc(100% - 2rem)' }}
         className={`${importantGlassWithoutLightInsetShadow} text-center [&>.flex-col]:!pb-2 [&>.flex:last-child]:!pt-0`}
         buttons={<div className="grid w-full gap-1 [&>button]:px-[2em]">
