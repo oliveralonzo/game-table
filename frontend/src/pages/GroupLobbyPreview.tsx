@@ -134,7 +134,7 @@ export default function GroupLobbyPreview({ gamePlugin, displayName, onDisplayNa
         </Segmented>}
         {!tournamentId && playMode === "league" ? <>
         <p className="mb-5 px-1 text-black/55 dark:text-white/55">{groupMonthLabel(i18n.language, activity.data?.current_season)}</p>
-            <GroupStatsOverview compact data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />
+            <GroupStatsOverview data={activity.data} onOpen={() => navigate(`${groupUrl}/activity`)} />
             {activity.error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{activity.error} <Button inline clear onClick={activity.retry}>{t("groups.list.retry")}</Button></p>}
             <h2 className="mb-3 px-1 text-[22px] font-bold">{t("navigation.tables")}</h2>
             {tableError && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{tableError}</p>}

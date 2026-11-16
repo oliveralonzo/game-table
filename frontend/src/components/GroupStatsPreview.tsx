@@ -25,7 +25,7 @@ export function groupMonthLabel(language: string, season = new Date().toISOStrin
         .join("");
 }
 
-export function GroupStatsOverview({ onOpen, data, compact = false }: { onOpen?: () => void; data?: GroupActivity; compact?: boolean }) {
+export function GroupStatsOverview({ onOpen, data }: { onOpen?: () => void; data?: GroupActivity }) {
     const { t, i18n } = useTranslation();
     const highlights = ([
         ["best_percentage", "bestPercentage"], ["most_wins", "mostWins"],
@@ -48,7 +48,7 @@ export function GroupStatsOverview({ onOpen, data, compact = false }: { onOpen?:
         };
     });
     return <section className="mb-5" aria-label={t("groups.stats.title")}>
-        <div className={`grid grid-cols-2 gap-3 ${compact ? "" : "lg:grid-cols-4"}`}>
+        <div className="grid grid-cols-2 gap-3">
             {highlights.map(item =>
                 <Card key={item.label} className="!m-0" contentWrap={false}>
                     <div className="px-4 py-3 space-y-2 sm:py-4 sm:space-y-3">{(item.records.length ? item.records : [item]).map((record, index) => <div key={index}>
