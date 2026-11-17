@@ -1,3 +1,4 @@
+import GroupActivityTabs from "game-table/components/GroupActivityTabs";
 import PlayerRatingBadge from "game-table/components/PlayerRatingBadge";
 import { usePlayerRatings } from "game-table/hooks/usePlayerRatings";
 import { useGroupRatingVisibility } from "game-table/hooks/useGroupRatingVisibility";
@@ -169,10 +170,7 @@ export default function GroupStatsPreview({ onBack, groupName, groupId, backToTa
             ))}
         </div>
         <div hidden={!!playerReference}>
-        <Segmented strong rounded className="mb-5">
-            <SegmentedButton active={view === "standings"} onClick={() => setView("standings")}>{t("groups.stats.standings")}</SegmentedButton>
-            <SegmentedButton active={view === "history"} onClick={() => setView("history")}>{t("groups.stats.history")}</SegmentedButton>
-        </Segmented>
+        <GroupActivityTabs view={view} onChange={setView} />
         {error && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">{error} <Button inline clear onClick={retry}>{t("groups.list.retry")}</Button></p>}
         {view === "standings" ? <>
             <GroupStatsOverview data={data} />

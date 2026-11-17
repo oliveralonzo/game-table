@@ -38,7 +38,7 @@ function formatParticipants(
     return {
         text: participants.map(participant => {
             if (participant.forfeited) return forfeitLabel;
-            const name = participant.display_name || (participant.username ? `@${participant.username}` : "");
+            const name = participant.username ? `@${participant.username}` : participant.display_name;
             if (!name) return fallback;
             const change = participant.account_id ? ratingChanges?.[participant.account_id] : undefined;
             if (change) return `${name} · ${formatRatingChange(change)}`;

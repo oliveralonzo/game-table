@@ -1,16 +1,19 @@
+import GroupActivityTabs, { type GroupActivityView } from "game-table/components/GroupActivityTabs";
+import GroupHistoryPreview from "game-table/components/GroupHistoryPreview";
+import type { GroupActivity } from "game-table/types/groupActivity";
 import InviteButton from "game-table/components/InviteButton";
 import TableInviteDialog from "game-table/components/TableInviteDialog";
 import { useTableInvite } from "game-table/hooks/useTableInvite";
-import LeaderboardContent, { LEADERBOARD_PAGE_SIZE, type LeaderboardEntry, type LeaderboardSort } from "game-table/components/LeaderboardContent";
+import LeaderboardContent, { LEADERBOARD_PAGE_SIZE, type LeaderboardEntry } from "game-table/components/LeaderboardContent";
 import TableCards from "game-table/components/TableCards";
 import { encodeTableCodePath } from "game-table/utils/tableRoute";
 import type { GroupTable } from "game-table/context/TableSocket";
 import PostGameDialog from "game-table/components/PostGameDialog";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AppLoadingScreen from "game-table/components/AppLoadingScreen";
 import TableIdentityBadge from "game-table/components/TableIdentityBadge";
-import { Badge, Button, Dialog, DialogButton, Glass, List, ListItem, Preloader, Segmented, SegmentedButton } from "konsta/react";
+import { Badge, Button, Card, Dialog, DialogButton, Glass, List, ListItem, Preloader, Segmented, SegmentedButton } from "konsta/react";
 import { CalendarDays, Check, CircleHelp, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -28,7 +31,7 @@ import { buildInitialLabelsById } from "game-table/utils/playerInitialLabels";
 import type { GroupMember } from "game-table/context/TableSocket";
 import TournamentCreateSheet from "game-table/components/TournamentCreateSheet";
 
-type Tournament = { id: string; scheduled_at: number; rules: unknown; status: "scheduled"; stage?: string; standings?: Omit<LeaderboardEntry, "username">[]; bracket?: { stage: "semifinal" | "final"; pairs: (string[] | null)[]; scores: number[] | null; games?: [number, number][]; table_code: string | null }[]; round?: number; can_enter_late?: boolean; champions?: string[]; draft_prompt?: { slot: number; decision: "ready" | "partner_choice"; deadline: number; candidates?: string[] }; tables?: GroupTable[]; assignment?: { id: string; table_code: string; deadline: number } | null; readiness_deadline?: number | null; readiness_id?: string; awaiting_response?: boolean; attendance_intent_count?: number | null; attendance_intent?: boolean; attendance_response?: "yes" | "maybe" | "no" | null; attendance_maybe_count?: number; attendance_roster?: AttendancePerson[] };
+type Tournament = { id: string; scheduled_at: number; rules: unknown; status: "scheduled"; stage?: string; standings?: Omit<LeaderboardEntry, "username">[]; bracket?: { stage: "semifinal" | "final"; pairs: (string[] | null)[]; scores: number[] | null; games?: [number, number][]; live_score?: [number, number] | null; table_code: string | null }[]; round?: number; can_enter_late?: boolean; champions?: string[]; draft_prompt?: { slot: number; decision: "ready" | "partner_choice"; deadline: number; candidates?: string[] }; tables?: GroupTable[]; assignment?: { id: string; table_code: string; deadline: number } | null; readiness_deadline?: number | null; readiness_id?: string; awaiting_response?: boolean; attendance_intent_count?: number | null; attendance_intent?: boolean; attendance_response?: "yes" | "maybe" | "no" | null; attendance_maybe_count?: number; attendance_roster?: AttendancePerson[] };
 type GroupSettings = { rules: unknown; can_edit: boolean };
 
 export default function GroupTournaments({ groupId, groupUrl, groupName, groupMembers, gamePlugin, onTournamentRules }: {
@@ -49,6 +52,17 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
     const [settings, setSettings] = useState<GroupSettings | null>(null);
     const [tournaments, setTournaments] = useState<Tournament[] | null>(null);
     const [selected, setSelected] = useState<Tournament | null>(null);
+    const [activityView, setActivityView] = useState<GroupActivityView>("standings");
+    const [historyPage, setHistoryPage] = useState(1);
+    const historyKey = JSON.stringify([tournamentId, historyPage]);
+    const [historyPages, setHistoryPages] = useState<Record<string, GroupActivity["history"]>>({});
+    const [historyStatus, setHistoryStatus] = useState({ key: "", loading: true, error: false });
+    const historyLoading = historyStatus.key !== historyKey || historyStatus.loading;
+    const historyError = historyStatus.key === historyKey && historyStatus.error;
+    useEffect(() => {
+        setActivityView("standings");
+        setHistoryPage(1);
+    }, [tournamentId]);
     useEffect(() => {
         if (selected?.id === tournamentId && selected) {
             onTournamentRules({ id: selected.id, rules: selected.rules });
@@ -144,6 +158,21 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
             setTime(`${String(nextHour.getHours()).padStart(2, "0")}:00`);
         }
     }, [isCreating]);
+    useEffect(() => {
+        if (!tournamentId || isCreating) return;
+        let current = true;
+        setHistoryStatus({ key: historyKey, loading: true, error: false });
+        request<{ history: GroupActivity["history"] }>("tournament:history", {
+            tournament_id: tournamentId, page: historyPage,
+        }).then(result => {
+            if (!current) return;
+            setHistoryPages(pages => ({ ...pages, [historyKey]: result.history }));
+            setHistoryStatus({ key: historyKey, loading: false, error: false });
+        }).catch(() => {
+            if (current) setHistoryStatus({ key: historyKey, loading: false, error: true });
+        });
+        return () => { current = false; };
+    }, [request, tournamentId, isCreating, historyKey, historyPage, refresh, groupConnectionVersion]);
     const back = () => navigate(groupUrl, { state: { groupPlayMode: "tournaments" } });
     const formatTitleDate = (timestamp: number) => {
         const parts = new Intl.DateTimeFormat(i18n.language, {
@@ -284,14 +313,19 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
         finally { setStarting(false); }
     };
     const roundLabel = t("groups.tournaments.roundOne", { round: selected?.round || 1 });
-    const [standingSort, setStandingSort] = useState<LeaderboardSort>("win_percentage");
     const [standingPage, setStandingPage] = useState(1);
     const standings = (selected?.standings ?? []).map(row => ({
         ...row, username: groupMembers.find(member => member.account_id === row.account_id)?.username ?? row.account_id,
     }));
-    if (standingSort !== "win_percentage") standings.sort((a, b) => b[standingSort] - a[standingSort]);
+    standings.sort((a, b) => b.games_won - a.games_won
+        || (b.points_per_game ?? -1) - (a.points_per_game ?? -1)
+        || b.win_percentage - a.win_percentage);
     const standingPages = Math.max(1, Math.ceil(standings.length / LEADERBOARD_PAGE_SIZE));
     const page = Math.min(standingPage, standingPages);
+    const usernameFor = (id: string) => {
+        const username = groupMembers.find(member => member.account_id === id)?.username;
+        return username ? `@${username}` : id;
+    };
     const initialLoading = !!tournamentId && !error
         && (!settings || (!isCreating && selected?.id !== tournamentId));
     if (initialLoading && isCreating) return createPortal(<div className="fixed inset-0 z-50"><AppLoadingScreen /></div>, document.body);
@@ -348,6 +382,7 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                     {selected.stage === "draft" ? t("groups.tournaments.partnerDraft")
                         : selected.stage === "knockout" ? t("groups.tournaments.knockout")
                         : selected.stage === "completed" ? t("groups.tournaments.completed")
+                        : selected.stage === "interrupted" ? t("groups.tournaments.interrupted")
                         : selected.stage === "qualification" ? roundLabel
                         : selected.readiness_deadline ? t("table.queue.waitingChallengers")
                         : selected.scheduled_at > now ? countdown(selected.scheduled_at) : t("groups.tournaments.awaitingAdmin")}
@@ -355,13 +390,6 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                     {t("groups.tournaments.start")}
                 </Button>}
             </div>
-            {!!selected.champions?.length && <LobbyRoster groupId={groupId}
-                title={t("groups.tournaments.champions")} flush showSeatLocation={false}
-                className="mb-5 [&>h2]:!px-1 [&>.k-list]:!mx-0"
-                people={selected.champions.map(id => {
-                    const member = groupMembers.find(person => person.account_id === id);
-                    return { id, name: member?.name ?? id, initialLabel: badges[id]?.label, isHost: false, hasSeat: false };
-                })} />}
             {selected.readiness_id && selected.readiness_deadline && selected.awaiting_response && <PostGameDialog
                 selfId="self" promptContext={roundLabel}
                 transition={{ id: selected.readiness_id, phase: "challenger_checks", seating_blocked: true,
@@ -372,41 +400,69 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                         tournament_id: selected.id, attempt, accepted: "keep_playing" in response && response.keep_playing,
                     }).then(result => { setSelected(result.tournament); done(true); }, () => done(false));
                 }} />}
-            {standings.length > 0 && <section className="mb-5" aria-label={t("leaderboard.title")}>
-                <h2 className="mb-2 px-1 text-xl font-semibold">{t("leaderboard.title")}</h2>
-                <LeaderboardContent embedded minimumGames={0} sort={standingSort} page={page}
+            {!!selected.bracket?.length && <section className="mb-5">
+                <h2 className="mb-2 px-1 text-xl font-semibold">{t("groups.tournaments.playoffs")}</h2>
+                <div className="grid gap-3">
+                    {(["final", "semifinal"] as const).flatMap(stage =>
+                        selected.bracket!.filter(match => match.stage === stage).map((match, index) => {
+                            const tableCode = match.table_code;
+                            const matchup = <div className="grid grid-cols-[minmax(0,1fr)_1.25rem_5rem_1.25rem_minmax(0,1fr)] items-center gap-x-1 sm:grid-cols-[minmax(0,1fr)_1.5rem_6rem_1.5rem_minmax(0,1fr)] sm:gap-x-1.5 text-center">
+                                {[0, 1].map(side => {
+                                    const pair = match.pairs[side];
+                                    const wins = match.scores?.[side];
+                                    const otherWins = match.scores?.[1 - side];
+                                    const lost = otherWins === 2 && wins !== 2;
+                                    const finishedFinal = stage === "final" && match.scores?.includes(2);
+                                    const medal = finishedFinal && (lost ? "🥈" : "🥇");
+                                    return <Fragment key={side}>
+                                        <div className={`flex min-w-0 items-center gap-1 row-start-1 ${side === 0 ? "col-start-1 text-left" : "col-start-5 flex-row-reverse text-right"}`}>
+                                            {medal && <span role="img" className="shrink-0"
+                                                aria-label={t(lost ? "groups.tournaments.runnersUp" : "groups.tournaments.champions")}>{medal}</span>}
+                                            <div className="min-w-0 flex-1">
+                                                {pair ? pair.map(id => <div key={id} className="truncate text-xs leading-tight sm:text-sm" title={usernameFor(id)}>{usernameFor(id)}</div>)
+                                                    : <span className="text-xs">{t("groups.tournaments.semifinalWinner", { number: side + 1 })}</span>}
+                                            </div>
+                                        </div>
+                                        <div className={`row-start-1 ${side === 0 ? "col-start-2" : "col-start-4"}`}>
+                                            {wins != null && <div aria-label={t("groups.tournaments.seriesWins", { wins })}
+                                                className={`text-3xl font-semibold leading-none tabular-nums sm:text-4xl ${lost ? "text-black/50 dark:text-white/50" : ""}`}>
+                                                {wins}
+                                            </div>}
+                                        </div>
+                                    </Fragment>;
+                                })}
+                                <div className="col-start-3 row-start-1">
+                                    <div className="text-sm font-semibold">{t(`groups.tournaments.historyStages.${stage}`)}</div>
+                                    <div className="text-xs tabular-nums text-black/55 dark:text-white/55">
+                                        {match.scores?.includes(2) ? t("groups.tournaments.completed")
+                                            : match.live_score ? t("groups.tournaments.liveGameScore", { score: match.live_score.join("–") })
+                                            : null}
+                                    </div>
+                                </div>
+                            </div>;
+                            return <Card key={`${stage}-${index}`} outline className="!m-0" contentWrap={false}>
+                                {tableCode ? <button type="button" className="block w-full p-3" onClick={() => enterTable(tableCode)}>
+                                    {matchup}
+                                </button> : <div className="p-3">{matchup}</div>}
+                            </Card>;
+                        })
+                    )}
+                </div>
+            </section>}
+            <h2 className="mb-2 px-1 text-xl font-semibold">{t("groups.tournaments.results")}</h2>
+            <GroupActivityTabs view={activityView} onChange={setActivityView} />
+            {activityView === "history" && <div className="mb-5">
+                {historyError && <p role="alert" className="mb-3 px-1 text-sm text-black/55 dark:text-white/55">
+                    {t("groups.stats.loadError")} <Button inline clear onClick={() => setRefresh(value => value + 1)}>{t("groups.list.retry")}</Button>
+                </p>}
+                <GroupHistoryPreview tournament showRatings={false} data={historyPages[historyKey]} loading={historyLoading} onPageChange={setHistoryPage} />
+            </div>}
+            {activityView === "standings" && standings.length > 0 && <section className="mb-5" aria-label={t("leaderboard.title")}>
+                <LeaderboardContent embedded minimumGames={0} sort="games_won" metric="pointsPerGame" page={page}
                     totalPages={standingPages} hasMore={page < standingPages}
                     entries={standings.slice((page - 1) * LEADERBOARD_PAGE_SIZE, page * LEADERBOARD_PAGE_SIZE)}
-                    onSortChange={sort => { setStandingSort(sort); setStandingPage(1); }}
                     onPrevious={() => setStandingPage(page - 1)} onNext={() => setStandingPage(page + 1)} />
             </section>}
-            {selected.bracket && (["final", "semifinal"] as const).map(stage => {
-                const matches = selected.bracket?.filter(match => match.stage === stage) ?? [];
-                if (!matches.length) return null;
-                return <section key={stage} className="mb-5">
-                    <h2 className="mb-2 px-1 text-xl font-semibold">{t(`groups.tournaments.${stage}`)}</h2>
-                    <List inset strong className="!m-0">
-                        {matches.map((match, index) => <ListItem key={index}
-                            link={!!match.table_code} linkComponent="button" linkProps={{ type: "button" }}
-                            onClick={match.table_code ? () => enterTable(match.table_code!) : undefined}
-                            titleFontSizeIos="text-[17px]" titleFontSizeMaterial="text-[16px]"
-                            title={<span className="grid w-full gap-1">
-                                {match.pairs.map((pair, side) => <span key={side} className="flex items-center gap-2">
-                                    <span className="min-w-0 flex-1 whitespace-normal">{pair?.map(id => groupMembers.find(member => member.account_id === id)?.name ?? id).join(" & ")
-                                        ?? t("groups.tournaments.semifinalWinner", { number: side + 1 })}</span>
-                                    {match.games?.map((points, game) => <span key={game}
-                                        aria-label={t("groups.tournaments.gameScore", { game: game + 1, score: points[side] })}
-                                        className="w-7 shrink-0 text-right text-sm tabular-nums text-black/55 dark:text-white/55">
-                                        {points[side]}
-                                    </span>)}
-                                    {match.scores && <span
-                                        aria-label={t("groups.tournaments.seriesWins", { wins: match.scores[side] })}
-                                        className="w-6 shrink-0 text-right font-semibold tabular-nums">{match.scores[side]}</span>}
-                                </span>)}
-                            </span>} />)}
-                    </List>
-                </section>;
-            })}
             {selected.draft_prompt && <PostGameDialog
                 selfId="self" promptContext={t("groups.tournaments.partnerDraft")}
                 memberNames={Object.fromEntries(groupMembers.map(member => [member.account_id, member.name]))}
@@ -502,29 +558,46 @@ export default function GroupTournaments({ groupId, groupUrl, groupName, groupMe
                         </div>
                     </div>
                 </Glass>
-                : tournaments.length ? <Glass highlight={false} colors={{ shadowIos: glassWithoutLightInsetShadow }} className="overflow-hidden rounded-[28px]">
-                    <ul className="divide-y divide-black/10 dark:divide-white/10">
-                        {tournaments.map(item => <li key={item.id}>
-                            <Link to={`${groupUrl}/tournaments/${encodeURIComponent(item.id)}`}
-                                aria-label={`${t("groups.tournaments.open", { date: formatDate(item.scheduled_at) })}, ${countdown(item.scheduled_at)}, ${item.attendance_intent_count == null ? t("groups.tournaments.attendanceUnknown") : t("groups.tournaments.attending", { count: item.attendance_intent_count })}, ${t("groups.tournaments.maybeCount", { count: item.attendance_maybe_count ?? 0 })}`}
-                                className="block px-5 py-5 text-inherit no-underline focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-black dark:focus-visible:outline-white active:opacity-70 sm:px-6">
-                                <h3 className="text-xl font-semibold text-black dark:text-white">
-                                    {formatTitleDate(item.scheduled_at)}
-                                </h3>
-                                <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-black/55 dark:text-white/55">
-                                    <span>{formatTime(item.scheduled_at)}</span>
-                                    <span aria-hidden="true">|</span>
-                                    <span className="tabular-nums">{countdown(item.scheduled_at)}</span>
-                                </p>
-                                <p className="mt-1 text-sm tabular-nums text-black/55 dark:text-white/55">
-                                    {t("groups.tournaments.attendanceListSummary", {
-                                        yes: item.attendance_intent_count ?? 0, maybe: item.attendance_maybe_count ?? 0,
+                : <>
+                    {([false, true] as const).map(completedSection => {
+                        const items = tournaments.filter(item => (item.stage === "completed") === completedSection);
+                        if (completedSection && !items.length) return null;
+                        if (completedSection) items.sort((a, b) => b.scheduled_at - a.scheduled_at);
+                        return <div key={String(completedSection)} className={completedSection ? "mt-6" : undefined}>
+                            {completedSection && <h2 className="mb-3 px-1 text-[22px] font-bold">{t("groups.tournaments.completedList")}</h2>}
+                            {items.length ? <Glass highlight={false} colors={{ shadowIos: glassWithoutLightInsetShadow }} className="overflow-hidden rounded-[28px]">
+                                <ul className="divide-y divide-black/10 dark:divide-white/10">
+                                    {items.map(item => {
+                                        const completed = item.stage === "completed";
+                                        const status = completed ? t("groups.tournaments.completed") : countdown(item.scheduled_at);
+                                        const winners = (item.champions ?? []).map(usernameFor)
+                                            .sort((a, b) => a.localeCompare(b, i18n.language, { sensitivity: "base" })).join(", ");
+                                        const detail = completed ? winners : t("groups.tournaments.attendanceListSummary", {
+                                            yes: item.attendance_intent_count ?? 0, maybe: item.attendance_maybe_count ?? 0,
+                                        });
+                                        return <li key={item.id}>
+                                        <Link to={`${groupUrl}/tournaments/${encodeURIComponent(item.id)}`}
+                                            aria-label={`${t("groups.tournaments.open", { date: formatDate(item.scheduled_at) })}, ${formatTime(item.scheduled_at)}, ${status}, ${detail}`}
+                                            className="block px-5 py-5 text-inherit no-underline focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-black dark:focus-visible:outline-white active:opacity-70 sm:px-6">
+                                            <h3 className="text-xl font-semibold text-black dark:text-white">
+                                                {formatTitleDate(item.scheduled_at)}
+                                            </h3>
+                                            <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-black/55 dark:text-white/55">
+                                                <span>{formatTime(item.scheduled_at)}</span>
+                                                <span aria-hidden="true">|</span>
+                                                <span className="tabular-nums">{status}</span>
+                                            </p>
+                                            <p className="mt-1 text-sm tabular-nums text-black/55 dark:text-white/55">
+                                                {completed && <span aria-hidden="true" className="mr-1">🥇</span>}{detail}
+                                            </p>
+                                        </Link>
+                                    </li>;
                                     })}
-                                </p>
-                            </Link>
-                        </li>)}
-                    </ul>
+                                </ul>
                 </Glass> : !error && <p className="px-1 text-black/55 dark:text-white/55">{t("groups.tournaments.empty")}</p>}
+                        </div>;
+                    })}
+                </>}
         </section>}
     </>;
 }

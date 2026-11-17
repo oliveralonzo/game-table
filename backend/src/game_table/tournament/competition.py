@@ -2,7 +2,6 @@
 from collections import Counter
 from dataclasses import dataclass, field
 from fractions import Fraction
-from itertools import combinations
 from random import Random
 
 
@@ -185,47 +184,38 @@ class Competition:
             self.forfeits.update(result.forfeiting)
 
     def rank(self, rng: Random, *, live=False, entries=None):
-        games, wins, hands, hand_wins, scored, score_games = (Counter() for _ in range(6))
-        opposed, opposed_wins = Counter(), Counter()
+        games, wins, draws, points = (Counter() for _ in range(4))
         for assignment, result in self.history:
             for side, pair in enumerate(assignment.pairs):
                 if result.forfeiting and result.winner != side:
                     continue
-                credit = 1 if result.winner is None else 2 * int(result.winner == side)
                 for player in pair:
                     games[player] += 1
-                    wins[player] += credit
-                    for opponent in assignment.pairs[1 - side]:
-                        opposed[player, opponent] += 1
-                        opposed_wins[player, opponent] += credit
-                    if not result.forfeiting:
-                        hands[player] += sum(result.hands)
-                        hand_wins[player] += result.hands[side]
-                        scored[player] += result.points[side] - result.points[1 - side]
-                        score_games[player] += 1
+                    wins[player] += int(result.winner == side)
+                    draws[player] += int(result.winner is None)
+                    points[player] += result.points[side]
+
+        def win_percentage(player):
+            return Fraction(2 * wins[player] + draws[player], 2 * (games[player] or 1))
+
+        def ranking_key(player):
+            ppg = Fraction(points[player], games[player]) if games[player] else -1
+            return wins[player], ppg, win_percentage(player)
+
         if entries is not None:
-            actual_wins = Counter(player for assignment, result in self.history
-                                  if result.winner is not None for player in assignment.pairs[result.winner])
-            entries.update({p: {'account_id': p, 'games_played': games[p], 'games_won': actual_wins[p],
-                                'win_percentage': wins[p] / (2 * games[p]) if games[p] else 0,
-                                'win_streak': 0} for p in self.players})
-        tied = {}
-        for player in self.players:
-            if live or (games[player] and games[player] >= 5 - self.byes[player] and self.forfeits[player] <= 1):
-                tied.setdefault(Fraction(wins[player], 2 * (games[player] or 1)), []).append(player)
-        ranked = []
-        for percentage in sorted(tied, reverse=True):
-            peers = tied[percentage]
-            comparable = all(opposed[a, b] and opposed[b, a] for a, b in combinations(peers, 2))
-            def key(player):
-                counts = sum(opposed[player, p] for p in peers if p != player)
-                credits = sum(opposed_wins[player, p] for p in peers if p != player)
-                return (Fraction(credits, 2 * counts) if comparable and counts else 0,
-                        Fraction(hand_wins[player], hands[player] or 1),
-                        Fraction(scored[player], score_games[player] or 1))
-            rng.shuffle(peers)
-            ranked.extend(sorted(peers, key=key, reverse=True))
-        return tuple(ranked)
+            entries.update({
+                p: {'account_id': p, 'games_played': games[p], 'games_won': wins[p],
+                    'win_percentage': float(win_percentage(p)),
+                    'points_per_game': points[p] / games[p] if games[p] else None,
+                    'win_streak': 0}
+                for p in self.players
+            })
+        eligible = [
+            p for p in self.players
+            if live or (games[p] and games[p] >= 5 - self.byes[p] and self.forfeits[p] <= 1)
+        ]
+        rng.shuffle(eligible)
+        return tuple(sorted(eligible, key=ranking_key, reverse=True))
 
     def standings(self):
         entries = {}

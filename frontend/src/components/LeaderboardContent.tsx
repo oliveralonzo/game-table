@@ -25,6 +25,7 @@ export type LeaderboardEntry = {
     usernames?: string[];
     games_played: number;
     games_won: number;
+    points_per_game?: number | null;
     win_percentage: number;
     win_streak: number;
     head_to_head?: { ahead: number; tied: number; behind: number };
@@ -48,7 +49,8 @@ type Props = {
     minimumGames?: number;
     onBack?: () => void;
     onPlayerOpen?: (player: LeaderboardEntry) => void;
-    onSortChange: (sort: LeaderboardSort) => void;
+    metric?: "winPercentage" | "pointsPerGame";
+    onSortChange?: (sort: LeaderboardSort) => void;
     onPrevious: () => void;
     onNext: () => void;
 };
@@ -58,8 +60,9 @@ function formatWinPercentage(value: number): string {
     return `${Math.round(value * 100)}%`;
 }
 
-export default function LeaderboardContent({ entries, groupId, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, minimumGames = MIN_WIN_PERCENTAGE_GAMES, onBack, onPlayerOpen, onSortChange, onPrevious, onNext }: Props) {
-    const { t } = useTranslation();
+export default function LeaderboardContent({ entries, groupId, sort, page, hasMore, totalPages, isLoading = false, status = null, embedded = false, controls, participantColumnLabel, showHeadToHead = false, onHeadToHeadSort, ranks, minimumGames = MIN_WIN_PERCENTAGE_GAMES, onBack, onPlayerOpen, metric = "winPercentage", onSortChange, onPrevious, onNext }: Props) {
+    const { t, i18n } = useTranslation();
+    const pointsFormat = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 });
     const showRatings = useGroupRatingVisibility(groupId);
     const ratings = usePlayerRatings(entries.flatMap(entry => entry.usernames ?? [entry.username]), showRatings);
     const canGoBack = page > 1 && !isLoading;
@@ -86,9 +89,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                 </h1>
             </div>}
 
-            <div className="flex flex-wrap items-end gap-3">
+            {(controls || onSortChange) && <div className="flex flex-wrap items-end gap-3">
             {controls}
-            <div className={`grid max-w-full gap-1 ${controls ? "w-full min-w-0 basis-full sm:w-auto sm:min-w-[19rem] sm:basis-[19rem] sm:max-w-[19rem]" : "w-[15rem]"}`}>
+            {onSortChange && <div className={`grid max-w-full gap-1 ${controls ? "w-full min-w-0 basis-full sm:w-auto sm:min-w-[19rem] sm:basis-[19rem] sm:max-w-[19rem]" : "w-[15rem]"}`}>
                 <span className="px-1 text-xs font-semibold uppercase tracking-wide text-black/40 dark:text-white/40">
                     {t("leaderboard.sort.label")}
                 </span>
@@ -112,9 +115,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                         {t("leaderboard.sort.headToHead")}
                     </SegmentedButton>}
                 </Segmented>
-            </div>
+            </div>}
 
-            </div>
+            </div>}
 
             {isLoading && entries.length === 0 ? (
                 <PlayerStatsTableSkeleton
@@ -147,9 +150,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                                     {participantColumnLabel ?? t("leaderboard.column.username")}
                                 </TableCell>
                                 
-                                <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">
+                                {metric === "winPercentage" && <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">
                                     {t("leaderboard.column.winPercentage")}
-                                </TableCell>
+                                </TableCell>}
                                 <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.won")}
                                 </TableCell>
@@ -161,6 +164,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                                 </TableCell>
                             {showHeadToHead && <TableCell header scope="col" className="w-px whitespace-nowrap !px-2 text-right">
                                     {t("leaderboard.column.headToHead")}
+                                </TableCell>}
+                                {metric === "pointsPerGame" && <TableCell header scope="col" className="w-px whitespace-nowrap !pl-2 !pr-3 text-right">
+                                    {t("groups.tournaments.pointsPerGame")}
                                 </TableCell>}
                             </TableRow>
                         </TableHead>
@@ -197,9 +203,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                                         </span>
                                     </TableCell>
                                 
-                                <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
-                                        {formatWinPercentage(entry.win_percentage)}
-                                    </TableCell>
+                                {metric === "winPercentage" && <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
+                                    {formatWinPercentage(entry.win_percentage)}
+                                </TableCell>}
                                 <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
                                         {entry.games_won}
                                     </TableCell>
@@ -212,6 +218,9 @@ export default function LeaderboardContent({ entries, groupId, sort, page, hasMo
                             {showHeadToHead && <TableCell className="w-px whitespace-nowrap !px-2 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
                                         {entry.head_to_head && opponentCount(entry.head_to_head) > 0 ? `${entry.head_to_head.ahead}/${opponentCount(entry.head_to_head)}` : "—"}
                                     </TableCell>}
+                                {metric === "pointsPerGame" && <TableCell className="whitespace-nowrap !pl-2 !pr-3 text-right font-normal tabular-nums text-black/70 dark:text-white/70">
+                                    {entry.points_per_game == null ? "—" : pointsFormat.format(entry.points_per_game)}
+                                </TableCell>}
                             </TableRow>
                             ))}
                             {Array.from({ length: LEADERBOARD_PAGE_SIZE - entries.length }).map((_, index) => (

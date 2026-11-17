@@ -2,7 +2,8 @@ import type { LeaderboardEntry } from "game-table/components/LeaderboardContent"
 
 export type GroupHighlight = { value: number | null; usernames: string[] };
 export type GroupHistoryEntry = {
-    id: string; date: number; score: string;
+    id: string; date: number; score: string; draw?: boolean;
+    stage?: "qualification" | "semifinal" | "final"; qualification_round?: number | null;
     winners: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest: boolean; forfeited?: boolean }[];
     others: { username: string | null; display_name?: string | null; account_id?: string | null; is_guest: boolean; forfeited?: boolean }[];
 };

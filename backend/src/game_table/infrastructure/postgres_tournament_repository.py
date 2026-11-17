@@ -9,6 +9,53 @@ class PostgresTournamentRepository:
     def __init__(self, connection_factory):
         self.connection_factory = connection_factory
 
+    def save_game(self, tournament_id, assignment_id, stage, round_number, matchup,
+                  game_id, table_code, completed_at, points, winner, rounds_played, participants, summary):
+        history_id = f'hist_{game_id}'
+        with self.connection_factory() as connection:
+            connection.execute("""
+                INSERT INTO game_history (
+                    id, completed_at, table_code, rounds_played, team_scores, team_player_counts,
+                    winning_team_index, participant_snapshots
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
+            """, (history_id, completed_at, table_code, rounds_played, Jsonb(points), Jsonb([2, 2]),
+                  -1 if winner is None else winner, Jsonb(participants)))
+            connection.execute("""
+                INSERT INTO tournament_games (
+                    tournament_id, game_history_id, assignment_id, stage, qualification_round, matchup, competition_summary
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (tournament_id, game_history_id) DO NOTHING
+            """, (tournament_id, history_id, assignment_id, stage, round_number, matchup, Jsonb(summary)))
+
+    def competition_summary(self, tournament_id):
+        with self.connection_factory() as connection:
+            row = connection.execute("""
+                SELECT COALESCE(competition_summary, '{}')
+                FROM tournament_games WHERE tournament_id = %s
+                ORDER BY recorded_order DESC LIMIT 1
+            """, (tournament_id,)).fetchone()
+            return row[0] if row else None
+
+    def game_history(self, tournament_id):
+        with self.connection_factory() as connection, connection.cursor(row_factory=dict_row) as cursor:
+            return cursor.execute("""
+                SELECT h.id, h.completed_at, h.team_scores, h.winning_team_index,
+                       COALESCE((
+                           SELECT jsonb_agg(
+                               participant || jsonb_build_object('username', a.username)
+                               ORDER BY position
+                           )
+                           FROM jsonb_array_elements(h.participant_snapshots)
+                               WITH ORDINALITY AS players(participant, position)
+                           LEFT JOIN accounts a ON a.id = participant->>'account_id'
+                       ), '[]'::jsonb) AS participant_snapshots,
+                       tg.stage, tg.qualification_round, tg.matchup
+                FROM tournament_games tg JOIN game_history h ON h.id = tg.game_history_id
+                WHERE tg.tournament_id = %s
+                ORDER BY h.completed_at DESC, h.id DESC
+            """, (tournament_id,)).fetchall()
+
     def create(self, tournament):
         values = asdict(tournament)
         values['rules'] = Jsonb(values['rules'])
@@ -27,6 +74,7 @@ class PostgresTournamentRepository:
             return connection.execute("""
                 DELETE FROM tournaments t USING groups g
                 WHERE t.id = %s AND t.status = 'scheduled'
+                    AND NOT EXISTS (SELECT 1 FROM tournament_games tg WHERE tg.tournament_id = t.id)
                     AND g.id = t.group_id AND g.deleted_at IS NULL
                     AND EXISTS (SELECT 1 FROM group_memberships m WHERE m.group_id = g.id
                         AND m.account_id = %s AND m.left_at IS NULL AND m.role IN ('owner', 'admin'))
@@ -58,7 +106,8 @@ class PostgresTournamentRepository:
             return connection.execute("""
                 INSERT INTO tournament_attendance_intents (tournament_id, account_id, response, updated_at)
                 SELECT t.id, %s, %s, %s FROM tournaments t JOIN groups g ON g.id = t.group_id
-                WHERE t.id = %s AND t.status = 'scheduled' AND g.deleted_at IS NULL
+                WHERE t.id = %s AND t.status = 'scheduled'
+                    AND NOT EXISTS (SELECT 1 FROM tournament_games tg WHERE tg.tournament_id = t.id) AND g.deleted_at IS NULL
                 AND EXISTS (SELECT 1 FROM group_memberships m WHERE m.group_id = t.group_id
                     AND m.account_id = %s AND m.left_at IS NULL)
                 ON CONFLICT (tournament_id, account_id) DO UPDATE

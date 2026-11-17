@@ -1,5 +1,7 @@
 """Authenticated scheduling API. Account IDs always come from verified tokens."""
 from asyncio import Lock, create_task, sleep, to_thread
+from collections import Counter
+from copy import deepcopy
 from random import Random
 from time import monotonic
 from uuid import uuid4
@@ -33,6 +35,10 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
     round_tables = {}
     assignment_deadlines = {}
 
+    def stored_summary(tournament_id):
+        load = getattr(tournaments.repository, 'competition_summary', None)
+        return load(tournament_id) if load else None
+
     def view(tournament, account):
         event = competitions.get(tournament['id'])
         if event:
@@ -65,9 +71,10 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
             tournament['standings'] = event.standings()
         if event and event.teams:
             tournament['bracket'] = [
-                {**row, 'table_code': assigned[row['assignment_id']].table_code
-                 if row['assignment_id'] in assigned else None}
+                {**row, 'table_code': table.table_code if table else None,
+                 'live_score': getattr(table, 'tournament_live_score', None)}
                 for row in event.bracket()
+                for table in (assigned.get(row['assignment_id']),)
             ]
         if event and event.champions:
             tournament['champions'] = event.champions
@@ -212,7 +219,27 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
         await publish(tournament)
         return {'tournament': view(tournament, account)}
 
-    async def completed(table, points, hands, winner):
+    def history(tournament_id):
+        load = getattr(tournaments.repository, 'game_history', None)
+        return load(tournament_id) if load else []
+
+    def history_entry(game):
+        winner = game['winning_team_index']
+        scores = game['team_scores']
+        winning_side = winner if winner in (0, 1) else 0
+        sides = [[p for p in game['participant_snapshots'] if p['team_index'] == side]
+                 for side in range(2)]
+        stage = game['stage']
+        if stage == 'knockout':
+            matchup = game['matchup']
+            stage = 'semifinal' if matchup in ('1-4', '2-3', 'semifinal-1', 'semifinal-2') else 'final'
+        return dict(id=game['id'], date=game['completed_at'], stage=stage,
+                    qualification_round=game['qualification_round'], winners=sides[winning_side],
+                    others=sides[1 - winning_side],
+                    draw=winner not in (0, 1),
+                    score='–'.join(str(scores[side]) for side in (winning_side, 1 - winning_side)))
+
+    async def completed(table, points, hands, winner, rounds_played):
         tid = table.tournament_id
         event = competitions.get(tid)
         if not event or event.stage not in ('qualification', 'knockout'):
@@ -221,6 +248,14 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
                               if value is table), None)
         if assignment_id is None:
             return
+        if assignment_id in event.queue.results:
+            return
+        stage = event.stage
+        assignment = event.queue.assignments[assignment_id]
+        match = event.match_assignments.get(assignment_id)
+        save = getattr(tournaments.repository, 'save_game', None)
+        if save:
+            event = deepcopy(event)
         result = Result(points, hands, winner)
         if event.stage == 'knockout':
             if assignment_id in event.match_assignments and all(seat.member_id in table.members for seat in table.seats):
@@ -232,8 +267,36 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
             event.record_knockout(assignment_id, result)
         else:
             event.record_qualification(assignment_id, result)
+        if save:
+            players = getattr(table, 'tournament_game_players', None)
+            if players is None:
+                names = {member.account_id: member.name for member in table.members.values()}
+                players = [(account, names.get(account)) for account in assignment.seats]
+            participants = [
+                dict(account_id=account, display_name=name, seat_index=index,
+                     team_index=index % 2, is_guest=False, username=None)
+                for index, (account, name) in enumerate(players)
+            ]
+            summary = dict(
+                stage='completed' if event.champions else 'interrupted',
+                standings=event.standings(),
+                bracket=[dict(row, table_code=None) for row in event.bracket()] if event.teams else [],
+                champions=event.champions or [],
+            )
+            save(tid, assignment_id, stage, event.round if match is None else None,
+                 '-'.join(map(str, match)) if match else None, table.active_game_id,
+                 table.table_code, tournaments.clock(), points, winner, rounds_played, participants, summary)
+            competitions[tid] = event
         await advance(tournament_contexts[tid], event)
 
+    async def update_live_score(table, points):
+        tournament = tournament_contexts.get(table.tournament_id)
+        if tournament is None or getattr(table, 'tournament_live_score', None) == points:
+            return
+        table.tournament_live_score = points
+        await publish(tournament)
+
+    sio.tournament_live_score = update_live_score
     sio.tournament_game_completed = completed
     tournament_contexts = {}
 
@@ -285,6 +348,8 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
     async def start_tournament(data):
         def authorize(account, payload):
             tournament = tournaments.details(account, payload.get('tournament_id'))
+            if stored_summary(tournament['id']) is not None:
+                raise ValueError('This tournament already has recorded games.')
             group = tournaments.groups.get_group(account, tournament['group_id'])
             if group.membership_for(account).role.value not in ('owner', 'admin'):
                 raise PermissionError('Only group admins may start tournaments.')
@@ -339,16 +404,66 @@ def register_tournament_events(sio, accounts, tournaments, auth, tables=None):
 
     @sio.on('tournament:list')
     async def list_tournaments(sid, data=None):
-        return await request(data, lambda account, p: {'tournaments': tournaments.list_details(account, p.get('group_id'))})
+        def load(account, payload):
+            items = tournaments.list_details(account, payload.get('group_id'))
+            for item in items:
+                event = competitions.get(item['id'])
+                saved = stored_summary(item['id']) if event is None else None
+                champions = event.champions if event else (saved or {}).get('champions')
+                if champions:
+                    item.update(stage='completed', champions=champions)
+            return {'tournaments': items}
+
+        return await request(data, load)
 
     @sio.on('tournament:get')
     async def get(sid, data=None):
-        response = await request(data, lambda account, p: {'tournament': tournaments.details(account, p.get('tournament_id')), 'account': account})
+        def load(account, payload):
+            tournament = tournaments.details(account, payload.get('tournament_id'))
+            if tournament['id'] not in competitions:
+                summary = stored_summary(tournament['id'])
+                if summary is not None:
+                    tournament.update(summary, stage=summary.get('stage', 'interrupted'))
+                    standings = summary.get('standings', [])
+                    if any('points_per_game' not in player for player in standings):
+                        points, played = Counter(), Counter()
+                        for game in history(tournament['id']):
+                            if game['stage'] != 'qualification':
+                                continue
+                            for participant in game['participant_snapshots']:
+                                player = participant.get('account_id')
+                                if player is not None:
+                                    played[player] += 1
+                                    points[player] += game['team_scores'][participant['team_index']]
+                        tournament['standings'] = [
+                            dict(player, points_per_game=points[player['account_id']] / played[player['account_id']]
+                                 if played[player['account_id']] else None)
+                            for player in standings
+                        ]
+            return {'tournament': tournament, 'account': account}
+
+        response = await request(data, load)
         if 'error' in response:
             return response
         tournament, account = response['tournament'], response['account']
         viewers[sid] = (tournament['id'], account, monotonic())
         return {'tournament': view(tournament, account)}
+
+    @sio.on('tournament:history')
+    async def tournament_history(sid, data=None):
+        def load(account, payload):
+            tournament = tournaments.get(account, payload.get('tournament_id'))
+            page = payload.get('page', 1)
+            if type(page) is not int or page < 1:
+                raise ValueError('Invalid history page.')
+            games = history(tournament.id)
+            page_size = 10
+            total_pages = max(1, (len(games) + page_size - 1) // page_size)
+            page = min(page, total_pages)
+            offset = (page - 1) * page_size
+            return {'history': dict(entries=[history_entry(game) for game in games[offset:offset + page_size]],
+                                    page=page, total_pages=total_pages, total_games=len(games))}
+        return await request(data, load)
 
     @sio.on('tournament:set_attendance_intent')
     async def set_attendance_intent(sid, data=None):
